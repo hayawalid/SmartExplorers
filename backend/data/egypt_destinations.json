@@ -1,0 +1,804 @@
+{
+  "destinations": [
+    {
+      "name": "Cairo",
+      "attractions": [
+        "Egyptian Museum",
+        "Citadel of Saladin",
+        "Al‑Azhar Mosque",
+        "Coptic Museum",
+        "Khan El Khalili Bazaar",
+        "Mosque of Muhammad Ali"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 30, "mid": 70, "high": 150 },
+      "description": "Egypt’s bustling capital blends millennia of history with vibrant modern life. From ancient mosques to world‑class museums, Cairo is a gateway to the country’s treasures.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Giza",
+      "attractions": [
+        "Great Pyramid of Khufu",
+        "Pyramid of Khafre",
+        "Pyramid of Menkaure",
+        "Great Sphinx",
+        "Solar Boat Museum",
+        "Giza Plateau Sound and Light Show"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 35, "mid": 80, "high": 160 },
+      "description": "Home to the iconic pyramids, Giza offers an unrivaled glimpse of ancient engineering. The site’s open‑air museums make it easily accessible for all visitors.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Alexandria",
+      "attractions": [
+        "Bibliotheca Alexandrina",
+        "Qaitbay Citadel",
+        "Roman Amphitheatre",
+        "Montaza Palace Gardens",
+        "Royal Jewelry Museum",
+        "Pompey's Pillar"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 30, "mid": 75, "high": 140 },
+      "description": "Mediterranean breezes and layered history define Egypt’s second city. Its waterfront sites and Greco‑Roman relics provide a relaxed cultural escape.",
+      "best_time": "Mar‑Jun"
+    },
+    {
+      "name": "Luxor",
+      "attractions": [
+        "Karnak Temple Complex",
+        "Valley of the Kings",
+        "Luxor Temple",
+        "Hatshepsut Temple at Deir el‑Bahri",
+        "Mummification Museum",
+        "Colossi of Memnon"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 40, "mid": 85, "high": 170 },
+      "description": "Often called the world’s greatest open‑air museum, Luxor is a treasure trove of New Kingdom monuments. Its hot desert climate is offset by cool evenings along the Nile.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Aswan",
+      "attractions": [
+        "Philae Temple",
+        "Aswan High Dam",
+        "Unfinished Obelisk",
+        "Nubian Museum",
+        "Elephantine Island",
+        "Abu Simbel Temples (day‑trip)"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 45, "mid": 90, "high": 180 },
+      "description": "Set on the Nile’s first cataract, Aswan offers dramatic scenery and Nubian culture. River cruises from here continue the classic Egyptian itinerary.",
+      "best_time": "Oct‑Mar"
+    },
+    {
+      "name": "Hurghada",
+      "attractions": [
+        "Hurghada Marina",
+        "Giftun Islands",
+        "Marine Life Aquarium",
+        "Cave of the Swimmers",
+        "El Dahar Old Town",
+        "Hurghada Grand Aquarium"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 35, "mid": 80, "high": 150 },
+      "description": "This Red Sea resort town is a hub for snorkeling, diving and beach relaxation. Its well‑developed tourist infrastructure makes travel easy for families and solo adventurers.",
+      "best_time": "May‑Oct"
+    },
+    {
+      "name": "Sharm El Sheikh",
+      "attractions": [
+        "Ras Mohammed National Park",
+        "Naama Bay",
+        "St. Catherine’s Monastery (day‑trip)",
+        "Al Mansourah Aquarium",
+        "Old Market (Sharm Souk)",
+        "Strait of Tiran Diving Sites"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 40, "mid": 85, "high": 160 },
+      "description": "World‑renowned for its crystal‑clear waters, Sharm is a premier diving destination. The town also offers vibrant nightlife and desert excursions.",
+      "best_time": "Oct‑May"
+    },
+    {
+      "name": "Dahab",
+      "attractions": [
+        "Blue Hole",
+        "Mount Sinai (day‑trip)",
+        "Ras Abu Galum",
+        "Dahab Lagoon",
+        "St. John’s Church",
+        "Dahab Diving Center"
+      ],
+      "safety_level": "medium",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 30, "mid": 70, "high": 130 },
+      "description": "A laid‑back alternative to Sharm, Dahab attracts backpackers and divers alike. Its small‑town vibe and stunning reefs are best explored with a local guide.",
+      "best_time": "Oct‑May"
+    },
+    {
+      "name": "Marsa Alam",
+      "attractions": [
+        "Elphinstone Reef",
+        "Daha Island",
+        "Marsa Alam Museum",
+        "Wadi El‑Gemal National Park",
+        "Port Ghalib",
+        "Abu Dabbab Marine Reserve"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 35, "mid": 80, "high": 150 },
+      "description": "Located on Egypt’s far‑south Red Sea coast, Marsa Alam offers pristine coral and turtle nesting sites. Its remote location guarantees uncrowded beaches.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "El Gouna",
+      "attractions": [
+        "Mangroves of El Gouna",
+        "Lagoon Golf Club",
+        "El Gouna Marina",
+        "Al‑Marsa Club",
+        "Hippodrome",
+        "Watersport Centre"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 45, "mid": 95, "high": 180 },
+      "description": "A purpose‑built luxury resort, El Gouna blends modern architecture with natural lagoons. It is ideal for families seeking upscale amenities and water sports.",
+      "best_time": "Oct‑May"
+    },
+    {
+      "name": "Soma Bay",
+      "attractions": [
+        "Soma Bay Golf Resort",
+        "Coral Reef Snorkeling",
+        "Kite Beach",
+        "Marsa Alam Whale Shark Spotting",
+        "Soma Bay Spa",
+        "Sultan’s Garden"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 40, "mid": 90, "high": 170 },
+      "description": "A tranquil beachfront enclave, Soma Bay is famed for its luxury hotels and world‑class golf. The clear waters make it a hotspot for diving and kite‑surfing.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Ain Sokhna",
+      "attractions": [
+        "Ain Sokhna Beach",
+        "Al‑Rashidiya Castle Ruins",
+        "Red Sea Marine Club",
+        "Aqua Park",
+        "Sokhna Golf Club",
+        "Sokhna Marina"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 30, "mid": 70, "high": 130 },
+      "description": "Just a two‑hour drive from Cairo, Ain Sokhna is a quick escape to the Red Sea. Its well‑maintained resorts cater to weekend travelers.",
+      "best_time": "Oct‑May"
+    },
+    {
+      "name": "Siwa Oasis",
+      "attractions": [
+        "Shali Fortress",
+        "Temple of the Oracle",
+        "Siwa House Museum",
+        "Cleopatra’s Bath",
+        "Mountain of the Dead",
+        "Sebkha Siwa (salt lake)"
+      ],
+      "safety_level": "medium",
+      "accessibility": "low",
+      "avg_daily_budget": { "low": 25, "mid": 60, "high": 120 },
+      "description": "Remote and serene, Siwa preserves a unique Berber culture amid palm groves and salt flats. Guided tours are recommended due to its isolated location.",
+      "best_time": "Oct‑May"
+    },
+    {
+      "name": "Bahariya Oasis",
+      "attractions": [
+        "Black Desert (Black Sand Dunes)",
+        "White Desert (Chalk Formations)",
+        "Crystal Mountain",
+        "Qasr El‑Maqam (Ancient Temple)",
+        "Oasis Museum",
+        "Mound of the Dead"
+      ],
+      "safety_level": "medium",
+      "accessibility": "low",
+      "avg_daily_budget": { "low": 20, "mid": 55, "high": 110 },
+      "description": "A gateway to Egypt’s spectacular desert landscapes, Bahariya offers surreal sand seas and ancient ruins. Travel by 4×4 with a local guide is advised.",
+      "best_time": "Oct‑Mar"
+    },
+    {
+      "name": "Kharga Oasis",
+      "attractions": [
+        "Karanak Mountain",
+        "Qasr Al‑Haj (Roman Fort)",
+        "El‑Qasr Al‑Rashid Mosque",
+        "Kharga Museum",
+        "Dakhla Springs",
+        "Sand Dunes of the Western Desert"
+      ],
+      "safety_level": "medium",
+      "accessibility": "low",
+      "avg_daily_budget": { "low": 20, "mid": 50, "high": 100 },
+      "description": "The largest of Egypt’s western oases, Kharga blends archaeological sites with stark desert beauty. Its remote position calls for organized tours.",
+      "best_time": "Oct‑Mar"
+    },
+    {
+      "name": "Dakhla Oasis",
+      "attractions": [
+        "Wadi El‑Kita (Cave Paintings)",
+        "Qasr Al‑Madrasa (Islamic School)",
+        "Aghurmi Village",
+        "Dakhla Museum",
+        "Al‑Hawanis Oasis",
+        "Sandstone Hills of El‑Qasr"
+      ],
+      "safety_level": "medium",
+      "accessibility": "low",
+      "avg_daily_budget": { "low": 20, "mid": 55, "high": 110 },
+      "description": "Dakhla’s palm‑filled valleys and ancient forts showcase a quiet side of Egyptian desert life. Visitors benefit from a local guide for navigation.",
+      "best_time": "Oct‑Mar"
+    },
+    {
+      "name": "Saint Catherine",
+      "attractions": [
+        "Mount Sinai",
+        "St. Catherine’s Monastery",
+        "Burnt Mountain (Jebel Kather)",
+        "Moses’ Spring",
+        "Hebron Church",
+        "Gebel El‑Ras (Ras al‑Tawil)"
+      ],
+      "safety_level": "medium",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 25, "mid": 65, "high": 130 },
+      "description": "Nestled at the foot of Egypt’s highest peak, this area is steeped in biblical lore and Byzantine art. Trekking to the summit is best done with an experienced guide.",
+      "best_time": "Oct‑May"
+    },
+    {
+      "name": "Nuweiba",
+      "attractions": [
+        "Nuweiba Beach",
+        "Ras Abu Musa Marine Reserve",
+        "Bedouin Market",
+        "Nuweiba Castle Ruins",
+        "Blue Hole (Dahab off‑shoot)",
+        "Desert Safari Points"
+      ],
+      "safety_level": "medium",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 30, "mid": 70, "high": 130 },
+      "description": "A quieter stretch of the Sinai coast, Nuweiba is favored by wind‑surfers and camel trekkers. Its simple accommodations keep costs low.",
+      "best_time": "Oct‑May"
+    },
+    {
+      "name": "Ras Sudr",
+      "attractions": [
+        "Ras Sudr Beach",
+        "Diving Center at El‑Gouna",
+        "World War II Memorial",
+        "Marine Reserve of the Red Sea",
+        "Bedouin Desert Camp",
+        "Kite‑Surfing Spot"
+      ],
+      "safety_level": "medium",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 30, "mid": 75, "high": 140 },
+      "description": "Located on the eastern Sinai coast, Ras Sudr offers uncrowded beaches and excellent water sports. The area is developing but still maintains a low‑key feel.",
+      "best_time": "Oct‑May"
+    },
+    {
+      "name": "Suez",
+      "attractions": [
+        "Suez Canal Authority Museum",
+        "Port Suez Lighthouse",
+        "Old Suez City (historic quarter)",
+        "Suez Canal Bridge",
+        "Lake Timsah",
+        "Suez Canal War Memorial"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 30, "mid": 70, "high": 130 },
+      "description": "The gateway between the Mediterranean and Red Sea, Suez is a bustling port city with industrial heritage. Its museums explain the canal’s pivotal role in world trade.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Port Said",
+      "attractions": [
+        "Port Said National Museum",
+        "Suez Canal Memorial",
+        "Al‑Mansur Mosque",
+        "British War Cemetery",
+        "Old Lighthouse (Port Said)",
+        "Fort Rif"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 30, "mid": 70, "high": 130 },
+      "description": "Founded during the canal’s construction, Port Said boasts European‑style architecture and vibrant markets. The city’s waterfront promenade offers scenic canal views.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Rosetta",
+      "attractions": [
+        "Rosetta Museum",
+        "Al‑Mansour Mosque",
+        "Rosetta Fort (Fort of the Nile)",
+        "Al‑Maqam Al‑Safi Shrine",
+        "Coptic Church of St. George",
+        "Historic Bazaar"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 25, "mid": 60, "high": 120 },
+      "description": "Famed as the place where the Rosetta Stone was discovered, Rosetta blends historic sites with a quiet Nile setting. It is a pleasant day‑trip from Alexandria.",
+      "best_time": "Oct‑May"
+    },
+    {
+      "name": "Ismailia",
+      "attractions": [
+        "Ismailia Museum",
+        "Suez Canal Bridge (El‑Mansoura)",
+        "Lake Timsah Shoreline",
+        "Al‑Mansur Mosque",
+        "Old Railway Station",
+        "Nubian Village (Day Trip)"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 30, "mid": 70, "high": 130 },
+      "description": "Nestled on the western bank of the Suez Canal, Ismailia offers lush gardens and a relaxed riverfront atmosphere. Its colonial heritage is evident in the architecture.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Tanta",
+      "attractions": [
+        "Tanta Museum",
+        "El‑Galaa Square",
+        "Al‑Azhar University Branch",
+        "Tanta Mosque",
+        "St. Mark’s Coptic Church",
+        "Weekly Souk"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 25, "mid": 60, "high": 110 },
+      "description": "The capital of the Nile Delta’s agricultural heartland, Tanta is known for its bustling markets and the Mosque of Ahmad al-Badawi.",
+      "best_time": "Oct‑May"
+    },
+    {
+      "name": "Beni Suef",
+      "attractions": [
+        "Meidum Pyramid",
+        "Beni Suef Museum",
+        "Al‑Maqam Al‑Hassan Mosque",
+        "Karanak Temple (nearby)",
+        "Nasser Museum of Agriculture",
+        "Old Bazaar"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 25, "mid": 60, "high": 115 },
+      "description": "Located south of Cairo, Beni Suef serves as a gateway to the southern pyramids and Middle Egypt sites.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Minya",
+      "attractions": [
+        "Beni Hassan Tombs",
+        "Abydos Temple (day‑trip)",
+        "Minya Museum",
+        "El‑Moez Temple",
+        "Qasr el‑Waqf (Pyramid)",
+        "Old Coptic Church of St. George"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 25, "mid": 65, "high": 120 },
+      "description": "Minya is a cultural crossroads where ancient Egyptian tombs meet Coptic heritage. Often called the 'Bride of Upper Egypt'.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Fayoum",
+      "attractions": [
+        "Wadi El‑Rayan Waterfalls",
+        "Qasr Qarun (Ptolemaic Temple)",
+        "Lake Qarun",
+        "Fayoum Pottery Village",
+        "Hawara Pyramid (Lahun)",
+        "Fayoum Oasis Museum"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 30, "mid": 70, "high": 130 },
+      "description": "Just a short drive from Cairo, Fayoum offers a mix of natural beauty and ancient sites like Wadi El-Hitan.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Mansoura",
+      "attractions": [
+        "Mansoura Museum",
+        "Al‑Mansoura Mosque",
+        "Al‑Shams Square",
+        "Mansoura University Campus",
+        "Old City Gate (Bab Al‑Bahr)",
+        "Weekly Farmers’ Market"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 25, "mid": 60, "high": 115 },
+      "description": "A bustling Nile Delta city, Mansoura blends commercial activity with historic architecture and is famous for its medical centers.",
+      "best_time": "Oct‑May"
+    },
+    {
+      "name": "Zagazig",
+      "attractions": [
+        "Zagazig University Botanical Garden",
+        "Al‑Azhar Mosque (Zagazig)",
+        "Zagazig Museum of Folk Arts",
+        "Al‑Maqam Al‑Safi Shrine",
+        "Central Market",
+        "Nile Delta Canal Walk"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 25, "mid": 60, "high": 110 },
+      "description": "Serving as the capital of the Sharqia Governorate, Zagazig is a key agricultural hub near the ancient site of Bubastis.",
+      "best_time": "Oct‑May"
+    },
+    {
+      "name": "Sohag",
+      "attractions": [
+        "White Monastery (Deir el‑Abyad)",
+        "Red Monastery (Deir el‑Ahmar)",
+        "Sohag Museum",
+        "Al‑Sahabi Mosque",
+        "Nubian Village of Abydos",
+        "Sohag Bazaar"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 25, "mid": 65, "high": 120 },
+      "description": "Sohag is a gateway to Upper Egypt’s monastic heritage, featuring remarkable Coptic monasteries.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Asyut",
+      "attractions": [
+        "Asyut Museum",
+        "Al‑Khanqah Mosque",
+        "Monastery of the Virgin Mary at Qus",
+        "Asyut Barrage",
+        "Old City Wall Ruins",
+        "Nile River Promenade"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 25, "mid": 65, "high": 115 },
+      "description": "Situated on the bank of the Nile, Asyut is a historic trade centre and home to one of the largest universities in Egypt.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Qena",
+      "attractions": [
+        "Dendera Temple Complex",
+        "Qena Museum",
+        "Al‑Maqam Al‑Hussein Mosque",
+        "Nubian Village (Day Trip)",
+        "El‑Mansoura Market",
+        "Karnak West Bank Ruins"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 25, "mid": 65, "high": 120 },
+      "description": "Qena lies close to the famed Dendera Temple and is known for its beautiful pottery and Islamic architecture.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Edfu",
+      "attractions": [
+        "Temple of Horus at Edfu",
+        "Edfu Museum",
+        "Nile River Cruise Dock",
+        "Al‑Maqam Al‑Sufi Shrine",
+        "Old Market (Souk)",
+        "Desert Camp Outpost"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 30, "mid": 70, "high": 130 },
+      "description": "Home to Egypt’s best‑preserved Ptolemaic temple, Edfu offers a deep dive into ancient religious architecture.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Kom Ombo",
+      "attractions": [
+        "Temple of Sobek and Horus",
+        "Kom Ombo Museum",
+        "Nile River Viewpoint",
+        "Crocodile Museum",
+        "Felucca Dock",
+        "Upper Egypt Botanical Garden"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 30, "mid": 75, "high": 135 },
+      "description": "The double‑temple of Kom Ombo honors the crocodile god Sobek and falcon god Horus.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Abu Simbel",
+      "attractions": [
+        "Great Temple of Ramses II",
+        "Small Temple of Nefertari",
+        "Abu Simbel Museum",
+        "Lake Nasser Viewpoint",
+        "Nubian Village (Day‑trip)",
+        "International Visitor Center"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 35, "mid": 85, "high": 170 },
+      "description": "Carved into a mountainside, the Abu Simbel temples are a world-famous engineering marvel.",
+      "best_time": "Oct‑Mar"
+    },
+    {
+      "name": "Wadi El Hitan",
+      "attractions": [
+        "Fossil Whale Site",
+        "Wadi El‑Hitan Visitor Center",
+        "Climate Change Museum",
+        "Desert Safari Trails",
+        "Camel Trekking Base",
+        "Interpretive Trail Boards"
+      ],
+      "safety_level": "medium",
+      "accessibility": "low",
+      "avg_daily_budget": { "low": 20, "mid": 55, "high": 110 },
+      "description": "A UNESCO World Heritage site, Wadi El‑Hitan preserves prehistoric whale fossils in a stunning desert landscape.",
+      "best_time": "Oct‑Mar"
+    },
+    {
+      "name": "Marsa Matrouh",
+      "attractions": [
+        "Agiba Beach",
+        "Cleopatra’s Beach",
+        "Rommel's Cave Museum",
+        "Marsa Matrouh Marina",
+        "Lover's Beach",
+        "Sidi el-Awwam Mosque"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 30, "mid": 75, "high": 140 },
+      "description": "On the Mediterranean coast, Marsa Matrouh offers turquoise waters and soft white sands.",
+      "best_time": "Jun‑Sep"
+    },
+    {
+      "name": "Al Alamein",
+      "attractions": [
+        "Al Alamein War Museum",
+        "Commonwealth War Graves Cemetery",
+        "German and Italian Memorials",
+        "Mediterranean Beachfront",
+        "Al Alamein Golf Club",
+        "New Alamein City"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 30, "mid": 80, "high": 150 },
+      "description": "Famous for WWII battles, Al Alamein now features luxury resorts and solemn war memorials.",
+      "best_time": "May‑Oct"
+    },
+    {
+      "name": "Dendera",
+      "attractions": [
+        "Temple of Hathor",
+        "Dendera Museum",
+        "Sacred Lake",
+        "Mammisi (Birth House)",
+        "Dendera Zodiac (replica)",
+        "Christian Basilica ruins"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 25, "mid": 65, "high": 120 },
+      "description": "Dominated by an exquisitely preserved temple dedicated to the goddess Hathor.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Wadi El Natrun",
+      "attractions": [
+        "Monastery of Saint Macarius",
+        "Paromeos Monastery",
+        "Monastery of Saint Pishoy",
+        "Syrian Monastery",
+        "Salt Lakes",
+        "Natrun Valley Sands"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 20, "mid": 50, "high": 100 },
+      "description": "The birthplace of Christian monasticism, home to four ancient and active Coptic monasteries.",
+      "best_time": "Oct‑May"
+    },
+    {
+      "name": "Bilbeis",
+      "attractions": [
+        "Sadat Quraish Mosque",
+        "Bilbeis Bridge",
+        "Sharqia Horse Festival grounds",
+        "Ancient Trade Route Marker",
+        "Local Cotton Markets",
+        "Nile Delta Canals"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 15, "mid": 40, "high": 80 },
+      "description": "One of the oldest cities in Egypt, home to the first mosque built in Africa.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Abusir",
+      "attractions": [
+        "Pyramid of Sahure",
+        "Pyramid of Neferirkare",
+        "Pyramid of Niuserre",
+        "Mastaba of Ptahshepses",
+        "Abusir Lake",
+        "Sun Temple of Userkaf"
+      ],
+      "safety_level": "high",
+      "accessibility": "low",
+      "avg_daily_budget": { "low": 25, "mid": 60, "high": 110 },
+      "description": "An Old Kingdom necropolis featuring rare sun temples and unique pyramid structures.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Saqqara",
+      "attractions": [
+        "Step Pyramid of Djoser",
+        "Pyramid of Unas",
+        "Serapeum of Saqqara",
+        "Tomb of Kagemni",
+        "Imhotep Museum",
+        "Tomb of Ty"
+      ],
+      "safety_level": "high",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 30, "mid": 70, "high": 140 },
+      "description": "Egypt's oldest and largest necropolis, showcasing the evolution of pyramid building.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Dahshur",
+      "attractions": [
+        "Bent Pyramid",
+        "Red Pyramid",
+        "Black Pyramid (view only)",
+        "Pyramid of Amenemhat III",
+        "Dahshur Lake",
+        "Local Date Groves"
+      ],
+      "safety_level": "high",
+      "accessibility": "low",
+      "avg_daily_budget": { "low": 25, "mid": 60, "high": 120 },
+      "description": "A tranquil pyramid field featuring the Red Pyramid, the world's first successful smooth-sided pyramid.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Memphis",
+      "attractions": [
+        "Colossus of Ramses II",
+        "Alabaster Sphinx",
+        "Temple of Ptah",
+        "Embalming House of Apis Bulls",
+        "Open Air Museum",
+        "Village of Mit Rahina"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 25, "mid": 60, "high": 110 },
+      "description": "The first capital of United Egypt, now an open-air museum housing colossal statues.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Damietta",
+      "attractions": [
+        "Ras El Bar Resort",
+        "Damietta Furniture Market",
+        "Al-Bahr Mosque",
+        "Nile-Mediterranean Meeting Point",
+        "Damietta Port",
+        "Ezbet El-Borg Lighthouse"
+      ],
+      "safety_level": "high",
+      "accessibility": "high",
+      "avg_daily_budget": { "low": 25, "mid": 60, "high": 130 },
+      "description": "A port city where the Nile meets the sea, famous for its wood craftsmanship and furniture.",
+      "best_time": "May‑Sep"
+    },
+    {
+      "name": "Tell el-Amarna",
+      "attractions": [
+        "Royal Tomb of Akhenaten",
+        "North Tombs",
+        "South Tombs",
+        "Small Aten Temple",
+        "Great Aten Temple",
+        "Boundary Stelae"
+      ],
+      "safety_level": "medium",
+      "accessibility": "low",
+      "avg_daily_budget": { "low": 20, "mid": 50, "high": 100 },
+      "description": "The short-lived capital of Pharaoh Akhenaten, dedicated to the sun disk Aten.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Abydos",
+      "attractions": [
+        "Temple of Seti I",
+        "Osireion",
+        "Temple of Ramses II",
+        "Shunet el-Zebib",
+        "Umm el-Qa'ab",
+        "Abydos Archaeological Park"
+      ],
+      "safety_level": "medium",
+      "accessibility": "moderate",
+      "avg_daily_budget": { "low": 25, "mid": 60, "high": 120 },
+      "description": "One of the most sacred sites of ancient Egypt, center of the cult of Osiris.",
+      "best_time": "Oct‑Apr"
+    },
+    {
+      "name": "Kharga",
+      "attractions": [
+        "Temple of Hibis",
+        "Necropolis of Al-Bagawat",
+        "Temple of Nadura",
+        "Kharga Museum",
+        "Qasr el-Ghueida",
+        "Ain Umm el-Dabadib"
+      ],
+      "safety_level": "medium",
+      "accessibility": "low",
+      "avg_daily_budget": { "low": 20, "mid": 50, "high": 100 },
+      "description": "The capital of the New Valley, home to the beautifully preserved Temple of Hibis.",
+      "best_time": "Oct‑Mar"
+    },
+    {
+      "name": "Dakhla",
+      "attractions": [
+        "Al-Qasr Medieval Village",
+        "Deir el-Hagar Temple",
+        "Muzawaka Tombs",
+        "Mut Ethnographical Museum",
+        "Bir Talata Hot Springs",
+        "Balat Old Town"
+      ],
+      "safety_level": "medium",
+      "accessibility": "low",
+      "avg_daily_budget": { "low": 20, "mid": 50, "high": 100 },
+      "description": "Famed for its mud-brick medieval village and lush date palm groves.",
+      "best_time": "Oct‑Mar"
+    }
+  ]
+}
