@@ -2,6 +2,7 @@ import os
 import json
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, date
+from pathlib import Path
 
 try:
     from groq import Groq
@@ -40,7 +41,7 @@ class ItineraryGenerator:
             
             # Initialize Groq client
             self.client = Groq(api_key=api_key)
-            # Use Llama 3.1 70B - excellent for structured output
+            # Use Llama 3.3 70B - excellent for structured output
             self.model = "llama-3.3-70b-versatile"
             
             print(f"✓ Groq client initialized successfully with model: {self.model}")
@@ -48,43 +49,63 @@ class ItineraryGenerator:
         except Exception as e:
             raise ValueError(f"Failed to initialize Groq client: {str(e)}")
         
-        # Egypt-specific knowledge base
-        self.egypt_destinations = {
+        # Load Egypt destinations from JSON file
+        self.egypt_destinations = self._load_destinations_data()
+        
+    def _load_destinations_data(self) -> Dict[str, Any]:
+        """Load Egypt destinations from JSON file"""
+        try:
+            # Get the path to the JSON file
+            current_dir = Path(__file__).parent.parent
+            json_path = current_dir / "data" / "egypt_destinations.json"
+            
+            if not json_path.exists():
+                print(f"⚠️  Warning: {json_path} not found, using minimal fallback data")
+                return self._get_fallback_destinations()
+            
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # Transform the data into a dictionary keyed by destination name
+            destinations_dict = {}
+            for dest in data.get("destinations", []):
+                destinations_dict[dest["name"]] = {
+                    "attractions": dest.get("attractions", []),
+                    "safety_level": dest.get("safety_level", "medium"),
+                    "accessibility": dest.get("accessibility", "moderate"),
+                    "avg_daily_budget": dest.get("avg_daily_budget", {"low": 30, "mid": 70, "high": 150}),
+                    "description": dest.get("description", ""),
+                    "best_time": dest.get("best_time", "Oct-Apr")
+                }
+            
+            print(f"✓ Loaded {len(destinations_dict)} destinations from JSON file")
+            return destinations_dict
+            
+        except Exception as e:
+            print(f"⚠️  Error loading destinations JSON: {e}")
+            print("   Using fallback data instead")
+            return self._get_fallback_destinations()
+    
+    def _get_fallback_destinations(self) -> Dict[str, Any]:
+        """Fallback destinations data if JSON loading fails"""
+        return {
             "Cairo": {
-                "attractions": ["Pyramids of Giza", "Egyptian Museum", "Khan el-Khalili", "Citadel of Saladin", "Al-Azhar Mosque"],
+                "attractions": ["Pyramids of Giza", "Egyptian Museum", "Khan el-Khalili", "Citadel of Saladin"],
                 "safety_level": "high",
-                "accessibility": "moderate",
+                "accessibility": "high",
                 "avg_daily_budget": {"low": 30, "mid": 70, "high": 150}
             },
             "Luxor": {
                 "attractions": ["Valley of the Kings", "Karnak Temple", "Luxor Temple", "Hatshepsut Temple"],
                 "safety_level": "high",
                 "accessibility": "moderate",
-                "avg_daily_budget": {"low": 25, "mid": 60, "high": 120}
+                "avg_daily_budget": {"low": 40, "mid": 85, "high": 170}
             },
             "Aswan": {
                 "attractions": ["Philae Temple", "Abu Simbel", "Nubian Village", "Aswan High Dam"],
                 "safety_level": "high",
-                "accessibility": "low",
-                "avg_daily_budget": {"low": 25, "mid": 55, "high": 110}
-            },
-            "Alexandria": {
-                "attractions": ["Bibliotheca Alexandrina", "Qaitbay Citadel", "Catacombs", "Montaza Palace"],
-                "safety_level": "high",
-                "accessibility": "high",
-                "avg_daily_budget": {"low": 28, "mid": 65, "high": 130}
-            },
-            "Hurghada": {
-                "attractions": ["Red Sea Diving", "Giftun Island", "Desert Safari", "Marina"],
-                "safety_level": "high",
-                "accessibility": "high",
-                "avg_daily_budget": {"low": 35, "mid": 80, "high": 180}
-            },
-            "Sharm El-Sheikh": {
-                "attractions": ["Ras Mohammed National Park", "Naama Bay", "St. Catherine Monastery"],
-                "safety_level": "high",
-                "accessibility": "high",
-                "avg_daily_budget": {"low": 40, "mid": 90, "high": 200}
+                "accessibility": "moderate",
+                "avg_daily_budget": {"low": 45, "mid": 90, "high": 180}
             }
         }
         
@@ -100,13 +121,13 @@ class ItineraryGenerator:
         if total_days > 30:
             raise ValueError("Maximum trip duration is 30 days")
         
-        # Build AI prompt
+        # Build AI prompt with real destination data
         prompt = self._build_generation_prompt(request, total_days)
         system_prompt = self._get_system_prompt()
         
         # Call Groq API with comprehensive error handling
         try:
-            print(f"🤖 Calling Groq API (Llama 3.1) for {total_days}-day itinerary...")
+            print(f"🤖 Calling Groq API (Llama 3.3) for {total_days}-day itinerary...")
             
             # Groq uses same interface as OpenAI
             response = self.client.chat.completions.create(
@@ -185,7 +206,22 @@ When creating itineraries, you:
 CRITICAL: You MUST respond with valid JSON only. No markdown, no explanations, just pure JSON."""
 
     def _build_generation_prompt(self, request: ItineraryGenerationRequest, total_days: int) -> str:
-        """Build detailed prompt for itinerary generation"""
+        """Build detailed prompt for itinerary generation with real destination data"""
+        
+        # Get destination information from loaded JSON
+        destination_info = []
+        for dest in request.destinations:
+            if dest in self.egypt_destinations:
+                dest_data = self.egypt_destinations[dest]
+                attractions_list = ", ".join(dest_data.get("attractions", [])[:5])  # Top 5
+                destination_info.append(
+                    f"{dest}: {dest_data.get('description', '')} "
+                    f"Popular attractions: {attractions_list}. "
+                    f"Safety level: {dest_data.get('safety_level', 'medium')}. "
+                    f"Best time: {dest_data.get('best_time', 'Oct-Apr')}."
+                )
+        
+        destinations_context = "\n".join(destination_info) if destination_info else ""
         
         accessibility_text = ""
         if request.accessibility_requirements:
@@ -220,6 +256,9 @@ Group Size: {request.group_size} people
 Budget: {budget_text}{accessibility_text}
 Interests: {', '.join(request.interests) if request.interests else 'general tourism'}
 Dietary Restrictions: {', '.join(request.dietary_restrictions) if request.dietary_restrictions else 'none'}{safety_context}
+
+Destination Context:
+{destinations_context}
 
 Respond with ONLY valid JSON in this exact structure (no markdown, no code blocks):
 {{
@@ -279,7 +318,8 @@ Important guidelines:
 4. Account for Egyptian business hours (many close 14:00-16:00)
 5. Consider Friday prayer times (12:00-14:00)
 6. Include specific GPS coordinates for each location
-7. Provide practical safety tips, not generic warnings"""
+7. Provide practical safety tips, not generic warnings
+8. Use the destination information provided above for authentic recommendations"""
 
         return prompt
     
