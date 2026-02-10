@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
+import '../services/chat_api_service.dart';
+import '../models/chat_models.dart' as models;
 
 class AIAssistantScreen extends StatefulWidget {
   const AIAssistantScreen({Key? key}) : super(key: key);
@@ -11,6 +13,11 @@ class AIAssistantScreen extends StatefulWidget {
 
 class _AIAssistantScreenState extends State<AIAssistantScreen> {
   final TextEditingController _messageController = TextEditingController();
+  final ChatApiService _chatService = ChatApiService();
+  String? _conversationId;
+  bool _isLoading = false;
+  bool _isConnected = false;
+
   final List<ChatMessage> _messages = [
     ChatMessage(
       text:
@@ -21,55 +28,94 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _checkConnection();
+  }
+
+  Future<void> _checkConnection() async {
+    final isConnected = await _chatService.testConnection();
+    setState(() {
+      _isConnected = isConnected;
+    });
+
+    if (!isConnected) {
+      _showErrorSnackBar('Unable to connect to server. Using offline mode.');
+    }
+  }
+
+  @override
   void dispose() {
     _messageController.dispose();
+    _chatService.dispose();
     super.dispose();
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
+
+    final userMessage = _messageController.text.trim();
+    _messageController.clear();
 
     setState(() {
       _messages.add(
-        ChatMessage(
-          text: _messageController.text,
-          isUser: true,
-          timestamp: DateTime.now(),
-        ),
+        ChatMessage(text: userMessage, isUser: true, timestamp: DateTime.now()),
       );
+      _isLoading = true;
     });
 
-    final userMessage = _messageController.text;
-    _messageController.clear();
+    try {
+      // Call the real API
+      final response = await _chatService.sendMessage(
+        message: userMessage,
+        conversationId: _conversationId,
+        userContext: {'first_time_egypt': true, 'traveling_alone': false},
+      );
 
-    // Simulate AI response
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() {
-          _messages.add(
-            ChatMessage(
-              text: _getAIResponse(userMessage),
-              isUser: false,
-              timestamp: DateTime.now(),
-            ),
-          );
-        });
-      }
-    });
+      // Store conversation ID for context
+      _conversationId = response.conversationId;
+
+      setState(() {
+        _messages.add(
+          ChatMessage(
+            text: response.message,
+            isUser: false,
+            timestamp: response.timestamp,
+            suggestions: response.suggestions,
+          ),
+        );
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _messages.add(
+          ChatMessage(
+            text:
+                "Sorry, I'm having trouble connecting to the server. Please check your connection and try again.\n\nError: ${e.toString()}",
+            isUser: false,
+            timestamp: DateTime.now(),
+            isError: true,
+          ),
+        );
+      });
+    }
   }
 
-  String _getAIResponse(String message) {
-    final lower = message.toLowerCase();
-    if (lower.contains('pyramid') || lower.contains('giza')) {
-      return "The Pyramids of Giza are Egypt's most iconic landmarks! 🏛️\n\nI recommend:\n• Visit early morning (6-8 AM) to avoid crowds\n• Hire a verified guide for deeper insights\n• Don't miss the Solar Boat Museum\n\nWould you like me to find a top-rated guide for you?";
-    } else if (lower.contains('safe') || lower.contains('emergency')) {
-      return "Your safety is our priority! 🛡️\n\nFor emergencies:\n• Use the panic button in the Safety tab\n• Emergency: 122 (Police), 123 (Ambulance)\n• Your location is shared with emergency contacts\n\nI'm here 24/7 if you need assistance.";
-    } else if (lower.contains('food') ||
-        lower.contains('eat') ||
-        lower.contains('restaurant')) {
-      return "Egyptian cuisine is amazing! 🍽️\n\nMust-try dishes:\n• Koshari - National dish\n• Ful Medames - Traditional breakfast\n• Molokhia - Green soup\n• Um Ali - Delicious dessert\n\nWant me to recommend verified restaurants near you?";
+  void _showErrorSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
-    return "I'd be happy to help with that! Let me find the best options for you. Is there anything specific you'd like to know about exploring Egypt safely?";
+  }
+
+  void _useSuggestion(String suggestion) {
+    _messageController.text = suggestion;
   }
 
   @override
@@ -99,8 +145,11 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                   horizontal: 16,
                   vertical: 20,
                 ),
-                itemCount: _messages.length,
+                itemCount: _messages.length + (_isLoading ? 1 : 0),
                 itemBuilder: (context, index) {
+                  if (index == _messages.length && _isLoading) {
+                    return _buildLoadingIndicator(isDark);
+                  }
                   return _buildMessageBubble(
                     _messages[index],
                     isDark,
@@ -116,6 +165,51 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
 
             // Bottom padding for nav bar
             const SizedBox(height: 100),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingIndicator(bool isDark) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF2C2C2E) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color:
+                isDark
+                    ? Colors.white.withOpacity(0.2)
+                    : const Color(0xFFE5E5EA),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  isDark ? Colors.white70 : Colors.black54,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'AI is thinking...',
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? Colors.white70 : Colors.black54,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ],
         ),
       ),
@@ -205,23 +299,99 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     Color cardColor,
     Color textColor,
   ) {
-    return Align(
-      alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
+    return Column(
+      crossAxisAlignment:
+          message.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Align(
+          alignment:
+              message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75,
+            ),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient:
+                  message.isUser
+                      ? const LinearGradient(
+                        colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                      )
+                      : null,
+              color:
+                  message.isUser
+                      ? null
+                      : (message.isError ?? false)
+                      ? Colors.red.withOpacity(0.1)
+                      : cardColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color:
+                    (message.isError ?? false)
+                        ? Colors.red.withOpacity(0.5)
+                        : isDark
+                        ? Colors.white.withOpacity(0.2)
+                        : const Color(0xFFE5E5EA),
+                width: 1,
+              ),
+              boxShadow:
+                  !isDark && !message.isUser
+                      ? [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                      : null,
+            ),
+            child: Text(
+              message.text,
+              style: TextStyle(
+                fontSize: 16,
+                color:
+                    message.isUser
+                        ? Colors.white
+                        : (message.isError ?? false)
+                        ? Colors.red
+                        : textColor.withOpacity(0.9),
+                fontFamily: 'SF Pro Text',
+                height: 1.5,
+              ),
+            ),
+          ),
         ),
-        padding: const EdgeInsets.all(16),
+        // Show suggestions if available
+        if (!message.isUser &&
+            message.suggestions != null &&
+            message.suggestions!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children:
+                  message.suggestions!
+                      .map(
+                        (suggestion) =>
+                            _buildSuggestionChip(suggestion, isDark),
+                      )
+                      .toList(),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSuggestionChip(String suggestion, bool isDark) {
+    return GestureDetector(
+      onTap: () => _useSuggestion(suggestion),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          gradient:
-              message.isUser
-                  ? const LinearGradient(
-                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                  )
-                  : null,
-          color: message.isUser ? null : cardColor,
-          borderRadius: BorderRadius.circular(20),
+          color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color:
                 isDark
@@ -229,24 +399,13 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                     : const Color(0xFFE5E5EA),
             width: 1,
           ),
-          boxShadow:
-              !isDark && !message.isUser
-                  ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                  : null,
         ),
         child: Text(
-          message.text,
+          suggestion,
           style: TextStyle(
-            fontSize: 16,
-            color: message.isUser ? Colors.white : textColor.withOpacity(0.9),
+            fontSize: 13,
+            color: isDark ? Colors.white70 : const Color(0xFF8E8E93),
             fontFamily: 'SF Pro Text',
-            height: 1.5,
           ),
         ),
       ),
@@ -351,10 +510,14 @@ class ChatMessage {
   final String text;
   final bool isUser;
   final DateTime timestamp;
+  final List<String>? suggestions;
+  final bool? isError;
 
   ChatMessage({
     required this.text,
     required this.isUser,
     required this.timestamp,
+    this.suggestions,
+    this.isError,
   });
 }

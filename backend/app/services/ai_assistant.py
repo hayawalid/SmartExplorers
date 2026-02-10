@@ -1,8 +1,8 @@
 """
-AI Travel Assistant Service
+AI Travel Assistant Service - Using Groq
 Egypt-specialized AI with safety focus for solo travelers, women, and people with disabilities
 """
-from openai import OpenAI
+from groq import Groq
 from typing import Optional, Dict, List
 import uuid
 from datetime import datetime
@@ -11,13 +11,13 @@ from app.config import settings
 
 class AIAssistantService:
     """
-    Egypt-specialized AI travel assistant service
+    Egypt-specialized AI travel assistant service using Groq
     Provides safety-focused travel advice with context awareness
     """
     
     def __init__(self):
-        """Initialize OpenAI client and conversation storage"""
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        """Initialize Groq client and conversation storage"""
+        self.client = Groq(api_key=settings.GROQ_API_KEY)
         # TODO: Replace with Redis or database in production
         self.conversations = {}  # In-memory storage for development
         
@@ -230,12 +230,19 @@ Special considerations:
             # Generate or use existing conversation ID
             conv_id = conversation_id or f"conv_{uuid.uuid4().hex[:12]}"
             
+            # Log user input
+            print("\n" + "=" * 80)
+            print("💬 USER INPUT:")
+            print("-" * 80)
+            print(message)
+            print("=" * 80)
+            
             # Build complete message array
             messages = self._build_messages(message, conversation_id, user_context)
             
-            # Call OpenAI API
+            # Call Groq API
             response = self.client.chat.completions.create(
-                model=settings.AI_MODEL,
+                model=settings.GROQ_MODEL,
                 messages=messages,
                 temperature=settings.AI_TEMPERATURE,
                 max_tokens=settings.AI_MAX_TOKENS
@@ -243,6 +250,12 @@ Special considerations:
             
             # Extract assistant response
             assistant_message = response.choices[0].message.content
+            
+            # Log AI response
+            print("\n🤖 AI RESPONSE:")
+            print("-" * 80)
+            print(assistant_message)
+            print("=" * 80 + "\n")
             
             # Store conversation in memory (replace with DB in production)
             if conv_id not in self.conversations:
