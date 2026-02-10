@@ -67,45 +67,59 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final backgroundColor =
+        isDark ? const Color(0xFF0A0A0F) : const Color(0xFFF2F2F7);
+    final cardColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A2E);
+    final subtitleColor = isDark ? Colors.white70 : const Color(0xFF6B7280);
+    final accentColor = const Color(0xFFF093FB);
+    final accentGradient = [const Color(0xFFF093FB), const Color(0xFFF5576C)];
+
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFf093fb), Color(0xFFf5576c), Color(0xFF0F4C75)],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              _buildHeader(context),
+      backgroundColor: backgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            _buildHeader(context, isDark, textColor, subtitleColor),
 
-              // Progress indicator
-              _buildProgressIndicator(),
+            // Progress indicator
+            _buildProgressIndicator(isDark, accentColor),
 
-              // Content
-              Expanded(
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: _buildCurrentStep(),
+            // Content
+            Expanded(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: _buildCurrentStep(
+                    isDark,
+                    textColor,
+                    subtitleColor,
+                    cardColor,
+                    accentColor,
                   ),
                 ),
               ),
+            ),
 
-              // Continue button
-              _buildContinueButton(),
-            ],
-          ),
+            // Continue button
+            _buildContinueButton(isDark, accentGradient),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(
+    BuildContext context,
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -125,18 +139,21 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
               height: 44,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.2),
+                color:
+                    isDark
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.black.withOpacity(0.05),
               ),
-              child: const Icon(CupertinoIcons.back, color: Colors.white),
+              child: Icon(CupertinoIcons.back, color: textColor),
             ),
           ),
           const Spacer(),
           Text(
             'Step ${_currentStep + 1} of 4',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontFamily: 'SF Pro Text',
+              color: subtitleColor,
               fontSize: 14,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -144,21 +161,25 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     );
   }
 
-  Widget _buildProgressIndicator() {
+  Widget _buildProgressIndicator(bool isDark, Color accentColor) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: List.generate(4, (index) {
+          final isActive = index <= _currentStep;
           return Expanded(
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
               margin: const EdgeInsets.symmetric(horizontal: 4),
               height: 4,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(2),
                 color:
-                    index <= _currentStep
-                        ? Colors.white
-                        : Colors.white.withOpacity(0.3),
+                    isActive
+                        ? accentColor
+                        : (isDark
+                            ? Colors.white.withOpacity(0.2)
+                            : Colors.black.withOpacity(0.1)),
               ),
             ),
           );
@@ -167,114 +188,182 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     );
   }
 
-  Widget _buildCurrentStep() {
+  Widget _buildCurrentStep(
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+    Color cardColor,
+    Color accentColor,
+  ) {
     switch (_currentStep) {
       case 0:
-        return _buildBasicInfoStep();
+        return _buildBasicInfoStep(isDark, textColor, subtitleColor, cardColor);
       case 1:
-        return _buildServiceTypeStep();
+        return _buildServiceTypeStep(
+          isDark,
+          textColor,
+          subtitleColor,
+          cardColor,
+          accentColor,
+        );
       case 2:
-        return _buildIdVerificationStep();
+        return _buildIdVerificationStep(
+          isDark,
+          textColor,
+          subtitleColor,
+          cardColor,
+          accentColor,
+        );
       case 3:
-        return _buildReviewStep();
+        return _buildReviewStep(
+          isDark,
+          textColor,
+          subtitleColor,
+          cardColor,
+          accentColor,
+        );
       default:
         return const SizedBox();
     }
   }
 
-  Widget _buildBasicInfoStep() {
+  Widget _buildBasicInfoStep(
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+    Color cardColor,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 20),
-        const Text(
+        Text(
           "Your professional profile",
           style: TextStyle(
             fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontFamily: 'SF Pro Display',
+            fontWeight: FontWeight.w700,
+            color: textColor,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'Tell travelers about yourself',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.white.withOpacity(0.8),
-            fontFamily: 'SF Pro Text',
-          ),
+          style: TextStyle(fontSize: 16, color: subtitleColor),
         ),
         const SizedBox(height: 40),
-        _buildGlassTextField(
+        _buildTextField(
           controller: _nameController,
           label: 'Full Legal Name',
           icon: CupertinoIcons.person_fill,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
         ),
-        const SizedBox(height: 20),
-        _buildGlassTextField(
+        const SizedBox(height: 16),
+        _buildTextField(
           controller: _phoneController,
           label: 'Phone Number',
           icon: CupertinoIcons.phone_fill,
           keyboardType: TextInputType.phone,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
         ),
-        const SizedBox(height: 20),
-        _buildGlassTextField(
+        const SizedBox(height: 16),
+        _buildTextField(
           controller: _bioController,
           label: 'Short Bio',
           icon: CupertinoIcons.text_quote,
           maxLines: 3,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
         ),
       ],
     );
   }
 
-  Widget _buildServiceTypeStep() {
+  Widget _buildServiceTypeStep(
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+    Color cardColor,
+    Color accentColor,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 20),
-        const Text(
+        Text(
           "What do you offer?",
           style: TextStyle(
             fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontFamily: 'SF Pro Display',
+            fontWeight: FontWeight.w700,
+            color: textColor,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'Select your primary service',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.white.withOpacity(0.8),
-            fontFamily: 'SF Pro Text',
-          ),
+          style: TextStyle(fontSize: 16, color: subtitleColor),
         ),
         const SizedBox(height: 30),
-        ..._services.map((service) => _buildServiceOption(service)),
+        ..._services.map(
+          (service) => _buildServiceOption(
+            service,
+            isDark,
+            textColor,
+            subtitleColor,
+            cardColor,
+            accentColor,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildServiceOption(Map<String, dynamic> service) {
+  Widget _buildServiceOption(
+    Map<String, dynamic> service,
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+    Color cardColor,
+    Color accentColor,
+  ) {
     final isSelected = _selectedService == service['name'];
     return GestureDetector(
       onTap: () => setState(() => _selectedService = service['name']),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           color:
               isSelected
-                  ? Colors.white.withOpacity(0.3)
-                  : Colors.white.withOpacity(0.1),
+                  ? accentColor.withOpacity(isDark ? 0.2 : 0.1)
+                  : cardColor,
           border: Border.all(
-            color: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
+            color:
+                isSelected
+                    ? accentColor
+                    : (isDark
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.black.withOpacity(0.08)),
             width: isSelected ? 2 : 1,
           ),
+          boxShadow:
+              isSelected
+                  ? [
+                    BoxShadow(
+                      color: accentColor.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                  : null,
         ),
         child: Row(
           children: [
@@ -286,29 +375,24 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
                 children: [
                   Text(
                     service['name'],
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontFamily: 'SF Pro Display',
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     service['desc'],
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withOpacity(0.7),
-                      fontFamily: 'SF Pro Text',
-                    ),
+                    style: TextStyle(fontSize: 14, color: subtitleColor),
                   ),
                 ],
               ),
             ),
             if (isSelected)
-              const Icon(
+              Icon(
                 CupertinoIcons.checkmark_circle_fill,
-                color: Colors.white,
+                color: accentColor,
                 size: 28,
               ),
           ],
@@ -317,28 +401,30 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     );
   }
 
-  Widget _buildIdVerificationStep() {
+  Widget _buildIdVerificationStep(
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+    Color cardColor,
+    Color accentColor,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 20),
-        const Text(
+        Text(
           "Verify your identity",
           style: TextStyle(
             fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontFamily: 'SF Pro Display',
+            fontWeight: FontWeight.w700,
+            color: textColor,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'This keeps travelers safe and builds trust',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.white.withOpacity(0.8),
-            fontFamily: 'SF Pro Text',
-          ),
+          style: TextStyle(fontSize: 16, color: subtitleColor),
         ),
         const SizedBox(height: 40),
 
@@ -349,9 +435,14 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
           icon: CupertinoIcons.creditcard_fill,
           isComplete: _idUploaded,
           onTap: () => setState(() => _idUploaded = true),
+          isDark: isDark,
+          textColor: textColor,
+          subtitleColor: subtitleColor,
+          cardColor: cardColor,
+          accentColor: accentColor,
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
 
         // Selfie Upload Card
         _buildVerificationCard(
@@ -360,6 +451,11 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
           icon: CupertinoIcons.camera_fill,
           isComplete: _selfieUploaded,
           onTap: () => setState(() => _selfieUploaded = true),
+          isDark: isDark,
+          textColor: textColor,
+          subtitleColor: subtitleColor,
+          cardColor: cardColor,
+          accentColor: accentColor,
         ),
 
         const SizedBox(height: 30),
@@ -369,24 +465,23 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            color: Colors.white.withOpacity(0.1),
+            color:
+                isDark
+                    ? Colors.white.withOpacity(0.05)
+                    : Colors.black.withOpacity(0.03),
           ),
           child: Row(
             children: [
               Icon(
                 CupertinoIcons.lock_shield_fill,
-                color: Colors.white.withOpacity(0.8),
+                color: subtitleColor,
                 size: 24,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Your data is encrypted and only used for verification. We never share your information.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.7),
-                    fontFamily: 'SF Pro Text',
-                  ),
+                  style: TextStyle(fontSize: 12, color: subtitleColor),
                 ),
               ),
             ],
@@ -402,190 +497,218 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     required IconData icon,
     required bool isComplete,
     required VoidCallback onTap,
+    required bool isDark,
+    required Color textColor,
+    required Color subtitleColor,
+    required Color cardColor,
+    required Color accentColor,
   }) {
     return GestureDetector(
       onTap: isComplete ? null : onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color:
-                  isComplete
-                      ? Colors.green.withOpacity(0.3)
-                      : Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color:
+              isComplete
+                  ? Colors.green.withOpacity(isDark ? 0.2 : 0.1)
+                  : cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color:
+                isComplete
+                    ? Colors.green
+                    : (isDark
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.black.withOpacity(0.08)),
+            width: isComplete ? 2 : 1,
+          ),
+          boxShadow:
+              isComplete
+                  ? [
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                  : null,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
                 color:
-                    isComplete ? Colors.green : Colors.white.withOpacity(0.3),
-                width: 2,
+                    isComplete
+                        ? Colors.green.withOpacity(isDark ? 0.3 : 0.15)
+                        : (isDark
+                            ? Colors.white.withOpacity(0.1)
+                            : Colors.black.withOpacity(0.05)),
+              ),
+              child: Icon(
+                isComplete ? CupertinoIcons.checkmark_alt : icon,
+                color: isComplete ? Colors.green : subtitleColor,
+                size: 28,
               ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color:
-                        isComplete
-                            ? Colors.green.withOpacity(0.3)
-                            : Colors.white.withOpacity(0.2),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
                   ),
-                  child: Icon(
-                    isComplete ? CupertinoIcons.checkmark_alt : icon,
-                    color: Colors.white,
-                    size: 28,
+                  const SizedBox(height: 4),
+                  Text(
+                    isComplete ? 'Uploaded ✓' : subtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isComplete ? Colors.green : subtitleColor,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontFamily: 'SF Pro Display',
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        isComplete ? 'Uploaded ✓' : subtitle,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.7),
-                          fontFamily: 'SF Pro Text',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (!isComplete)
-                  Icon(
-                    CupertinoIcons.arrow_right_circle_fill,
-                    color: Colors.white.withOpacity(0.5),
-                    size: 28,
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
+            if (!isComplete)
+              Icon(
+                CupertinoIcons.arrow_right_circle_fill,
+                color: subtitleColor.withOpacity(0.5),
+                size: 28,
+              ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildReviewStep() {
+  Widget _buildReviewStep(
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+    Color cardColor,
+    Color accentColor,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 20),
-        const Text(
+        Text(
           "You're all set! 🎉",
           style: TextStyle(
             fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontFamily: 'SF Pro Display',
+            fontWeight: FontWeight.w700,
+            color: textColor,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'Review your profile before going live',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.white.withOpacity(0.8),
-            fontFamily: 'SF Pro Text',
-          ),
+          style: TextStyle(fontSize: 16, color: subtitleColor),
         ),
         const SizedBox(height: 40),
 
         // Profile summary card
-        ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 2,
-                ),
-              ),
-              child: Column(
-                children: [
-                  // Avatar placeholder
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.3),
-                    ),
-                    child: const Icon(
-                      CupertinoIcons.person_fill,
-                      size: 50,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _nameController.text.isEmpty
-                        ? 'Your Name'
-                        : _nameController.text,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontFamily: 'SF Pro Display',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: Colors.white.withOpacity(0.2),
-                    ),
-                    child: Text(
-                      _selectedService,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                        fontFamily: 'SF Pro Text',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildBadge(
-                        CupertinoIcons.checkmark_seal_fill,
-                        'ID Verified',
-                      ),
-                      const SizedBox(width: 12),
-                      _buildBadge(
-                        CupertinoIcons.shield_fill,
-                        'Background Check',
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color:
+                  isDark
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.black.withOpacity(0.08),
+            ),
+            boxShadow:
+                isDark
+                    ? null
+                    : [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
                       ),
                     ],
+          ),
+          child: Column(
+            children: [
+              // Avatar placeholder
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      accentColor.withOpacity(0.3),
+                      accentColor.withOpacity(0.1),
+                    ],
+                  ),
+                ),
+                child: Icon(
+                  CupertinoIcons.person_fill,
+                  size: 50,
+                  color: accentColor,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _nameController.text.isEmpty
+                    ? 'Your Name'
+                    : _nameController.text,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: accentColor.withOpacity(isDark ? 0.2 : 0.1),
+                ),
+                child: Text(
+                  _selectedService,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: accentColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildBadge(
+                    CupertinoIcons.checkmark_seal_fill,
+                    'ID Verified',
+                    isDark,
+                  ),
+                  const SizedBox(width: 12),
+                  _buildBadge(
+                    CupertinoIcons.shield_fill,
+                    'Background Check',
+                    isDark,
                   ),
                 ],
               ),
-            ),
+            ],
           ),
         ),
 
@@ -595,34 +718,30 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
         Text(
           'Your profile will be reviewed within 24 hours. You\'ll receive a notification once approved.',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.white.withOpacity(0.7),
-            fontFamily: 'SF Pro Text',
-          ),
+          style: TextStyle(fontSize: 14, color: subtitleColor),
         ),
       ],
     );
   }
 
-  Widget _buildBadge(IconData icon, String label) {
+  Widget _buildBadge(IconData icon, String label, bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: Colors.green.withOpacity(0.3),
+        color: Colors.green.withOpacity(isDark ? 0.2 : 0.1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.white, size: 16),
+          Icon(icon, color: Colors.green, size: 16),
           const SizedBox(width: 6),
           Text(
             label,
             style: const TextStyle(
               fontSize: 12,
-              color: Colors.white,
-              fontFamily: 'SF Pro Text',
+              color: Colors.green,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -630,78 +749,93 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     );
   }
 
-  Widget _buildGlassTextField({
+  Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
+    required bool isDark,
+    required Color textColor,
+    required Color cardColor,
   }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color:
+              isDark
+                  ? Colors.white.withOpacity(0.1)
+                  : Colors.black.withOpacity(0.08),
+        ),
+        boxShadow:
+            isDark
+                ? null
+                : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        style: TextStyle(color: textColor, fontSize: 16),
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
           ),
-          child: TextField(
-            controller: controller,
-            keyboardType: keyboardType,
-            maxLines: maxLines,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              labelText: label,
-              labelStyle: TextStyle(
-                color: Colors.white.withOpacity(0.7),
-                fontFamily: 'SF Pro Text',
-              ),
-              prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.7)),
-            ),
+          labelText: label,
+          labelStyle: TextStyle(
+            color: isDark ? Colors.white60 : Colors.black45,
+          ),
+          prefixIcon: Icon(
+            icon,
+            color: isDark ? Colors.white60 : Colors.black38,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildContinueButton() {
+  Widget _buildContinueButton(bool isDark, List<Color> accentGradient) {
     final bool canContinue =
         _currentStep != 2 || (_idUploaded && _selfieUploaded);
 
     return Padding(
       padding: const EdgeInsets.all(24),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         width: double.infinity,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(25),
-          gradient: LinearGradient(
-            colors:
-                canContinue
-                    ? [Colors.white, const Color(0xFFE0E0E0)]
-                    : [
-                      Colors.white.withOpacity(0.5),
-                      Colors.white.withOpacity(0.3),
-                    ],
-          ),
+          borderRadius: BorderRadius.circular(16),
+          gradient:
+              canContinue
+                  ? LinearGradient(colors: accentGradient)
+                  : LinearGradient(
+                    colors: [Colors.grey.shade400, Colors.grey.shade500],
+                  ),
           boxShadow:
               canContinue
                   ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      color: accentGradient[0].withOpacity(0.4),
                       blurRadius: 15,
                       offset: const Offset(0, 8),
                     ),
                   ]
-                  : [],
+                  : null,
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(16),
             onTap: canContinue ? _nextStep : null,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 18),
@@ -710,9 +844,8 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
                   _currentStep < 3 ? 'Continue' : 'Submit for Review',
                   style: TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: canContinue ? const Color(0xFFf5576c) : Colors.grey,
-                    fontFamily: 'SF Pro Text',
+                    fontWeight: FontWeight.w600,
+                    color: canContinue ? Colors.white : Colors.white70,
                   ),
                 ),
               ),

@@ -82,45 +82,58 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final backgroundColor =
+        isDark ? const Color(0xFF0A0A0F) : const Color(0xFFF2F2F7);
+    final cardColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A2E);
+    final subtitleColor = isDark ? Colors.white70 : const Color(0xFF6B7280);
+    final accentColor = const Color(0xFF667EEA);
+
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF667eea), Color(0xFF764ba2), Color(0xFF0F4C75)],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header with back button and progress
-              _buildHeader(context),
+      backgroundColor: backgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header with back button and progress
+            _buildHeader(context, isDark, textColor, subtitleColor),
 
-              // Progress indicator
-              _buildProgressIndicator(),
+            // Progress indicator
+            _buildProgressIndicator(isDark, accentColor),
 
-              // Content
-              Expanded(
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: _buildCurrentStep(),
+            // Content
+            Expanded(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: _buildCurrentStep(
+                    isDark,
+                    textColor,
+                    subtitleColor,
+                    cardColor,
+                    accentColor,
                   ),
                 ),
               ),
+            ),
 
-              // Continue button
-              _buildContinueButton(),
-            ],
-          ),
+            // Continue button
+            _buildContinueButton(isDark, accentColor),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(
+    BuildContext context,
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -140,18 +153,21 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
               height: 44,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.2),
+                color:
+                    isDark
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.black.withOpacity(0.05),
               ),
-              child: const Icon(CupertinoIcons.back, color: Colors.white),
+              child: Icon(CupertinoIcons.back, color: textColor),
             ),
           ),
           const Spacer(),
           Text(
             'Step ${_currentStep + 1} of 3',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontFamily: 'SF Pro Text',
+              color: subtitleColor,
               fontSize: 14,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -159,21 +175,25 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
     );
   }
 
-  Widget _buildProgressIndicator() {
+  Widget _buildProgressIndicator(bool isDark, Color accentColor) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: List.generate(3, (index) {
+          final isActive = index <= _currentStep;
           return Expanded(
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
               margin: const EdgeInsets.symmetric(horizontal: 4),
               height: 4,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(2),
                 color:
-                    index <= _currentStep
-                        ? Colors.white
-                        : Colors.white.withOpacity(0.3),
+                    isActive
+                        ? accentColor
+                        : (isDark
+                            ? Colors.white.withOpacity(0.2)
+                            : Colors.black.withOpacity(0.1)),
               ),
             ),
           );
@@ -182,150 +202,204 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
     );
   }
 
-  Widget _buildCurrentStep() {
+  Widget _buildCurrentStep(
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+    Color cardColor,
+    Color accentColor,
+  ) {
     switch (_currentStep) {
       case 0:
-        return _buildBasicInfoStep();
+        return _buildBasicInfoStep(isDark, textColor, subtitleColor, cardColor);
       case 1:
-        return _buildCountryStep();
+        return _buildCountryStep(
+          isDark,
+          textColor,
+          subtitleColor,
+          cardColor,
+          accentColor,
+        );
       case 2:
-        return _buildInterestsStep();
+        return _buildInterestsStep(
+          isDark,
+          textColor,
+          subtitleColor,
+          accentColor,
+        );
       default:
         return const SizedBox();
     }
   }
 
-  Widget _buildBasicInfoStep() {
+  Widget _buildBasicInfoStep(
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+    Color cardColor,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 20),
-        const Text(
+        Text(
           "Let's get to know you",
           style: TextStyle(
             fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontFamily: 'SF Pro Display',
+            fontWeight: FontWeight.w700,
+            color: textColor,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'This helps us personalize your experience',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.white.withOpacity(0.8),
-            fontFamily: 'SF Pro Text',
-          ),
+          style: TextStyle(fontSize: 16, color: subtitleColor),
         ),
         const SizedBox(height: 40),
-        _buildGlassTextField(
+        _buildTextField(
           controller: _nameController,
           label: 'Full Name',
           icon: CupertinoIcons.person_fill,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
         ),
-        const SizedBox(height: 20),
-        _buildGlassTextField(
+        const SizedBox(height: 16),
+        _buildTextField(
           controller: _phoneController,
           label: 'Phone Number',
           icon: CupertinoIcons.phone_fill,
           keyboardType: TextInputType.phone,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
         ),
       ],
     );
   }
 
-  Widget _buildCountryStep() {
+  Widget _buildCountryStep(
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+    Color cardColor,
+    Color accentColor,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 20),
-        const Text(
+        Text(
           "Where are you from?",
           style: TextStyle(
             fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontFamily: 'SF Pro Display',
+            fontWeight: FontWeight.w700,
+            color: textColor,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'Select your home country',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.white.withOpacity(0.8),
-            fontFamily: 'SF Pro Text',
-          ),
+          style: TextStyle(fontSize: 16, color: subtitleColor),
         ),
         const SizedBox(height: 30),
-        ..._countries.map((country) => _buildCountryOption(country)),
+        ..._countries.map(
+          (country) => _buildCountryOption(
+            country,
+            isDark,
+            textColor,
+            cardColor,
+            accentColor,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildCountryOption(String country) {
+  Widget _buildCountryOption(
+    String country,
+    bool isDark,
+    Color textColor,
+    Color cardColor,
+    Color accentColor,
+  ) {
     final isSelected = _selectedCountry == country;
     return GestureDetector(
       onTap: () => setState(() => _selectedCountry = country),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color:
               isSelected
-                  ? Colors.white.withOpacity(0.3)
-                  : Colors.white.withOpacity(0.1),
+                  ? accentColor.withOpacity(isDark ? 0.2 : 0.1)
+                  : cardColor,
           border: Border.all(
-            color: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
+            color:
+                isSelected
+                    ? accentColor
+                    : (isDark
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.black.withOpacity(0.08)),
             width: isSelected ? 2 : 1,
           ),
+          boxShadow:
+              isSelected
+                  ? [
+                    BoxShadow(
+                      color: accentColor.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                  : null,
         ),
         child: Row(
           children: [
             Text(
               country,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
-                color: Colors.white,
-                fontFamily: 'SF Pro Text',
+                color: textColor,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
             const Spacer(),
             if (isSelected)
-              const Icon(
-                CupertinoIcons.checkmark_circle_fill,
-                color: Colors.white,
-              ),
+              Icon(CupertinoIcons.checkmark_circle_fill, color: accentColor),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInterestsStep() {
+  Widget _buildInterestsStep(
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+    Color accentColor,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 20),
-        const Text(
+        Text(
           "What excites you?",
           style: TextStyle(
             fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontFamily: 'SF Pro Display',
+            fontWeight: FontWeight.w700,
+            color: textColor,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'Select your travel interests (choose 3+)',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.white.withOpacity(0.8),
-            fontFamily: 'SF Pro Text',
-          ),
+          style: TextStyle(fontSize: 16, color: subtitleColor),
         ),
         const SizedBox(height: 30),
         Wrap(
@@ -356,13 +430,17 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                       borderRadius: BorderRadius.circular(25),
                       color:
                           isSelected
-                              ? Colors.white.withOpacity(0.3)
-                              : Colors.white.withOpacity(0.1),
+                              ? accentColor.withOpacity(isDark ? 0.3 : 0.15)
+                              : (isDark
+                                  ? Colors.white.withOpacity(0.08)
+                                  : Colors.black.withOpacity(0.04)),
                       border: Border.all(
                         color:
                             isSelected
-                                ? Colors.white
-                                : Colors.white.withOpacity(0.3),
+                                ? accentColor
+                                : (isDark
+                                    ? Colors.white.withOpacity(0.15)
+                                    : Colors.black.withOpacity(0.1)),
                         width: isSelected ? 2 : 1,
                       ),
                     ),
@@ -376,11 +454,11 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                         const SizedBox(width: 8),
                         Text(
                           interest['name'],
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white,
-                            fontFamily: 'SF Pro Text',
-                            fontWeight: FontWeight.w500,
+                            color: isSelected ? accentColor : textColor,
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.w500,
                           ),
                         ),
                       ],
@@ -393,55 +471,72 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
     );
   }
 
-  Widget _buildGlassTextField({
+  Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
+    required bool isDark,
+    required Color textColor,
+    required Color cardColor,
   }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color:
+              isDark
+                  ? Colors.white.withOpacity(0.1)
+                  : Colors.black.withOpacity(0.08),
+        ),
+        boxShadow:
+            isDark
+                ? null
+                : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        style: TextStyle(color: textColor, fontSize: 16),
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
           ),
-          child: TextField(
-            controller: controller,
-            keyboardType: keyboardType,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              labelText: label,
-              labelStyle: TextStyle(
-                color: Colors.white.withOpacity(0.7),
-                fontFamily: 'SF Pro Text',
-              ),
-              prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.7)),
-            ),
+          labelText: label,
+          labelStyle: TextStyle(
+            color: isDark ? Colors.white60 : Colors.black45,
+          ),
+          prefixIcon: Icon(
+            icon,
+            color: isDark ? Colors.white60 : Colors.black38,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildContinueButton() {
+  Widget _buildContinueButton(bool isDark, Color accentColor) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(25),
-          gradient: const LinearGradient(
-            colors: [Colors.white, Color(0xFFE0E0E0)],
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [accentColor, const Color(0xFF764BA2)],
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: accentColor.withOpacity(0.4),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -450,7 +545,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(16),
             onTap: _nextStep,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 18),
@@ -459,9 +554,8 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                   _currentStep < 2 ? 'Continue' : 'Start Exploring',
                   style: const TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF667eea),
-                    fontFamily: 'SF Pro Text',
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
                 ),
               ),
