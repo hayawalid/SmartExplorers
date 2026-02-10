@@ -2,21 +2,51 @@ import os
 import json
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, date
-import openai
-from openai import OpenAI
+
+try:
+    from groq import Groq
+except ImportError:
+    Groq = None
 
 from ..schemas.itinerary import (
     TripType, SafetyLevel, ItineraryGenerationRequest,
     AccessibilityRequirement
 )
+from ..config import settings  # Import settings
 
 
 class ItineraryGenerator:
-    """AI-powered itinerary generation engine specialized for Egypt tourism"""
+    """AI-powered itinerary generation engine using Groq (faster & cheaper alternative to OpenAI)"""
     
     def __init__(self):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.model = "gpt-4o-mini"
+        # Get API key from settings (which reads from .env file)
+        api_key = settings.GROQ_API_KEY
+        
+        # Validate API key
+        if not api_key or api_key.startswith("gsk_your-") or len(api_key) < 20:
+            raise ValueError(
+                "⚠️  Valid Groq API key required!\n"
+                "Set GROQ_API_KEY in your .env file.\n"
+                "Get your FREE key from: https://console.groq.com/keys\n"
+                "(Groq is MUCH faster than OpenAI and has a generous free tier!)"
+            )
+        
+        try:
+            # Check if Groq is installed
+            if Groq is None:
+                raise ValueError(
+                    "Groq SDK is not installed. Install it with: pip install groq"
+                )
+            
+            # Initialize Groq client
+            self.client = Groq(api_key=api_key)
+            # Use Llama 3.1 70B - excellent for structured output
+            self.model = "llama-3.1-70b-versatile"
+            
+            print(f"✓ Groq client initialized successfully with model: {self.model}")
+            
+        except Exception as e:
+            raise ValueError(f"Failed to initialize Groq client: {str(e)}")
         
         # Egypt-specific knowledge base
         self.egypt_destinations = {
@@ -59,27 +89,48 @@ class ItineraryGenerator:
         }
         
     async def generate_itinerary(self, request: ItineraryGenerationRequest, user_id: int) -> Dict[str, Any]:
-        """Generate a complete AI-powered itinerary"""
+        """Generate a complete AI-powered itinerary using Groq"""
         
         # Calculate trip duration
         total_days = (request.end_date - request.start_date).days + 1
         
+        # Validate duration
+        if total_days < 1:
+            raise ValueError("Trip must be at least 1 day long")
+        if total_days > 30:
+            raise ValueError("Maximum trip duration is 30 days")
+        
         # Build AI prompt
         prompt = self._build_generation_prompt(request, total_days)
+        system_prompt = self._get_system_prompt()
         
-        # Call OpenAI API
+        # Call Groq API with comprehensive error handling
         try:
+            print(f"🤖 Calling Groq API (Llama 3.1) for {total_days}-day itinerary...")
+            
+            # Groq uses same interface as OpenAI
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"}  # Force JSON output
             )
             
-            itinerary_data = json.loads(response.choices[0].message.content)
+            print("✓ Groq API response received (usually <1 second!)")
+            
+            # Parse the response
+            content = response.choices[0].message.content
+            itinerary_data = json.loads(content)
+            
+            # Validate response structure
+            if "daily_plans" not in itinerary_data:
+                raise ValueError("AI response missing daily_plans field")
+            
+            if not isinstance(itinerary_data["daily_plans"], list):
+                raise ValueError("daily_plans must be a list")
             
             # Enhance with safety validation and accessibility filtering
             enhanced_itinerary = await self._enhance_itinerary(
@@ -88,10 +139,24 @@ class ItineraryGenerator:
                 total_days
             )
             
+            print(f"✓ Itinerary enhanced with safety score: {enhanced_itinerary['safety_score']}")
+            
             return enhanced_itinerary
             
+        except json.JSONDecodeError as e:
+            raise Exception(f"Failed to parse AI response as JSON: {str(e)}")
         except Exception as e:
-            raise Exception(f"Failed to generate itinerary: {str(e)}")
+            # Provide helpful error messages
+            error_msg = str(e)
+            if "invalid_api_key" in error_msg or "401" in error_msg:
+                raise Exception(
+                    "Invalid Groq API key. Please check your GROQ_API_KEY in .env file. "
+                    "Get a FREE key from: https://console.groq.com/keys"
+                )
+            elif "rate_limit" in error_msg.lower() or "429" in error_msg:
+                raise Exception("Groq rate limit exceeded. Please try again in a moment.")
+            else:
+                raise Exception(f"Failed to generate itinerary: {error_msg}")
     
     def _get_system_prompt(self) -> str:
         """System prompt for Egypt tourism AI"""
@@ -117,7 +182,7 @@ When creating itineraries, you:
 - Recommend verified guides and services
 - Consider the Egyptian climate and best visiting times
 
-Always respond with valid JSON matching the requested structure."""
+CRITICAL: You MUST respond with valid JSON only. No markdown, no explanations, just pure JSON."""
 
     def _build_generation_prompt(self, request: ItineraryGenerationRequest, total_days: int) -> str:
         """Build detailed prompt for itinerary generation"""
@@ -134,13 +199,16 @@ Always respond with valid JSON matching the requested structure."""
                 requirements.append("hearing impairment support")
             if acc.mobility_assistance:
                 requirements.append("mobility assistance")
-            accessibility_text = f"\nAccessibility Requirements: {', '.join(requirements)}"
+            if requirements:
+                accessibility_text = f"\nAccessibility Requirements: {', '.join(requirements)}"
         
         safety_context = ""
         if request.is_solo_traveler:
             safety_context += "\n- Solo traveler: prioritize well-lit, populated areas and verified services"
         if request.is_woman_traveler:
             safety_context += "\n- Woman traveler: include women-friendly accommodations and gender-appropriate activities"
+        
+        budget_text = f"${request.budget_min or 0} - ${request.budget_max or 'unlimited'} total"
         
         prompt = f"""Create a detailed {total_days}-day itinerary for Egypt with the following requirements:
 
@@ -149,11 +217,11 @@ Dates: {request.start_date} to {request.end_date}
 Starting Point: {request.start_location}
 Destinations: {', '.join(request.destinations)}
 Group Size: {request.group_size} people
-Budget: ${request.budget_min or 0} - ${request.budget_max or 'unlimited'} total{accessibility_text}
+Budget: {budget_text}{accessibility_text}
 Interests: {', '.join(request.interests) if request.interests else 'general tourism'}
 Dietary Restrictions: {', '.join(request.dietary_restrictions) if request.dietary_restrictions else 'none'}{safety_context}
 
-Please provide a JSON response with this exact structure:
+Respond with ONLY valid JSON in this exact structure (no markdown, no code blocks):
 {{
   "title": "Trip title",
   "description": "Brief overview",
@@ -174,8 +242,8 @@ Please provide a JSON response with this exact structure:
           "duration_minutes": 120,
           "estimated_cost_min": 10,
           "estimated_cost_max": 20,
-          "category": "sightseeing|dining|shopping|transport|accommodation",
-          "safety_level": "high|medium|low",
+          "category": "sightseeing",
+          "safety_level": "high",
           "wheelchair_accessible": true,
           "tags": ["historical", "cultural"],
           "booking_required": false,
@@ -205,14 +273,13 @@ Please provide a JSON response with this exact structure:
 }}
 
 Important guidelines:
-1. Ensure activities flow logically (proximity and timing)
-2. Include realistic travel time between locations
-3. Account for Egyptian business hours (many close 14:00-16:00)
-4. Consider Friday prayer times (12:00-14:00)
-5. Balance famous sites with authentic local experiences
+1. Create exactly {total_days} day(s) in daily_plans array
+2. Ensure activities flow logically (proximity and timing)
+3. Include realistic travel time between locations
+4. Account for Egyptian business hours (many close 14:00-16:00)
+5. Consider Friday prayer times (12:00-14:00)
 6. Include specific GPS coordinates for each location
-7. Provide practical safety tips, not generic warnings
-8. Suggest accessibility alternatives when needed"""
+7. Provide practical safety tips, not generic warnings"""
 
         return prompt
     
@@ -246,9 +313,9 @@ Important guidelines:
             )
         
         # Add day numbers and ordering
-        for day_idx, day_plan in enumerate(itinerary_data["daily_plans"], 1):
+        for day_idx, day_plan in enumerate(itinerary_data.get("daily_plans", []), 1):
             day_plan["day_number"] = day_idx
-            for activity_idx, activity in enumerate(day_plan["activities"], 1):
+            for activity_idx, activity in enumerate(day_plan.get("activities", []), 1):
                 activity["day_number"] = day_idx
                 activity["order_in_day"] = activity_idx
                 activity["accessibility_friendly"] = self._check_accessibility(
@@ -333,7 +400,7 @@ Important guidelines:
         for day_plan in daily_plans:
             filtered_activities = []
             
-            for activity in day_plan["activities"]:
+            for activity in day_plan.get("activities", []):
                 # Check wheelchair accessibility
                 if requirements.wheelchair_accessible:
                     if not activity.get("wheelchair_accessible", False):
@@ -392,12 +459,15 @@ Important guidelines:
         # Check for late-night activities
         for activity in modified_activities:
             start_time = activity.get("start_time", "")
-            if start_time:
-                hour = int(start_time.split(":")[0])
-                if hour >= 22 or hour <= 5:
-                    validation_result["warnings"].append(
-                        f"Late night/early morning activity at {activity['location_name']} - ensure safe transportation"
-                    )
+            if start_time and ":" in start_time:
+                try:
+                    hour = int(start_time.split(":")[0])
+                    if hour >= 22 or hour <= 5:
+                        validation_result["warnings"].append(
+                            f"Late night/early morning activity at {activity.get('location_name', 'unknown')} - ensure safe transportation"
+                        )
+                except ValueError:
+                    pass  # Invalid time format, skip
         
         return validation_result
     

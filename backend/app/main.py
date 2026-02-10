@@ -3,19 +3,20 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from .database import init_db
+from .config import settings
 from .api.itineraries import router as itinerary_router
 
 # Create FastAPI app
 app = FastAPI(
-    title="SmartExplorers API",
+    title=settings.PROJECT_NAME,
     description="AI-Powered Safe Tourism Platform for Egypt",
-    version="1.0.0"
+    version=settings.VERSION
 )
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,7 +30,7 @@ app.include_router(itinerary_router)
 async def startup_event():
     """Initialize database on startup"""
     init_db()
-    print("✓ Database initialized")
+    print(f"✓ {settings.PROJECT_NAME} v{settings.VERSION} started")
 
 
 @app.get("/")
@@ -37,8 +38,8 @@ async def root():
     """Health check endpoint"""
     return {
         "status": "healthy",
-        "service": "SmartExplorers API",
-        "version": "1.0.0"
+        "service": settings.PROJECT_NAME,
+        "version": settings.VERSION
     }
 
 
@@ -48,7 +49,7 @@ async def health_check():
     return {
         "status": "healthy",
         "database": "connected",
-        "ai_service": "ready"
+        "ai_service": "ready" if settings.OPENAI_API_KEY else "not_configured"
     }
 
 
