@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
-import 'home_screen.dart';
 import 'ai_assistant_screen.dart';
+import 'feed_screen.dart';
+import 'marketplace_screen.dart';
 import 'safety_dashboard_screen.dart';
 import 'profile_screen.dart';
 
+/// Main navigation shell with 5 tabs and WCAG accessibility support
+/// Initial landing screen is AI Itinerary Planning Chat (index 0)
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({Key? key}) : super(key: key);
 
@@ -15,31 +18,41 @@ class MainNavigationShell extends StatefulWidget {
 
 class _MainNavigationShellState extends State<MainNavigationShell>
     with TickerProviderStateMixin {
+  // Start on AI Chat (Itinerary) as per requirements
   int _currentIndex = 0;
   late PageController _pageController;
   late AnimationController _fabAnimController;
-  late Animation<double> _fabScaleAnimation;
 
   final List<NavItem> _navItems = [
     NavItem(
-      icon: CupertinoIcons.house_fill,
-      label: 'Home',
+      icon: CupertinoIcons.chat_bubble_2_fill,
+      label: 'Itinerary',
       activeColor: const Color(0xFF667eea),
+      semanticLabel: 'AI Itinerary Planning Chat',
     ),
     NavItem(
-      icon: CupertinoIcons.chat_bubble_2_fill,
-      label: 'AI Assistant',
-      activeColor: const Color(0xFF764ba2),
+      icon: CupertinoIcons.photo_fill_on_rectangle_fill,
+      label: 'Feed',
+      activeColor: const Color(0xFFf093fb),
+      semanticLabel: 'Social feed with photos and promotions',
+    ),
+    NavItem(
+      icon: CupertinoIcons.cart_fill,
+      label: 'Marketplace',
+      activeColor: const Color(0xFF4facfe),
+      semanticLabel: 'Service provider marketplace',
     ),
     NavItem(
       icon: CupertinoIcons.shield_fill,
       label: 'Safety',
       activeColor: const Color(0xFFf5576c),
+      semanticLabel: 'Emergency SOS and safety status center',
     ),
     NavItem(
       icon: CupertinoIcons.person_fill,
       label: 'Profile',
       activeColor: const Color(0xFFD4AF37),
+      semanticLabel: 'Personal travel portfolio and reviews',
     ),
   ];
 
@@ -50,9 +63,6 @@ class _MainNavigationShellState extends State<MainNavigationShell>
     _fabAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
-    );
-    _fabScaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
-      CurvedAnimation(parent: _fabAnimController, curve: Curves.easeInOut),
     );
   }
 
@@ -74,19 +84,26 @@ class _MainNavigationShellState extends State<MainNavigationShell>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final backgroundColor =
+        isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+
     return Scaffold(
+      backgroundColor: backgroundColor,
       body: Stack(
         children: [
-          // Page content
+          // Page content with 5-tab navigation
           PageView(
             controller: _pageController,
             physics: const NeverScrollableScrollPhysics(),
             onPageChanged: (index) => setState(() => _currentIndex = index),
             children: const [
-              HomeScreen(),
-              AIAssistantScreen(),
-              SafetyDashboardScreen(),
-              ProfileScreen(),
+              AIAssistantScreen(), // Tab 0: AI Chat/Itinerary (landing)
+              FeedScreen(), // Tab 1: Instagram-style feed
+              MarketplaceScreen(), // Tab 2: Service providers
+              SafetyDashboardScreen(), // Tab 3: Emergency SOS
+              ProfileScreen(), // Tab 4: User profile
             ],
           ),
 
@@ -95,112 +112,127 @@ class _MainNavigationShellState extends State<MainNavigationShell>
             left: 20,
             right: 20,
             bottom: 30,
-            child: _buildFloatingNavBar(),
+            child: _buildFloatingNavBar(isDark),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFloatingNavBar() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(30),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.2),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-              ),
-            ],
+  Widget _buildFloatingNavBar(bool isDark) {
+    final navBarColor = isDark ? const Color(0xFF2C2C2E) : Colors.white;
+    final borderColor =
+        isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05);
+    final inactiveIconColor =
+        isDark ? Colors.white.withOpacity(0.5) : const Color(0xFF8E8E93);
+
+    return Container(
+      height: 80,
+      decoration: BoxDecoration(
+        color: navBarColor,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(
-              _navItems.length,
-              (index) => _buildNavItem(index),
-            ),
-          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(
+          _navItems.length,
+          (index) => _buildNavItem(index, isDark, inactiveIconColor),
         ),
       ),
     );
   }
 
-  Widget _buildNavItem(int index) {
+  Widget _buildNavItem(int index, bool isDark, Color inactiveIconColor) {
     final item = _navItems[index];
     final isActive = _currentIndex == index;
 
-    return GestureDetector(
-      onTap: () => _onNavTap(index),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(
-          horizontal: isActive ? 20 : 16,
-          vertical: 12,
-        ),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color:
-              isActive ? item.activeColor.withOpacity(0.2) : Colors.transparent,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              child: Icon(
-                item.icon,
-                size: isActive ? 26 : 24,
-                color:
-                    isActive ? item.activeColor : Colors.white.withOpacity(0.6),
-              ),
+    // WCAG 2.1 AA: Wrap with Semantics for accessibility
+    return Semantics(
+      button: true,
+      selected: isActive,
+      label: item.semanticLabel,
+      hint: isActive ? 'Currently selected' : 'Double tap to navigate',
+      child: GestureDetector(
+        onTap: () => _onNavTap(index),
+        behavior: HitTestBehavior.opaque,
+        child: ConstrainedBox(
+          // WCAG 2.1 AA: Minimum 44x44pt tap target
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            padding: EdgeInsets.symmetric(
+              horizontal: isActive ? 20 : 16,
+              vertical: 12,
             ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              child: SizedBox(
-                width: isActive ? null : 0,
-                child: AnimatedOpacity(
-                  opacity: isActive ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Text(
-                      item.label,
-                      style: TextStyle(
-                        color: item.activeColor,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'SF Pro Text',
-                        fontSize: 14,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color:
+                  isActive
+                      ? item.activeColor.withOpacity(0.15)
+                      : Colors.transparent,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  child: Icon(
+                    item.icon,
+                    size: isActive ? 26 : 24,
+                    color: isActive ? item.activeColor : inactiveIconColor,
+                  ),
+                ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  child: SizedBox(
+                    width: isActive ? null : 0,
+                    child: AnimatedOpacity(
+                      opacity: isActive ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Text(
+                          item.label,
+                          style: TextStyle(
+                            color: item.activeColor,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'SF Pro Text',
+                            fontSize: 14,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
+/// Navigation item model with WCAG accessibility support
 class NavItem {
   final IconData icon;
   final String label;
   final Color activeColor;
+  final String semanticLabel;
 
-  NavItem({required this.icon, required this.label, required this.activeColor});
+  NavItem({
+    required this.icon,
+    required this.label,
+    required this.activeColor,
+    required this.semanticLabel,
+  });
 }

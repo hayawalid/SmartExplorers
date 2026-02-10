@@ -74,20 +74,23 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1a1a2e), Color(0xFF16213e), Color(0xFF0f3460)],
-        ),
-      ),
-      child: SafeArea(
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final backgroundColor =
+        isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+    final cardColor = isDark ? const Color(0xFF2C2C2E) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor =
+        isDark ? Colors.white70 : const Color(0xFF8E8E93);
+
+    return Scaffold(
+      backgroundColor: backgroundColor,
+      body: SafeArea(
         bottom: false,
         child: Column(
           children: [
             // Header
-            _buildHeader(),
+            _buildHeader(textColor, secondaryTextColor, isDark),
 
             // Messages
             Expanded(
@@ -98,13 +101,18 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                 ),
                 itemCount: _messages.length,
                 itemBuilder: (context, index) {
-                  return _buildMessageBubble(_messages[index]);
+                  return _buildMessageBubble(
+                    _messages[index],
+                    isDark,
+                    cardColor,
+                    textColor,
+                  );
                 },
               ),
             ),
 
             // Input
-            _buildInputArea(),
+            _buildInputArea(isDark, cardColor, textColor, secondaryTextColor),
 
             // Bottom padding for nav bar
             const SizedBox(height: 100),
@@ -114,7 +122,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(Color textColor, Color secondaryTextColor, bool isDark) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Row(
@@ -144,12 +152,12 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'AI Assistant',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: textColor,
                     fontFamily: 'SF Pro Display',
                   ),
                 ),
@@ -168,7 +176,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                       'Online • 24/7 Support',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.white.withOpacity(0.6),
+                        color: secondaryTextColor,
                         fontFamily: 'SF Pro Text',
                       ),
                     ),
@@ -182,19 +190,21 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
             height: 44,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.1),
+              color: textColor.withOpacity(0.1),
             ),
-            child: Icon(
-              CupertinoIcons.ellipsis,
-              color: Colors.white.withOpacity(0.6),
-            ),
+            child: Icon(CupertinoIcons.ellipsis, color: secondaryTextColor),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message) {
+  Widget _buildMessageBubble(
+    ChatMessage message,
+    bool isDark,
+    Color cardColor,
+    Color textColor,
+  ) {
     return Align(
       alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -202,115 +212,135 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
-        child: ClipRRect(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient:
+              message.isUser
+                  ? const LinearGradient(
+                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  )
+                  : null,
+          color: message.isUser ? null : cardColor,
           borderRadius: BorderRadius.circular(20),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient:
-                    message.isUser
-                        ? const LinearGradient(
-                          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                        )
-                        : null,
-                color: message.isUser ? null : Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              child: Text(
-                message.text,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white.withOpacity(message.isUser ? 1.0 : 0.9),
-                  fontFamily: 'SF Pro Text',
-                  height: 1.5,
-                ),
-              ),
-            ),
+          border: Border.all(
+            color:
+                isDark
+                    ? Colors.white.withOpacity(0.2)
+                    : const Color(0xFFE5E5EA),
+            width: 1,
+          ),
+          boxShadow:
+              !isDark && !message.isUser
+                  ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                  : null,
+        ),
+        child: Text(
+          message.text,
+          style: TextStyle(
+            fontSize: 16,
+            color: message.isUser ? Colors.white : textColor.withOpacity(0.9),
+            fontFamily: 'SF Pro Text',
+            height: 1.5,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildInputArea() {
+  Widget _buildInputArea(
+    bool isDark,
+    Color cardColor,
+    Color textColor,
+    Color secondaryTextColor,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(25),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(25),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.2),
-                width: 1,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(
+            color:
+                isDark
+                    ? Colors.white.withOpacity(0.2)
+                    : const Color(0xFFE5E5EA),
+            width: 1,
+          ),
+          boxShadow:
+              isDark
+                  ? null
+                  : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color:
+                    isDark
+                        ? Colors.white.withOpacity(0.1)
+                        : const Color(0xFFF2F2F7),
+              ),
+              child: Icon(
+                CupertinoIcons.plus,
+                color: secondaryTextColor,
+                size: 20,
               ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.1),
-                  ),
-                  child: Icon(
-                    CupertinoIcons.plus,
-                    color: Colors.white.withOpacity(0.6),
-                    size: 20,
-                  ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _messageController,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 16,
+                  fontFamily: 'SF Pro Text',
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontFamily: 'SF Pro Text',
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Ask me anything...',
-                      hintStyle: TextStyle(
-                        color: Colors.white.withOpacity(0.4),
-                        fontFamily: 'SF Pro Text',
-                      ),
-                      border: InputBorder.none,
-                    ),
-                    onSubmitted: (_) => _sendMessage(),
+                decoration: InputDecoration(
+                  hintText: 'Ask me anything...',
+                  hintStyle: TextStyle(
+                    color: secondaryTextColor,
+                    fontFamily: 'SF Pro Text',
                   ),
+                  border: InputBorder.none,
                 ),
-                GestureDetector(
-                  onTap: _sendMessage,
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                      ),
-                    ),
-                    child: const Icon(
-                      CupertinoIcons.arrow_up,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ],
+                onSubmitted: (_) => _sendMessage(),
+              ),
             ),
-          ),
+            GestureDetector(
+              onTap: _sendMessage,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  ),
+                ),
+                child: const Icon(
+                  CupertinoIcons.arrow_up,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

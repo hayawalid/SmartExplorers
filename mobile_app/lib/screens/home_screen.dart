@@ -81,41 +81,69 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1a1a2e), Color(0xFF16213e), Color(0xFF0f3460)],
-        ),
-      ),
-      child: SafeArea(
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final backgroundColor =
+        isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+    final cardColor = isDark ? const Color(0xFF2C2C2E) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor =
+        isDark ? Colors.white70 : const Color(0xFF8E8E93);
+
+    return Scaffold(
+      backgroundColor: backgroundColor,
+      body: SafeArea(
         bottom: false,
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: CustomScrollView(
             slivers: [
               // Header
-              SliverToBoxAdapter(child: _buildHeader()),
+              SliverToBoxAdapter(
+                child: _buildHeader(textColor, secondaryTextColor),
+              ),
 
               // Search bar
-              SliverToBoxAdapter(child: _buildSearchBar()),
+              SliverToBoxAdapter(
+                child: _buildSearchBar(
+                  isDark,
+                  cardColor,
+                  textColor,
+                  secondaryTextColor,
+                ),
+              ),
 
               // Featured destinations
               SliverToBoxAdapter(
-                child: _buildSectionTitle('Featured Destinations'),
+                child: _buildSectionTitle('Featured Destinations', textColor),
               ),
-              SliverToBoxAdapter(child: _buildFeaturedDestinations()),
+              SliverToBoxAdapter(child: _buildFeaturedDestinations(isDark)),
 
               // Verified guides
               SliverToBoxAdapter(
-                child: _buildSectionTitle('Top Verified Guides'),
+                child: _buildSectionTitle('Top Verified Guides', textColor),
               ),
-              SliverToBoxAdapter(child: _buildVerifiedGuides()),
+              SliverToBoxAdapter(
+                child: _buildVerifiedGuides(
+                  isDark,
+                  cardColor,
+                  textColor,
+                  secondaryTextColor,
+                ),
+              ),
 
               // Quick actions
-              SliverToBoxAdapter(child: _buildSectionTitle('Quick Actions')),
-              SliverToBoxAdapter(child: _buildQuickActions()),
+              SliverToBoxAdapter(
+                child: _buildSectionTitle('Quick Actions', textColor),
+              ),
+              SliverToBoxAdapter(
+                child: _buildQuickActions(
+                  isDark,
+                  cardColor,
+                  textColor,
+                  secondaryTextColor,
+                ),
+              ),
 
               // Bottom padding for nav bar
               const SliverToBoxAdapter(child: SizedBox(height: 120)),
@@ -126,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(Color textColor, Color secondaryTextColor) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Row(
@@ -139,17 +167,17 @@ class _HomeScreenState extends State<HomeScreen>
                   'Welcome back! 👋',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.white.withOpacity(0.7),
+                    color: secondaryTextColor,
                     fontFamily: 'SF Pro Text',
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Explore Egypt',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: textColor,
                     fontFamily: 'SF Pro Display',
                     letterSpacing: -1,
                   ),
@@ -184,61 +212,73 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(
+    bool isDark,
+    Color cardColor,
+    Color textColor,
+    Color secondaryTextColor,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.2),
-                width: 1,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color:
+                isDark
+                    ? Colors.white.withOpacity(0.2)
+                    : const Color(0xFFE5E5EA),
+            width: 1,
+          ),
+          boxShadow:
+              isDark
+                  ? null
+                  : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+        ),
+        child: Row(
+          children: [
+            Icon(CupertinoIcons.search, color: secondaryTextColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Search destinations, guides...',
+                style: TextStyle(
+                  color: secondaryTextColor,
+                  fontSize: 16,
+                  fontFamily: 'SF Pro Text',
+                ),
               ),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  CupertinoIcons.search,
-                  color: Colors.white.withOpacity(0.6),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Search destinations, guides...',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
-                      fontSize: 16,
-                      fontFamily: 'SF Pro Text',
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    CupertinoIcons.slider_horizontal_3,
-                    color: Colors.white.withOpacity(0.6),
-                    size: 18,
-                  ),
-                ),
-              ],
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color:
+                    isDark
+                        ? Colors.white.withOpacity(0.1)
+                        : const Color(0xFFF2F2F7),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                CupertinoIcons.slider_horizontal_3,
+                color: secondaryTextColor,
+                size: 18,
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, Color textColor) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 30, 24, 16),
       child: Row(
@@ -246,18 +286,18 @@ class _HomeScreenState extends State<HomeScreen>
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: textColor,
               fontFamily: 'SF Pro Display',
             ),
           ),
-          Text(
+          const Text(
             'See all',
             style: TextStyle(
               fontSize: 14,
-              color: const Color(0xFF667eea),
+              color: Color(0xFF667eea),
               fontFamily: 'SF Pro Text',
               fontWeight: FontWeight.w600,
             ),
@@ -267,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildFeaturedDestinations() {
+  Widget _buildFeaturedDestinations(bool isDark) {
     return SizedBox(
       height: 220,
       child: ListView.builder(
@@ -377,139 +417,168 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildVerifiedGuides() {
+  Widget _buildVerifiedGuides(
+    bool isDark,
+    Color cardColor,
+    Color textColor,
+    Color secondaryTextColor,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         children:
-            _verifiedGuides.map((guide) => _buildGuideCard(guide)).toList(),
+            _verifiedGuides
+                .map(
+                  (guide) => _buildGuideCard(
+                    guide,
+                    isDark,
+                    cardColor,
+                    textColor,
+                    secondaryTextColor,
+                  ),
+                )
+                .toList(),
       ),
     );
   }
 
-  Widget _buildGuideCard(Map<String, dynamic> guide) {
+  Widget _buildGuideCard(
+    Map<String, dynamic> guide,
+    bool isDark,
+    Color cardColor,
+    Color textColor,
+    Color secondaryTextColor,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ClipRRect(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
         borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.all(16),
+        border: Border.all(
+          color:
+              isDark ? Colors.white.withOpacity(0.2) : const Color(0xFFE5E5EA),
+          width: 1,
+        ),
+        boxShadow:
+            isDark
+                ? null
+                : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.2),
-                width: 1,
-              ),
+              shape: BoxShape.circle,
+              color:
+                  isDark
+                      ? Colors.white.withOpacity(0.2)
+                      : const Color(0xFFF2F2F7),
             ),
-            child: Row(
+            child: Center(
+              child: Text(guide['emoji'], style: const TextStyle(fontSize: 30)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.2),
-                  ),
-                  child: Center(
-                    child: Text(
-                      guide['emoji'],
-                      style: const TextStyle(fontSize: 30),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            guide['name'],
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              fontFamily: 'SF Pro Display',
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            CupertinoIcons.checkmark_seal_fill,
-                            size: 16,
-                            color: Color(0xFF4facfe),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        guide['specialty'],
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.7),
-                          fontFamily: 'SF Pro Text',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          CupertinoIcons.star_fill,
-                          size: 14,
-                          color: Color(0xFFFFD700),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${guide['rating']}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            fontFamily: 'SF Pro Text',
-                          ),
-                        ),
-                      ],
+                    Text(
+                      guide['name'],
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                        fontFamily: 'SF Pro Display',
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                        ),
-                      ),
-                      child: const Text(
-                        'Book',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontFamily: 'SF Pro Text',
-                        ),
-                      ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      CupertinoIcons.checkmark_seal_fill,
+                      size: 16,
+                      color: Color(0xFF4facfe),
                     ),
                   ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  guide['specialty'],
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: secondaryTextColor,
+                    fontFamily: 'SF Pro Text',
+                  ),
                 ),
               ],
             ),
           ),
-        ),
+          Column(
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    CupertinoIcons.star_fill,
+                    size: 14,
+                    color: Color(0xFFFFD700),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${guide['rating']}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                      fontFamily: 'SF Pro Text',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  ),
+                ),
+                child: const Text(
+                  'Book',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontFamily: 'SF Pro Text',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildQuickActions() {
+  Widget _buildQuickActions(
+    bool isDark,
+    Color cardColor,
+    Color textColor,
+    Color secondaryTextColor,
+  ) {
     final actions = [
       {
         'icon': CupertinoIcons.map_fill,
@@ -542,51 +611,54 @@ class _HomeScreenState extends State<HomeScreen>
               return Expanded(
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 6),
-                  child: ClipRRect(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  decoration: BoxDecoration(
+                    color: cardColor,
                     borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
+                    border: Border.all(
+                      color:
+                          isDark
+                              ? Colors.white.withOpacity(0.2)
+                              : const Color(0xFFE5E5EA),
+                      width: 1,
+                    ),
+                    boxShadow:
+                        isDark
+                            ? null
+                            : [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
-                            width: 1,
-                          ),
+                          shape: BoxShape.circle,
+                          color: (action['color'] as Color).withOpacity(0.2),
                         ),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: (action['color'] as Color).withOpacity(
-                                  0.2,
-                                ),
-                              ),
-                              child: Icon(
-                                action['icon'] as IconData,
-                                color: action['color'] as Color,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              action['label'] as String,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withOpacity(0.9),
-                                fontFamily: 'SF Pro Text',
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
+                        child: Icon(
+                          action['icon'] as IconData,
+                          color: action['color'] as Color,
+                          size: 24,
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 10),
+                      Text(
+                        action['label'] as String,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: textColor.withOpacity(0.9),
+                          fontFamily: 'SF Pro Text',
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );

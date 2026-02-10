@@ -17,6 +17,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   late AnimationController _floatingController;
   late Animation<double> _gradientAnimation;
   late Animation<double> _floatingAnimation;
+  // Controls delayed button appearance animation
   bool _showButton = false;
 
   @override
@@ -54,6 +55,23 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Theme-aware gradient colors
+    final gradientStart1 =
+        isDark ? const Color(0xFF6A82FB) : const Color(0xFF8E9EFC);
+    final gradientEnd1 =
+        isDark ? const Color(0xFF0F4C75) : const Color(0xFF3D6A8F);
+    final gradientStart2 =
+        isDark ? const Color(0xFFFC5C7D) : const Color(0xFFFF8FA3);
+    final gradientEnd2 =
+        isDark ? const Color(0xFFD4AF37) : const Color(0xFFE5C76B);
+    final gradientStart3 =
+        isDark ? const Color(0xFFD4AF37) : const Color(0xFFE5C76B);
+    final gradientEnd3 =
+        isDark ? const Color(0xFF6A82FB) : const Color(0xFF8E9EFC);
+
     return Scaffold(
       body: Stack(
         children: [
@@ -68,18 +86,18 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     end: Alignment.bottomRight,
                     colors: [
                       Color.lerp(
-                        const Color(0xFF6A82FB),
-                        const Color(0xFF0F4C75),
+                        gradientStart1,
+                        gradientEnd1,
                         _gradientAnimation.value,
                       )!,
                       Color.lerp(
-                        const Color(0xFFFC5C7D),
-                        const Color(0xFFD4AF37),
+                        gradientStart2,
+                        gradientEnd2,
                         _gradientAnimation.value,
                       )!,
                       Color.lerp(
-                        const Color(0xFFD4AF37),
-                        const Color(0xFF6A82FB),
+                        gradientStart3,
+                        gradientEnd3,
                         _gradientAnimation.value,
                       )!,
                     ],
@@ -90,7 +108,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             },
           ),
           // Floating geometric shapes (background)
-          ..._buildFloatingShapes(),
+          ..._buildFloatingShapes(isDark),
           // Main content
           SafeArea(
             child: Center(
@@ -99,16 +117,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 children: [
                   const Spacer(flex: 2),
                   // 3D Glassmorphic logo
-                  _buildGlassmorphicLogo(),
+                  _buildGlassmorphicLogo(isDark),
                   const SizedBox(height: 40),
                   // Title
-                  _buildTitle(),
+                  _buildTitle(isDark),
                   const SizedBox(height: 12),
                   // Subtitle
-                  _buildSubtitle(),
+                  _buildSubtitle(isDark),
                   const Spacer(flex: 3),
                   // CTA Button
-                  _buildGetStartedButton(context),
+                  _buildGetStartedButton(context, isDark),
                   const SizedBox(height: 50),
                 ],
               ),
@@ -119,7 +137,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  Widget _buildGlassmorphicLogo() {
+  Widget _buildGlassmorphicLogo(bool isDark) {
+    final logoGradient =
+        isDark
+            ? const [Color(0xFFFFFFFF), Color(0xB3FFFFFF)]
+            : const [Color(0xFFFFFFFF), Color(0xE6FFFFFF)];
+    final shadowOpacity = isDark ? 0.2 : 0.15;
+    final glowOpacity = isDark ? 0.3 : 0.4;
+
     return AnimatedBuilder(
       animation: _floatingAnimation,
       builder: (context, child) {
@@ -130,19 +155,19 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             height: 160,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFFFFF), Color(0xB3FFFFFF)],
+              gradient: LinearGradient(
+                colors: logoGradient,
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withOpacity(shadowOpacity),
                   blurRadius: 40,
                   offset: const Offset(0, 20),
                 ),
                 BoxShadow(
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withOpacity(glowOpacity),
                   blurRadius: 20,
                   offset: const Offset(-5, -5),
                 ),
@@ -153,9 +178,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withOpacity(isDark ? 0.2 : 0.3),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.4),
+                      color: Colors.white.withOpacity(isDark ? 0.4 : 0.6),
                       width: 2,
                     ),
                     shape: BoxShape.circle,
@@ -174,12 +199,15 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  Widget _buildTitle() {
+  Widget _buildTitle(bool isDark) {
+    final titleColors =
+        isDark
+            ? const [Colors.white, Color(0xFFFFE082)]
+            : const [Colors.white, Color(0xFFFFF3C4)];
+
     return ShaderMask(
       shaderCallback:
-          (bounds) => const LinearGradient(
-            colors: [Colors.white, Color(0xFFFFE082)],
-          ).createShader(bounds),
+          (bounds) => LinearGradient(colors: titleColors).createShader(bounds),
       child: const Text(
         'SmartExplorers',
         style: TextStyle(
@@ -193,75 +221,88 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  Widget _buildSubtitle() {
+  Widget _buildSubtitle(bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: const Text(
+      child: Text(
         'Safe Tourism for Everyone in Egypt',
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w500,
           fontFamily: 'SF Pro Text',
-          color: Color(0xE6FFFFFF),
+          color: isDark ? const Color(0xE6FFFFFF) : Colors.white,
           letterSpacing: -0.3,
         ),
       ),
     );
   }
 
-  Widget _buildGetStartedButton(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 1200),
-      curve: Curves.elasticOut,
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: value,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(30),
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFFFFF), Color(0xCCFFFFFF)],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
+  Widget _buildGetStartedButton(BuildContext context, bool isDark) {
+    final buttonGradient =
+        isDark
+            ? const [Color(0xFFFFFFFF), Color(0xCCFFFFFF)]
+            : const [Color(0xFFFFFFFF), Color(0xE6FFFFFF)];
+    final buttonTextColor =
+        isDark ? const Color(0xFF0F4C75) : const Color(0xFF3D6A8F);
+
+    return AnimatedOpacity(
+      opacity: _showButton ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 500),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 1200),
+        curve: Curves.elasticOut,
+        builder: (context, value, child) {
+          return Transform.scale(
+            scale: value,
+            child: Container(
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(30),
-                onTap: () => _navigateToFeatures(context),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 60,
-                    vertical: 20,
+                gradient: LinearGradient(colors: buttonGradient),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.15),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
                   ),
-                  child: const Text(
-                    'Get Started',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'SF Pro Text',
-                      color: Color(0xFF0F4C75),
-                      letterSpacing: 0.5,
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(30),
+                  onTap: () => _navigateToFeatures(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 60,
+                      vertical: 20,
+                    ),
+                    child: Text(
+                      'Get Started',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'SF Pro Text',
+                        color: buttonTextColor,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
-  List<Widget> _buildFloatingShapes() {
+  List<Widget> _buildFloatingShapes(bool isDark) {
+    final shapeOpacity = isDark ? 0.15 : 0.2;
+    final gradientOpacity1 = isDark ? 0.3 : 0.4;
+    final gradientOpacity2 = isDark ? 0.1 : 0.15;
+
     return List.generate(5, (index) {
       return AnimatedBuilder(
         animation: _floatingAnimation,
@@ -273,7 +314,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             left: 30.0 + index * 70,
             top: 100.0 + offset + index * 50,
             child: Opacity(
-              opacity: 0.15,
+              opacity: shapeOpacity,
               child: Transform.rotate(
                 angle: _floatingAnimation.value * 2 * math.pi,
                 child: Container(
@@ -283,8 +324,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
                       colors: [
-                        Colors.white.withOpacity(0.3),
-                        Colors.white.withOpacity(0.1),
+                        Colors.white.withOpacity(gradientOpacity1),
+                        Colors.white.withOpacity(gradientOpacity2),
                       ],
                     ),
                   ),
