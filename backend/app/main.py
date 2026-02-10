@@ -6,6 +6,7 @@ from .database import init_db
 from .config import settings
 from .api.itineraries import router as itinerary_router
 from .api.chat import router as chat_router  # ← ADD THIS
+from .api.travel_space import router as travel_space_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -26,6 +27,7 @@ app.add_middleware(
 # Include routers
 app.include_router(itinerary_router)
 app.include_router(chat_router)  # ← ADD THIS
+app.include_router(travel_space_router)
 
 @app.on_event("startup")
 async def startup_event():
