@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# demo.py - Standalone Itinerary Generation Demo
 """
 SmartExplorers Itinerary Generation - Standalone Demo
 This script simulates the AI itinerary generation without requiring API calls

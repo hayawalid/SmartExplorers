@@ -1,3 +1,4 @@
+# backend/app/database.py
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from .config import settings
@@ -31,6 +32,7 @@ def init_db():
     """Initialize database tables"""
     # Import all models here to ensure they're registered with Base
     from .models import itinerary  # noqa: F401
+    from .models import conversation  # ← ADD THIS
     
     Base.metadata.create_all(bind=engine)
     print("✓ Database tables created successfully")
