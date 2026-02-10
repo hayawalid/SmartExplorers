@@ -8,7 +8,7 @@ import 'account_type_screen.dart';
 /// Interactive feature showcase with haphazard stacked deck design
 /// Cards appear messily stacked with random rotations
 class FeatureShowcaseScreen extends StatefulWidget {
-  const FeatureShowcaseScreen({Key? key}) : super(key: key);
+  const FeatureShowcaseScreen({super.key});
 
   @override
   State<FeatureShowcaseScreen> createState() => _FeatureShowcaseScreenState();
@@ -287,27 +287,73 @@ class _FeatureShowcaseScreenState extends State<FeatureShowcaseScreen>
     final secondaryTextColor =
         isDark ? Colors.white70 : const Color(0xFF8E8E93);
 
+    // Get current top card's gradient for background
+    final topFeatureIndex = _cardOrder.isNotEmpty ? _cardOrder.first : 0;
+    final currentFeature = _features[topFeatureIndex];
+
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header with title and progress
-            _buildHeader(isDark, textColor, secondaryTextColor),
+      body: Stack(
+        children: [
+          // Animated blurred gradient background
+          _buildAnimatedBackground(currentFeature, isDark),
 
-            // Stacked card deck
-            Expanded(
-              child: _buildCardDeck(
-                isDark,
-                cardColor,
-                textColor,
-                secondaryTextColor,
-              ),
+          // Main content
+          SafeArea(
+            child: Column(
+              children: [
+                // Header with title and progress
+                _buildHeader(isDark, textColor, secondaryTextColor),
+
+                // Stacked card deck
+                Expanded(
+                  child: _buildCardDeck(
+                    isDark,
+                    cardColor,
+                    textColor,
+                    secondaryTextColor,
+                  ),
+                ),
+
+                // Bottom actions
+                _buildBottomActions(context, isDark, cardColor, textColor),
+              ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            // Bottom actions
-            _buildBottomActions(context, isDark, cardColor, textColor),
+  Widget _buildAnimatedBackground(FeatureData feature, bool isDark) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeOutCubic,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            feature.gradient.colors[0].withValues(alpha: isDark ? 0.4 : 0.3),
+            feature.gradient.colors[1].withValues(alpha: isDark ? 0.3 : 0.2),
+            isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
           ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          stops: const [0.0, 0.4, 1.0],
+        ),
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment.topRight,
+              radius: 1.5,
+              colors: [
+                feature.accentColor.withValues(alpha: isDark ? 0.15 : 0.1),
+                Colors.transparent,
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -449,13 +495,17 @@ class _FeatureShowcaseScreenState extends State<FeatureShowcaseScreen>
                                   ? _breatheAnimation.value
                                   : 1.0;
 
+                          final scale = cardScale * breatheScale;
                           return Transform(
                             alignment: Alignment.center,
                             transform:
                                 Matrix4.identity()
-                                  ..translate(cardOffset.dx, cardOffset.dy)
+                                  ..setEntry(0, 3, cardOffset.dx)
+                                  ..setEntry(1, 3, cardOffset.dy)
                                   ..rotateZ(cardRotation)
-                                  ..scale(cardScale * breatheScale),
+                                  ..setEntry(0, 0, scale)
+                                  ..setEntry(1, 1, scale)
+                                  ..setEntry(2, 2, scale),
                             child: Opacity(
                               opacity: depthOpacity.clamp(0.0, 1.0),
                               child:

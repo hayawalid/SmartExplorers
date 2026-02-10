@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'screens/onboarding/onboarding_flow.dart';
 import 'screens/main_navigation_shell.dart';
+import 'screens/provider_navigation_shell.dart';
 import 'theme/theme_manager.dart';
 
 void main() {
@@ -57,6 +58,7 @@ class _SmartExplorersAppState extends ConsumerState<SmartExplorersApp> {
         '/': (context) => const MainNavigationShell(),
         '/onboarding': (context) => const OnboardingFlow(),
         '/home': (context) => const MainNavigationShell(),
+        '/provider_home': (context) => const ProviderNavigationShell(),
       },
     );
   }
