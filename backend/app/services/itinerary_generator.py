@@ -41,7 +41,7 @@ class ItineraryGenerator:
             # Initialize Groq client
             self.client = Groq(api_key=api_key)
             # Use Llama 3.1 70B - excellent for structured output
-            self.model = "llama-3.1-70b-versatile"
+            self.model = "llama-3.3-70b-versatile"
             
             print(f"✓ Groq client initialized successfully with model: {self.model}")
             
