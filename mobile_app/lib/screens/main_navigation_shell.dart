@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
-import 'ai_assistant_screen.dart';
+import 'itinerary_planner_screen.dart';
 import 'feed_screen.dart';
 import 'marketplace_screen.dart';
 import 'safety_dashboard_screen.dart';
@@ -99,7 +99,7 @@ class _MainNavigationShellState extends State<MainNavigationShell>
             physics: const NeverScrollableScrollPhysics(),
             onPageChanged: (index) => setState(() => _currentIndex = index),
             children: const [
-              AIAssistantScreen(), // Tab 0: AI Chat/Itinerary (landing)
+              ItineraryPlannerScreen(), // Tab 0: AI Chat-to-Plan Itinerary
               FeedScreen(), // Tab 1: Instagram-style feed
               MarketplaceScreen(), // Tab 2: Service providers
               SafetyDashboardScreen(), // Tab 3: Emergency SOS

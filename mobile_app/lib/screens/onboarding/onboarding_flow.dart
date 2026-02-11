@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'welcome_screen.dart';
+import 'auth_choice_screen.dart';
 
 /// Main onboarding flow entry point (just launches WelcomeScreen)
 class OnboardingFlow extends StatelessWidget {
@@ -7,6 +7,7 @@ class OnboardingFlow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const WelcomeScreen();
+    // Start with AuthChoiceScreen
+    return const AuthChoiceScreen();
   }
 }

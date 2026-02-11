@@ -156,11 +156,13 @@ class _FeedScreenState extends State<FeedScreen> {
           const SizedBox(width: 12),
           Semantics(
             button: true,
-            label: 'Direct messages',
+            label: 'AI Itinerary Planner',
+            hint: 'Open the AI assistant to plan your trip',
             child: _buildIconButton(
-              CupertinoIcons.paperplane,
-              () {},
+              CupertinoIcons.sparkles,
+              () => _navigateToItinerary(context),
               textColor,
+              hasGradient: true,
             ),
           ),
         ],
@@ -168,17 +170,41 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
-  Widget _buildIconButton(IconData icon, VoidCallback onTap, Color iconColor) {
+  void _navigateToItinerary(BuildContext context) {
+    // Find the MainNavigationShell and switch to itinerary tab (index 0)
+    final scaffold = context.findAncestorStateOfType<ScaffoldState>();
+    if (scaffold != null) {
+      // Navigate to tab 0 by finding the navigation state
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+
+  Widget _buildIconButton(
+    IconData icon,
+    VoidCallback onTap,
+    Color iconColor, {
+    bool hasGradient = false,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.1),
+          gradient:
+              hasGradient
+                  ? const LinearGradient(
+                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  )
+                  : null,
+          color: hasGradient ? null : iconColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, color: iconColor, size: 22),
+        child: Icon(
+          icon,
+          color: hasGradient ? Colors.white : iconColor,
+          size: 22,
+        ),
       ),
     );
   }

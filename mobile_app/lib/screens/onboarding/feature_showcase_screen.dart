@@ -54,7 +54,7 @@ class _FeatureShowcaseScreenState extends State<FeatureShowcaseScreen>
         end: Alignment.bottomRight,
       ),
       accentColor: const Color(0xFF667eea),
-      imagePlaceholder: 'ai_assistant',
+      imagePlaceholder: 'assets/images/feature_ai_assistant.png',
     ),
     FeatureData(
       title: 'Safety First',
@@ -68,7 +68,7 @@ class _FeatureShowcaseScreenState extends State<FeatureShowcaseScreen>
         end: Alignment.bottomRight,
       ),
       accentColor: const Color(0xFF11998e),
-      imagePlaceholder: 'safety_features',
+      imagePlaceholder: 'assets/images/feature_safety.png',
     ),
     FeatureData(
       title: 'Verified Providers',
@@ -82,7 +82,7 @@ class _FeatureShowcaseScreenState extends State<FeatureShowcaseScreen>
         end: Alignment.bottomRight,
       ),
       accentColor: const Color(0xFFD4AF37),
-      imagePlaceholder: 'verified_providers',
+      imagePlaceholder: 'assets/images/feature_verified.png',
     ),
     FeatureData(
       title: 'Smart Itineraries',
@@ -96,7 +96,7 @@ class _FeatureShowcaseScreenState extends State<FeatureShowcaseScreen>
         end: Alignment.bottomRight,
       ),
       accentColor: const Color(0xFFf5576c),
-      imagePlaceholder: 'smart_itineraries',
+      imagePlaceholder: 'assets/images/feature_itinerary.png',
     ),
   ];
 
