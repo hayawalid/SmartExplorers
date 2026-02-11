@@ -1,75 +1,122 @@
 """
-Encryption Service - Privacy-First Identity Data Protection
+Encryption service for sensitive identity verification data
+Uses Fernet symmetric encryption (AES-128 CBC mode)
 """
+
 from cryptography.fernet import Fernet
 from typing import Optional
-import os
 import base64
-import hashlib
+import os
+from ..config import settings
 
 
 class EncryptionService:
-    """Handles encryption/decryption of sensitive identity data"""
+    """Handle encryption/decryption of sensitive identity data"""
     
     def __init__(self):
-        self.current_version = "v1"
-        self.keys = {}
-        self._cipher = None
-        self._initialized = False
-    
-    def _ensure_initialized(self):
-        """Lazy initialization - only load key when first needed"""
-        if self._initialized:
-            return
-        
-        master_secret = os.getenv("ENCRYPTION_MASTER_KEY")
-        
-        if not master_secret:
+        """Initialize encryption service with master key from environment"""
+        if not settings.ENCRYPTION_MASTER_KEY:
             raise ValueError(
                 "ENCRYPTION_MASTER_KEY environment variable not set!\n"
                 "Generate with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'\n"
                 "Then add to .env file: ENCRYPTION_MASTER_KEY=<generated_key>"
             )
         
-        self.keys = {
-            "v1": self._derive_key(master_secret, salt=b"smartexplorers_v1")
-        }
-        self._cipher = Fernet(self.keys[self.current_version])
-        self._initialized = True
-        print("✓ Encryption service initialized successfully")
-    
-    def _derive_key(self, master_secret: str, salt: bytes) -> bytes:
-        """Derive Fernet key from master secret using PBKDF2"""
-        kdf = hashlib.pbkdf2_hmac(
-            'sha256',
-            master_secret.encode(),
-            salt,
-            iterations=100000
-        )
-        return base64.urlsafe_b64encode(kdf[:32])
-    
-    def encrypt(self, plaintext: str, key_version: str = "v1") -> str:
-        """Encrypt plaintext string"""
-        self._ensure_initialized()
+        # Ensure the key is properly formatted
+        key = settings.ENCRYPTION_MASTER_KEY.strip()
         
+        # If the key is not base64 encoded, encode it
+        try:
+            self.cipher = Fernet(key.encode() if isinstance(key, str) else key)
+        except Exception as e:
+            raise ValueError(
+                f"Invalid ENCRYPTION_MASTER_KEY format: {str(e)}\n"
+                "The key must be a valid Fernet key (44 characters, base64-encoded)"
+            )
+    
+    def encrypt(self, plaintext: str) -> str:
+        """
+        Encrypt sensitive data
+        
+        Args:
+            plaintext: Data to encrypt (e.g., ID number, name)
+        
+        Returns:
+            Base64-encoded encrypted string
+        """
         if not plaintext:
             return ""
         
-        cipher = Fernet(self.keys[key_version])
-        encrypted_bytes = cipher.encrypt(plaintext.encode('utf-8'))
+        # Convert to bytes if string
+        plaintext_bytes = plaintext.encode('utf-8')
+        
+        # Encrypt
+        encrypted_bytes = self.cipher.encrypt(plaintext_bytes)
+        
+        # Return as base64 string for database storage
         return encrypted_bytes.decode('utf-8')
     
-    def decrypt(self, encrypted_text: str, key_version: str = "v1") -> str:
-        """Decrypt encrypted string"""
-        self._ensure_initialized()
+    def decrypt(self, ciphertext: str) -> str:
+        """
+        Decrypt sensitive data
         
-        if not encrypted_text:
+        Args:
+            ciphertext: Base64-encoded encrypted string
+        
+        Returns:
+            Original plaintext string
+        """
+        if not ciphertext:
             return ""
         
-        cipher = Fernet(self.keys[key_version])
-        decrypted_bytes = cipher.decrypt(encrypted_text.encode('utf-8'))
-        return decrypted_bytes.decode('utf-8')
+        try:
+            # Convert from base64 string to bytes
+            ciphertext_bytes = ciphertext.encode('utf-8')
+            
+            # Decrypt
+            plaintext_bytes = self.cipher.decrypt(ciphertext_bytes)
+            
+            # Return as string
+            return plaintext_bytes.decode('utf-8')
+        except Exception as e:
+            raise ValueError(f"Decryption failed: {str(e)}")
+    
+    def encrypt_dict(self, data: dict) -> dict:
+        """
+        Encrypt all string values in a dictionary
+        
+        Args:
+            data: Dictionary with plaintext values
+        
+        Returns:
+            Dictionary with encrypted values
+        """
+        encrypted = {}
+        for key, value in data.items():
+            if isinstance(value, str) and value:
+                encrypted[f"encrypted_{key}"] = self.encrypt(value)
+            else:
+                encrypted[key] = value
+        return encrypted
+    
+    def decrypt_dict(self, data: dict, keys: list) -> dict:
+        """
+        Decrypt specific keys in a dictionary
+        
+        Args:
+            data: Dictionary with encrypted values
+            keys: List of keys to decrypt (without 'encrypted_' prefix)
+        
+        Returns:
+            Dictionary with decrypted values
+        """
+        decrypted = data.copy()
+        for key in keys:
+            encrypted_key = f"encrypted_{key}"
+            if encrypted_key in data and data[encrypted_key]:
+                decrypted[key] = self.decrypt(data[encrypted_key])
+        return decrypted
 
 
-# Global singleton - lazy initialization
+# Global encryption service instance
 encryption_service = EncryptionService()

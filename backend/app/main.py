@@ -16,6 +16,9 @@ from app.api.marketplace import router as marketplace_router
 from app.api.safety import router as safety_router
 from app.api.preferences import router as preferences_router
 # from app.api.itineraries import router as itinerary_router  # Add when ready
+from app.api.verification import router as verification_router
+
+# Add after existing routers
 
 
 @asynccontextmanager
@@ -63,6 +66,7 @@ app.include_router(social_router)
 app.include_router(marketplace_router)
 app.include_router(safety_router)
 app.include_router(preferences_router)
+app.include_router(verification_router)
 # app.include_router(itinerary_router)  # Add when ready
 
 

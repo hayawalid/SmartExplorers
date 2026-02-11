@@ -1,6 +1,13 @@
 from pydantic_settings import BaseSettings
 from typing import List
 import os
+from pathlib import Path 
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+env_file = BASE_DIR / ".env"
 
 
 class Settings(BaseSettings):
@@ -54,7 +61,8 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
     
     class Config:
-        env_file = ".env"
+        # env_file = ".env"
+        env_file = str(env_file)
         extra = "ignore"
         case_sensitive = True
 
