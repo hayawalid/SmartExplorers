@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'account_type_screen.dart';
+import 'login_screen.dart';
 
 class AuthChoiceScreen extends StatelessWidget {
   const AuthChoiceScreen({Key? key}) : super(key: key);
@@ -44,7 +45,11 @@ class AuthChoiceScreen extends StatelessWidget {
                     const SizedBox(height: 40),
                     ElevatedButton(
                       onPressed: () {
-                        // TODO: Navigate to login screen
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                        );
                       },
                       child: const Text('Log In'),
                       style: ElevatedButton.styleFrom(

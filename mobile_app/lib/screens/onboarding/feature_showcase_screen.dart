@@ -82,7 +82,7 @@ class _FeatureShowcaseScreenState extends State<FeatureShowcaseScreen>
         end: Alignment.bottomRight,
       ),
       accentColor: const Color(0xFFD4AF37),
-      imagePlaceholder: 'assets/images/feature_verified.png',
+      imagePlaceholder: 'assets/images/verified_guides.png',
     ),
     FeatureData(
       title: 'Smart Itineraries',
@@ -96,7 +96,7 @@ class _FeatureShowcaseScreenState extends State<FeatureShowcaseScreen>
         end: Alignment.bottomRight,
       ),
       accentColor: const Color(0xFFf5576c),
-      imagePlaceholder: 'assets/images/feature_itinerary.png',
+      imagePlaceholder: 'assets/images/smart_itineraries.png',
     ),
   ];
 
