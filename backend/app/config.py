@@ -15,6 +15,14 @@ class Settings(BaseSettings):
     GROQ_MODEL: str ="llama-3.3-70b-versatile"
     GROQ_API_KEY: str =""
     
+    
+    
+    # ⬇️ ADD THESE NEW SETTINGS ⬇️
+    # AI Assistant Settings
+    AI_MODEL: str = "gpt-4"          # NEW
+    AI_TEMPERATURE: float = 0.7      # NEW
+    AI_MAX_TOKENS: int = 1000        # NEW
+
     # Security
     SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
