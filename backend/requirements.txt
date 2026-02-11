@@ -11,7 +11,7 @@ pydantic-settings==2.2.1
 # --- Database ---
 sqlalchemy==2.0.25
 
-# --- AI/ML Stack for Python 3.12 ---
+# --- AI/ML Stack ---
 numpy==1.26.4
 tensorflow==2.16.1
 tf-keras==2.16.0
@@ -24,19 +24,9 @@ openai==1.52.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
-# HTTP Client (for testing)
-requests==2.31.0
-
-# Optional: For PostgreSQL (if not using SQLite)
-# psycopg2-binary==2.9.9
-
-# Optional: For Redis (if implementing caching)
-# redis==5.0.1
+# --- New Additions ---
 motor==3.3.2
 pymongo==4.6.1
-motor 
-pymongo 
-passlib 
 bcrypt
 sentence-transformers
-chroma
+chromadb

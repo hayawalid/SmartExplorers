@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
+import '../theme/app_theme.dart';
 import 'itinerary_planner_screen.dart';
 import 'feed_screen.dart';
-import 'marketplace_screen.dart';
-import 'safety_dashboard_screen.dart';
 import 'profile_screen.dart';
+import 'smart_match_screen.dart';
+import 'safety_hub_screen.dart';
 
-/// Main navigation shell with 5 tabs and WCAG accessibility support
-/// Initial landing screen is AI Itinerary Planning Chat (index 0)
+/// Main navigation shell – 5-tab floating bottom bar
+/// Uses outlined → filled Lucide icons with Electric Cobalt accent
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({Key? key}) : super(key: key);
 
@@ -18,41 +20,39 @@ class MainNavigationShell extends StatefulWidget {
 
 class _MainNavigationShellState extends State<MainNavigationShell>
     with TickerProviderStateMixin {
-  // Start on AI Chat (Itinerary) as per requirements
   int _currentIndex = 0;
-  late PageController _pageController;
-  late AnimationController _fabAnimController;
+  late final PageController _pageController;
 
-  final List<NavItem> _navItems = [
-    NavItem(
-      icon: CupertinoIcons.chat_bubble_2_fill,
+  static const _tabs = <_NavTab>[
+    _NavTab(
+      icon: LucideIcons.compass,
+      activeIcon: LucideIcons.compass,
+      label: 'Explore',
+      semanticLabel: 'Community Feed',
+    ),
+    _NavTab(
+      icon: LucideIcons.briefcase,
+      activeIcon: LucideIcons.briefcase,
+      label: 'Concierge',
+      semanticLabel: 'Accepted trips and matching',
+    ),
+    _NavTab(
+      icon: LucideIcons.sparkles,
+      activeIcon: LucideIcons.sparkles,
       label: 'Itinerary',
-      activeColor: const Color(0xFF667eea),
-      semanticLabel: 'AI Itinerary Planning Chat',
+      semanticLabel: 'AI Itinerary Planner',
     ),
-    NavItem(
-      icon: CupertinoIcons.photo_fill_on_rectangle_fill,
-      label: 'Feed',
-      activeColor: const Color(0xFFf093fb),
-      semanticLabel: 'Social feed with photos and promotions',
-    ),
-    NavItem(
-      icon: CupertinoIcons.cart_fill,
-      label: 'Marketplace',
-      activeColor: const Color(0xFF4facfe),
-      semanticLabel: 'Service provider marketplace',
-    ),
-    NavItem(
-      icon: CupertinoIcons.shield_fill,
+    _NavTab(
+      icon: LucideIcons.shield,
+      activeIcon: LucideIcons.shield,
       label: 'Safety',
-      activeColor: const Color(0xFFf5576c),
-      semanticLabel: 'Emergency SOS and safety status center',
+      semanticLabel: 'Emergency services',
     ),
-    NavItem(
-      icon: CupertinoIcons.person_fill,
+    _NavTab(
+      icon: LucideIcons.user,
+      activeIcon: LucideIcons.user,
       label: 'Profile',
-      activeColor: const Color(0xFFD4AF37),
-      semanticLabel: 'Personal travel portfolio and reviews',
+      semanticLabel: 'Account management',
     ),
   ];
 
@@ -60,161 +60,158 @@ class _MainNavigationShellState extends State<MainNavigationShell>
   void initState() {
     super.initState();
     _pageController = PageController();
-    _fabAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _fabAnimController.dispose();
     super.dispose();
   }
 
-  void _onNavTap(int index) {
+  void _onTabTap(int index) {
+    HapticFeedback.selectionClick();
     setState(() => _currentIndex = index);
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOutCubic,
-    );
+    _pageController.jumpToPage(index);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final backgroundColor =
-        isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: Stack(
-        children: [
-          // Page content with 5-tab navigation
-          PageView(
-            controller: _pageController,
-            physics: const NeverScrollableScrollPhysics(),
-            onPageChanged: (index) => setState(() => _currentIndex = index),
-            children: const [
-              ItineraryPlannerScreen(), // Tab 0: AI Chat-to-Plan Itinerary
-              FeedScreen(), // Tab 1: Instagram-style feed
-              MarketplaceScreen(), // Tab 2: Service providers
-              SafetyDashboardScreen(), // Tab 3: Emergency SOS
-              ProfileScreen(), // Tab 4: User profile
-            ],
-          ),
-
-          // Bottom navigation bar
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 30,
-            child: _buildFloatingNavBar(isDark),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFloatingNavBar(bool isDark) {
-    final navBarColor = isDark ? const Color(0xFF2C2C2E) : Colors.white;
-    final borderColor =
-        isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05);
-    final inactiveIconColor =
-        isDark ? Colors.white.withOpacity(0.5) : const Color(0xFF8E8E93);
-
-    return Container(
-      height: 80,
-      decoration: BoxDecoration(
-        color: navBarColor,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(
-          _navItems.length,
-          (index) => _buildNavItem(index, isDark, inactiveIconColor),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: isDark ? AppDesign.eerieBlack : AppDesign.pureWhite,
+        body: Stack(
+          children: [
+            PageView(
+              controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(),
+              children: const [
+                FeedScreen(),
+                SmartMatchScreen(),
+                ItineraryPlannerScreen(),
+                SafetyHubScreen(),
+                ProfileScreen(),
+              ],
+            ),
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(context).padding.bottom + 12,
+              child: _FloatingNavBar(
+                tabs: _tabs,
+                currentIndex: _currentIndex,
+                onTap: _onTabTap,
+                isDark: isDark,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildNavItem(int index, bool isDark, Color inactiveIconColor) {
-    final item = _navItems[index];
-    final isActive = _currentIndex == index;
+// ── Floating Nav Bar ────────────────────────────────────────────────────
+class _FloatingNavBar extends StatelessWidget {
+  const _FloatingNavBar({
+    required this.tabs,
+    required this.currentIndex,
+    required this.onTap,
+    required this.isDark,
+  });
 
-    // WCAG 2.1 AA: Wrap with Semantics for accessibility
-    return Semantics(
-      button: true,
-      selected: isActive,
-      label: item.semanticLabel,
-      hint: isActive ? 'Currently selected' : 'Double tap to navigate',
-      child: GestureDetector(
-        onTap: () => _onNavTap(index),
-        behavior: HitTestBehavior.opaque,
-        child: ConstrainedBox(
-          // WCAG 2.1 AA: Minimum 44x44pt tap target
-          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            padding: EdgeInsets.symmetric(
-              horizontal: isActive ? 20 : 16,
-              vertical: 12,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
+  final List<_NavTab> tabs;
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = isDark ? const Color(0xFF1A1A20) : AppDesign.pureWhite;
+    final inactive = isDark ? Colors.white38 : AppDesign.midGrey;
+
+    return ClipRRect(
+      borderRadius: AppDesign.borderRadius,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          height: 72,
+          decoration: BoxDecoration(
+            color: bg.withOpacity(isDark ? 0.85 : 0.92),
+            borderRadius: AppDesign.borderRadius,
+            border: Border.all(
               color:
-                  isActive
-                      ? item.activeColor.withOpacity(0.15)
-                      : Colors.transparent,
+                  isDark
+                      ? Colors.white.withOpacity(0.06)
+                      : Colors.black.withOpacity(0.04),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  child: Icon(
-                    item.icon,
-                    size: isActive ? 26 : 24,
-                    color: isActive ? item.activeColor : inactiveIconColor,
-                  ),
-                ),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOutCubic,
-                  child: SizedBox(
-                    width: isActive ? null : 0,
-                    child: AnimatedOpacity(
-                      opacity: isActive ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: Text(
-                          item.label,
-                          style: TextStyle(
-                            color: item.activeColor,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'SF Pro Text',
-                            fontSize: 14,
+            boxShadow: isDark ? [] : AppDesign.mediumShadow,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(tabs.length, (i) {
+              final isActive = i == currentIndex;
+              final tab = tabs[i];
+              return Semantics(
+                button: true,
+                selected: isActive,
+                label: tab.semanticLabel,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onTap(i),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minWidth: 56,
+                      minHeight: 56,
+                    ),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOutCubic,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isActive ? 16 : 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        color:
+                            isActive
+                                ? AppDesign.electricCobalt.withOpacity(0.12)
+                                : Colors.transparent,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            isActive ? tab.activeIcon : tab.icon,
+                            size: 22,
+                            color:
+                                isActive ? AppDesign.electricCobalt : inactive,
                           ),
-                        ),
+                          const SizedBox(height: 4),
+                          AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 200),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight:
+                                  isActive ? FontWeight.w600 : FontWeight.w400,
+                              color:
+                                  isActive
+                                      ? AppDesign.electricCobalt
+                                      : inactive,
+                              letterSpacing: 0.1,
+                            ),
+                            child: Text(tab.label),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              );
+            }),
           ),
         ),
       ),
@@ -222,17 +219,17 @@ class _MainNavigationShellState extends State<MainNavigationShell>
   }
 }
 
-/// Navigation item model with WCAG accessibility support
-class NavItem {
-  final IconData icon;
-  final String label;
-  final Color activeColor;
-  final String semanticLabel;
-
-  NavItem({
+// ── Data class ──────────────────────────────────────────────────────────
+class _NavTab {
+  const _NavTab({
     required this.icon,
+    required this.activeIcon,
     required this.label,
-    required this.activeColor,
     required this.semanticLabel,
   });
+
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final String semanticLabel;
 }
