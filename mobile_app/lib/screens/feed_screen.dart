@@ -79,13 +79,35 @@ class _FeedScreenState extends State<FeedScreen>
           _GlassIconButton(
             icon: LucideIcons.search,
             isDark: isDark,
-            onTap: () {},
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Search coming soon'),
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(width: 10),
           _GlassIconButton(
             icon: LucideIcons.bell,
             isDark: isDark,
-            onTap: () {},
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('No new notifications'),
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -93,30 +115,29 @@ class _FeedScreenState extends State<FeedScreen>
   }
 
   Widget _buildTabBar(bool isDark) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color:
-            isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : Colors.black.withValues(alpha: 0.04),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       child: TabBar(
         controller: _tabController,
-        labelColor: Colors.white,
-        unselectedLabelColor: isDark ? AppDesign.midGrey : AppDesign.midGrey,
-        indicator: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: AppDesign.electricCobalt,
+        labelColor: isDark ? Colors.white : AppDesign.eerieBlack,
+        unselectedLabelColor: AppDesign.midGrey,
+        indicatorColor: isDark ? Colors.white : AppDesign.eerieBlack,
+        indicatorWeight: 2.5,
+        indicatorSize: TabBarIndicatorSize.label,
+        dividerColor:
+            isDark ? Colors.white.withValues(alpha: 0.06) : AppDesign.lightGrey,
+        dividerHeight: 0.5,
+        splashFactory: NoSplash.splashFactory,
+        overlayColor: WidgetStateProperty.all(Colors.transparent),
+        labelStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.2,
         ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        dividerColor: Colors.transparent,
-        splashBorderRadius: BorderRadius.circular(12),
-        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         unselectedLabelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          letterSpacing: -0.2,
         ),
         tabs: const [
           Tab(text: 'Posts'),
@@ -234,10 +255,175 @@ class _PostsTab extends StatelessWidget {
   }
 }
 
-class _PostCard extends StatelessWidget {
+class _PostCard extends StatefulWidget {
   const _PostCard({required this.post, required this.isDark});
   final _PostData post;
   final bool isDark;
+
+  @override
+  State<_PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends State<_PostCard> {
+  late int _likes;
+  bool _liked = false;
+  bool _bookmarked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _likes = widget.post.likes;
+  }
+
+  void _toggleLike() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _liked = !_liked;
+      _likes += _liked ? 1 : -1;
+    });
+  }
+
+  void _toggleBookmark() {
+    HapticFeedback.lightImpact();
+    setState(() => _bookmarked = !_bookmarked);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_bookmarked ? 'Post saved' : 'Post removed from saved'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  void _sharePost() {
+    HapticFeedback.lightImpact();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Share link copied to clipboard'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  void _showComments() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (ctx) => Container(
+            height: MediaQuery.of(context).size.height * 0.6,
+            decoration: BoxDecoration(
+              color: widget.isDark ? AppDesign.cardDark : Colors.white,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
+            ),
+            child: Column(
+              children: [
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 8),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(2),
+                      color:
+                          widget.isDark ? Colors.white24 : AppDesign.lightGrey,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Comments (${widget.post.comments})',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color:
+                          widget.isDark ? Colors.white : AppDesign.eerieBlack,
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: 3,
+                    itemBuilder: (ctx, i) {
+                      final names = ['Ahmed', 'Sara', 'Mohamed'];
+                      final comments = [
+                        'Amazing shot! 😍',
+                        'Egypt is on my bucket list!',
+                        'Great recommendation, thanks for sharing!',
+                      ];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor:
+                                  widget.isDark
+                                      ? Colors.white.withValues(alpha: 0.1)
+                                      : AppDesign.offWhite,
+                              child: Text(
+                                names[i][0],
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color:
+                                      widget.isDark
+                                          ? Colors.white
+                                          : AppDesign.eerieBlack,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    names[i],
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      color:
+                                          widget.isDark
+                                              ? Colors.white
+                                              : AppDesign.eerieBlack,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    comments[i],
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color:
+                                          widget.isDark
+                                              ? Colors.white70
+                                              : AppDesign.eerieBlack,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -245,9 +431,9 @@ class _PostCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: isDark ? AppDesign.cardDark : Colors.white,
+        color: widget.isDark ? AppDesign.cardDark : Colors.white,
         boxShadow:
-            isDark
+            widget.isDark
                 ? []
                 : [
                   BoxShadow(
@@ -265,7 +451,6 @@ class _PostCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
             child: Row(
               children: [
-                // Avatar with gradient ring
                 Container(
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
@@ -279,9 +464,10 @@ class _PostCard extends StatelessWidget {
                   ),
                   child: CircleAvatar(
                     radius: 18,
-                    backgroundColor: isDark ? AppDesign.cardDark : Colors.white,
+                    backgroundColor:
+                        widget.isDark ? AppDesign.cardDark : Colors.white,
                     child: Text(
-                      post.author[0],
+                      widget.post.author[0],
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
@@ -296,15 +482,18 @@ class _PostCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        post.author,
+                        widget.post.author,
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
-                          color: isDark ? Colors.white : AppDesign.eerieBlack,
+                          color:
+                              widget.isDark
+                                  ? Colors.white
+                                  : AppDesign.eerieBlack,
                         ),
                       ),
                       Text(
-                        '${post.handle} · ${post.timeAgo}',
+                        '${widget.post.handle} · ${widget.post.timeAgo}',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppDesign.midGrey,
@@ -313,45 +502,55 @@ class _PostCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(
-                  LucideIcons.moreHorizontal,
-                  size: 18,
-                  color: AppDesign.midGrey,
+                GestureDetector(
+                  onTap: _toggleBookmark,
+                  child: Icon(
+                    _bookmarked ? LucideIcons.bookmark : LucideIcons.bookmark,
+                    size: 18,
+                    color:
+                        _bookmarked
+                            ? AppDesign.electricCobalt
+                            : AppDesign.midGrey,
+                  ),
                 ),
               ],
             ),
           ),
 
-          // Image card
-          ClipRRect(
-            child: Stack(
-              children: [
-                Image.asset(
-                  post.image,
-                  width: double.infinity,
-                  height: 220,
-                  fit: BoxFit.cover,
-                ),
-                // Subtle bottom gradient for text contrast
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: 80,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.3),
-                        ],
+          // Image — portrait aspect
+          GestureDetector(
+            onDoubleTap: () {
+              if (!_liked) _toggleLike();
+            },
+            child: ClipRRect(
+              child: Stack(
+                children: [
+                  Image.asset(
+                    widget.post.image,
+                    width: double.infinity,
+                    height: 340,
+                    fit: BoxFit.cover,
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 80,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.3),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
@@ -362,12 +561,12 @@ class _PostCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  post.text,
+                  widget.post.text,
                   style: TextStyle(
                     fontSize: 14,
                     height: 1.5,
                     color:
-                        isDark
+                        widget.isDark
                             ? Colors.white.withValues(alpha: 0.9)
                             : AppDesign.eerieBlack,
                   ),
@@ -375,22 +574,74 @@ class _PostCard extends StatelessWidget {
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    _ActionChip(
-                      icon: LucideIcons.heart,
-                      label: '${post.likes}',
-                      isDark: isDark,
+                    GestureDetector(
+                      onTap: _toggleLike,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _liked ? LucideIcons.heartOff : LucideIcons.heart,
+                            size: 18,
+                            color:
+                                _liked ? AppDesign.danger : AppDesign.midGrey,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '$_likes',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight:
+                                  _liked ? FontWeight.w600 : FontWeight.w400,
+                              color:
+                                  _liked ? AppDesign.danger : AppDesign.midGrey,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(width: 14),
-                    _ActionChip(
-                      icon: LucideIcons.messageCircle,
-                      label: '${post.comments}',
-                      isDark: isDark,
+                    const SizedBox(width: 18),
+                    GestureDetector(
+                      onTap: _showComments,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            LucideIcons.messageCircle,
+                            size: 18,
+                            color: AppDesign.midGrey,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${widget.post.comments}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppDesign.midGrey,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const Spacer(),
-                    _ActionChip(
-                      icon: LucideIcons.share2,
-                      label: 'Share',
-                      isDark: isDark,
+                    GestureDetector(
+                      onTap: _sharePost,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            LucideIcons.share2,
+                            size: 16,
+                            color: AppDesign.midGrey,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Share',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppDesign.midGrey,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -399,29 +650,6 @@ class _PostCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ActionChip extends StatelessWidget {
-  const _ActionChip({
-    required this.icon,
-    required this.label,
-    required this.isDark,
-  });
-  final IconData icon;
-  final String label;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: AppDesign.midGrey),
-        const SizedBox(width: 5),
-        Text(label, style: TextStyle(fontSize: 12, color: AppDesign.midGrey)),
-      ],
     );
   }
 }
@@ -469,115 +697,144 @@ class _SpacesTab extends StatelessWidget {
   }
 }
 
-class _SpaceCard extends StatelessWidget {
+class _SpaceCard extends StatefulWidget {
   const _SpaceCard({required this.space, required this.isDark});
   final _SpaceData space;
   final bool isDark;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 160,
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow:
-            isDark
-                ? []
-                : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+  State<_SpaceCard> createState() => _SpaceCardState();
+}
+
+class _SpaceCardState extends State<_SpaceCard> {
+  bool _joined = false;
+
+  void _toggleJoin() {
+    HapticFeedback.lightImpact();
+    setState(() => _joined = !_joined);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _joined ? 'Joined ${widget.space.name}' : 'Left ${widget.space.name}',
+        ),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.asset(space.image, fit: BoxFit.cover),
-            // Dark overlay
-            Container(color: Colors.black.withValues(alpha: 0.45)),
-            // Glass panel at bottom
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(20),
-                ),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _toggleJoin,
+      child: Container(
+        height: 160,
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow:
+              widget.isDark
+                  ? []
+                  : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      border: Border(
-                        top: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.1),
+                  ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(widget.space.image, fit: BoxFit.cover),
+              Container(color: Colors.black.withValues(alpha: 0.45)),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(20),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        border: Border(
+                          top: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.1),
+                          ),
                         ),
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                space.name,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  widget.space.name,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${widget.space.members} members',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: _toggleJoin,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                color:
+                                    _joined
+                                        ? Colors.white.withValues(alpha: 0.3)
+                                        : Colors.white.withValues(alpha: 0.15),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Text(
+                                _joined ? 'Joined' : 'Join',
                                 style: const TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${space.members} members',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white.withValues(alpha: 0.7),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            color: Colors.white.withValues(alpha: 0.15),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.2),
                             ),
                           ),
-                          child: Text(
-                            space.tag,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -640,6 +897,185 @@ class _ProviderCard extends StatelessWidget {
   const _ProviderCard({required this.provider, required this.isDark});
   final _ProviderData provider;
   final bool isDark;
+
+  void _showProviderDetail(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (ctx) => DraggableScrollableSheet(
+            initialChildSize: 0.8,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            builder:
+                (ctx, scrollController) => Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? AppDesign.cardDark : Colors.white,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
+                  ),
+                  child: ListView(
+                    controller: scrollController,
+                    padding: EdgeInsets.zero,
+                    children: [
+                      Center(
+                        child: Container(
+                          margin: const EdgeInsets.only(top: 12, bottom: 8),
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(2),
+                            color:
+                                isDark ? Colors.white24 : AppDesign.lightGrey,
+                          ),
+                        ),
+                      ),
+                      ClipRRect(
+                        child: Image.asset(
+                          provider.image,
+                          width: double.infinity,
+                          height: 260,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    provider.name,
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w700,
+                                      color:
+                                          isDark
+                                              ? Colors.white
+                                              : AppDesign.eerieBlack,
+                                    ),
+                                  ),
+                                ),
+                                if (provider.verified)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      color: AppDesign.success.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          LucideIcons.badgeCheck,
+                                          size: 14,
+                                          color: AppDesign.success,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Verified',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppDesign.success,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              provider.specialty,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppDesign.midGrey,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                const Icon(
+                                  LucideIcons.star,
+                                  size: 18,
+                                  color: Color(0xFFFFC107),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${provider.rating}',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color:
+                                        isDark
+                                            ? Colors.white
+                                            : AppDesign.eerieBlack,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '(${provider.reviews} reviews)',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppDesign.midGrey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Booking request sent to ${provider.name}',
+                                      ),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Book This Guide',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+          ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -739,23 +1175,26 @@ class _ProviderCard extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          color: AppDesign.electricCobalt.withValues(
-                            alpha: 0.12,
+                      GestureDetector(
+                        onTap: () => _showProviderDetail(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
                           ),
-                        ),
-                        child: Text(
-                          'View',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppDesign.electricCobalt,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: AppDesign.electricCobalt.withValues(
+                              alpha: 0.12,
+                            ),
+                          ),
+                          child: Text(
+                            'View',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppDesign.electricCobalt,
+                            ),
                           ),
                         ),
                       ),

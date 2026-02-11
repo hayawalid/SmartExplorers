@@ -3,12 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// Smart Monochrome Design System
 /// Primary: Pure White (#FFFFFF) / Eerie Black (#121212)
-/// Accent: Electric Cobalt (#2E5BFF)
+/// Accent: Jet Black (#1A1A1A)
 class AppDesign {
   AppDesign._();
 
   // ── Core Palette ──────────────────────────────────────────────────────
-  static const Color electricCobalt = Color(0xFF2E5BFF);
+  static const Color electricCobalt = Color(0xFF1A1A1A);
   static const Color pureWhite = Color(0xFFFFFFFF);
   static const Color eerieBlack = Color(0xFF121212);
   static const Color offWhite = Color(0xFFF7F7F8);
@@ -21,7 +21,7 @@ class AppDesign {
   static const Color success = Color(0xFF00C566);
   static const Color warning = Color(0xFFFFA726);
   static const Color danger = Color(0xFFFF3B5C);
-  static const Color info = Color(0xFF2E5BFF);
+  static const Color info = Color(0xFF1A1A1A);
 
   // ── Radius ────────────────────────────────────────────────────────────
   static const double radius = 24.0;

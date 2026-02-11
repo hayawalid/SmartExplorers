@@ -25,7 +25,7 @@ class _SafetyHubScreenState extends State<SafetyHubScreen>
       name: 'Tourist Police',
       number: '126',
       icon: LucideIcons.shield,
-      color: Color(0xFF2E5BFF),
+      color: Color(0xFF1A1A1A),
     ),
     _EmergencyContact(
       name: 'Ambulance',
@@ -65,7 +65,7 @@ class _SafetyHubScreenState extends State<SafetyHubScreen>
       name: 'Travel Insurance',
       number: '+44 800 123 456',
       icon: LucideIcons.fileCheck,
-      color: Color(0xFF2E5BFF),
+      color: Color(0xFF1A1A1A),
     ),
   ];
 
