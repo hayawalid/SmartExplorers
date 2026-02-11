@@ -38,4 +38,3 @@ motor
 pymongo 
 passlib 
 bcrypt
-cryptography==41.0.7
