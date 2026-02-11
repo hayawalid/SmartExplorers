@@ -16,7 +16,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
-  bool _isLoading = false;
+  bool _isLoading = false; 
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
