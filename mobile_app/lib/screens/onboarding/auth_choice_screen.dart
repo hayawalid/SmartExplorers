@@ -11,7 +11,7 @@ class AuthChoiceScreen extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           // Background image
-          Image.asset('../../images/onboarding_bg.jpg', fit: BoxFit.cover),
+          Image.asset('lib/public/onboarding_bg.jpg', fit: BoxFit.cover),
           Container(
             color: Colors.black.withOpacity(
               0.45,
