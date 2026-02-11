@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
+import '../../services/profile_api_service.dart';
+import '../../services/api_config.dart';
 
 class TravelerProfileSetupScreen extends StatefulWidget {
   const TravelerProfileSetupScreen({super.key});
@@ -16,6 +18,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
   int _currentStep = 0;
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final ProfileApiService _profileService = ProfileApiService();
 
   // New dropdown selections
   String _selectedCountry = '';
@@ -137,19 +140,51 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
     _phoneController.dispose();
     _fadeController.dispose();
     _pulseController.dispose();
+    _profileService.dispose();
     super.dispose();
   }
 
-  void _nextStep() {
+  Future<void> _nextStep() async {
     if (_currentStep < 3) {
       setState(() => _currentStep++);
       _fadeController.reset();
       _fadeController.forward();
       HapticFeedback.mediumImpact();
     } else {
+      await _saveTravelerProfile();
       // Navigate to home/main app
       Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
     }
+  }
+
+  Future<void> _saveTravelerProfile() async {
+    final user = await _profileService.getUserByUsername(
+      ApiConfig.demoTravelerUsername,
+    );
+    final userId = user['_id'] as String;
+
+    final payload = {
+      'full_name': _nameController.text.trim(),
+      'phone_number': _phoneController.text.trim(),
+      'country_of_origin': _selectedCountry,
+      'preferred_language': _selectedLanguage,
+      'travel_interests': _selectedInterests,
+      'setup_interests': _selectedInterests,
+      'wheelchair_access': _selectedAccessibility.contains('Wheelchair Access'),
+      'visual_assistance': _selectedAccessibility.contains('Visual Assistance'),
+      'hearing_assistance': _selectedAccessibility.contains(
+        'Hearing Assistance',
+      ),
+      'mobility_support': _selectedAccessibility.contains('Mobility Support'),
+      'dietary_restrictions_flag': _selectedAccessibility.contains(
+        'Dietary Restrictions',
+      ),
+      'sensory_sensitivity': _selectedAccessibility.contains(
+        'Sensory Sensitivity',
+      ),
+    };
+
+    await _profileService.upsertTravelerProfile(userId, payload);
   }
 
   void _previousStep() {

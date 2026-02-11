@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
+import '../services/marketplace_api_service.dart';
 
 /// Service provider marketplace with WCAG accessibility support
 class MarketplaceScreen extends StatefulWidget {
@@ -10,7 +11,11 @@ class MarketplaceScreen extends StatefulWidget {
   State<MarketplaceScreen> createState() => _MarketplaceScreenState();
 }
 
-class _MarketplaceScreenState extends State<MarketplaceScreen> {
+class _MarketplaceScreenState extends State<MarketplaceScreen>
+    with AutomaticKeepAliveClientMixin {
+  final MarketplaceApiService _marketplaceService = MarketplaceApiService();
+  late Future<List<ServiceProvider>> _providersFuture;
+
   String _selectedCategory = 'All';
 
   final List<String> _categories = [
@@ -128,7 +133,28 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _providersFuture = _loadProviders();
+  }
+
+  Future<List<ServiceProvider>> _loadProviders() async {
+    final data = await _marketplaceService.getListings(
+      category: _selectedCategory == 'All' ? null : _selectedCategory,
+    );
+    if (data.isEmpty) return _filteredProviders;
+    return data.map(ServiceProvider.fromJson).toList();
+  }
+
+  @override
+  void dispose() {
+    _marketplaceService.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final backgroundColor =
@@ -176,22 +202,32 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             SliverToBoxAdapter(child: _buildAllProvidersHeader(textColor)),
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.75,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => _buildProviderCard(
-                    _filteredProviders[index],
-                    isDark,
-                    cardColor,
-                    textColor,
-                    secondaryTextColor,
-                  ),
-                  childCount: _filteredProviders.length,
+              sliver: SliverToBoxAdapter(
+                child: FutureBuilder<List<ServiceProvider>>(
+                  future: _providersFuture,
+                  builder: (context, snapshot) {
+                    final providers = snapshot.data ?? _filteredProviders;
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.75,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                      itemCount: providers.length,
+                      itemBuilder:
+                          (context, index) => _buildProviderCard(
+                            providers[index],
+                            isDark,
+                            cardColor,
+                            textColor,
+                            secondaryTextColor,
+                          ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -203,6 +239,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 
   Widget _buildHeader(Color textColor, bool isDark) {
     return Padding(
@@ -323,7 +362,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             label: 'Filter by $category',
             selected: isSelected,
             child: GestureDetector(
-              onTap: () => setState(() => _selectedCategory = category),
+              onTap: () {
+                setState(() {
+                  _selectedCategory = category;
+                  _providersFuture = _loadProviders();
+                });
+              },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.only(right: 12),
@@ -784,6 +828,23 @@ class ServiceProvider {
     required this.gradient,
     required this.description,
   });
+
+  factory ServiceProvider.fromJson(Map<String, dynamic> json) {
+    return ServiceProvider(
+      id: json['_id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown',
+      category: json['category']?.toString() ?? 'Service',
+      specialty: json['specialty']?.toString() ?? 'General',
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      reviews: (json['review_count'] as num?)?.toInt() ?? 0,
+      price: json['price_text']?.toString() ?? '\$',
+      emoji: '⭐',
+      isVerified: json['is_verified'] == true,
+      isFeatured: json['featured_flag'] == true,
+      gradient: const [Color(0xFF667eea), Color(0xFF764ba2)],
+      description: json['description']?.toString() ?? '',
+    );
+  }
 }
 
 /// Provider detail screen with CupertinoPageRoute transition

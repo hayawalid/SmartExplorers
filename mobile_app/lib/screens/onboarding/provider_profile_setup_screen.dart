@@ -3,6 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
 import 'dart:math' as math;
+import '../../services/profile_api_service.dart';
+import '../../services/api_config.dart';
 
 class ProviderProfileSetupScreen extends StatefulWidget {
   const ProviderProfileSetupScreen({super.key});
@@ -19,6 +21,7 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
   final _phoneController = TextEditingController();
   final _bioController = TextEditingController();
   String _selectedService = '';
+  final ProfileApiService _profileService = ProfileApiService();
 
   // Verification state
   bool _idScanning = false;
@@ -118,21 +121,48 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     _pulseController.dispose();
     _scanController.dispose();
     _celebrationController.dispose();
+    _profileService.dispose();
     super.dispose();
   }
 
-  void _nextStep() {
+  Future<void> _nextStep() async {
     if (_currentStep < 3) {
       setState(() => _currentStep++);
       _fadeController.reset();
       _fadeController.forward();
       HapticFeedback.mediumImpact();
     } else {
+      await _saveProviderProfile();
       // Navigate to provider home
       Navigator.of(
         context,
       ).pushNamedAndRemoveUntil('/provider_home', (route) => false);
     }
+  }
+
+  Future<void> _saveProviderProfile() async {
+    final user = await _profileService.getUserByUsername(
+      ApiConfig.demoProviderUsername,
+    );
+    final userId = user['_id'] as String;
+
+    String verificationStatus = 'pending';
+    if (_idCaptured && _selfieCaptured) {
+      verificationStatus = 'verified';
+    } else if (_idCaptured) {
+      verificationStatus = 'id_captured';
+    }
+
+    final payload = {
+      'full_legal_name': _nameController.text.trim(),
+      'phone_number': _phoneController.text.trim(),
+      'bio': _bioController.text.trim(),
+      'service_type': _selectedService.toLowerCase().replaceAll(' ', '_'),
+      'verification_status': verificationStatus,
+      'verified_flag': _idCaptured && _selfieCaptured,
+    };
+
+    await _profileService.upsertProviderProfile(userId, payload);
   }
 
   void _previousStep() {

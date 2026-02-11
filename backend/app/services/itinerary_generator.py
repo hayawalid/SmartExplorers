@@ -13,14 +13,15 @@ from ..schemas.itinerary import (
     TripType, SafetyLevel, ItineraryGenerationRequest,
     AccessibilityRequirement
 )
-from ..config import settings  # Import settings
+from ..config import settings
+from .destination_rag import destination_rag  # RAG service
 
 
 class ItineraryGenerator:
-    """AI-powered itinerary generation engine using Groq (faster & cheaper alternative to OpenAI)"""
+    """AI-powered itinerary generation engine using Groq + RAG with ChromaDB"""
     
     def __init__(self):
-        # Get API key from settings (which reads from .env file)
+        # Get API key from settings
         api_key = settings.GROQ_API_KEY
         
         # Validate API key
@@ -28,89 +29,27 @@ class ItineraryGenerator:
             raise ValueError(
                 "⚠️  Valid Groq API key required!\n"
                 "Set GROQ_API_KEY in your .env file.\n"
-                "Get your FREE key from: https://console.groq.com/keys\n"
-                "(Groq is MUCH faster than OpenAI and has a generous free tier!)"
+                "Get your FREE key from: https://console.groq.com/keys"
             )
         
         try:
-            # Check if Groq is installed
             if Groq is None:
-                raise ValueError(
-                    "Groq SDK is not installed. Install it with: pip install groq"
-                )
+                raise ValueError("Groq SDK not installed. Install: pip install groq")
             
-            # Initialize Groq client
             self.client = Groq(api_key=api_key)
-            # Use Llama 3.3 70B - excellent for structured output
             self.model = "llama-3.3-70b-versatile"
             
-            print(f"✓ Groq client initialized successfully with model: {self.model}")
+            print(f"✓ Groq client initialized: {self.model}")
             
         except Exception as e:
-            raise ValueError(f"Failed to initialize Groq client: {str(e)}")
+            raise ValueError(f"Failed to initialize Groq: {str(e)}")
         
-        # Load Egypt destinations from JSON file
-        self.egypt_destinations = self._load_destinations_data()
-        
-    def _load_destinations_data(self) -> Dict[str, Any]:
-        """Load Egypt destinations from JSON file"""
-        try:
-            # Get the path to the JSON file
-            current_dir = Path(__file__).parent.parent
-            json_path = current_dir / "data" / "egypt_destinations.json"
-            
-            if not json_path.exists():
-                print(f"⚠️  Warning: {json_path} not found, using minimal fallback data")
-                return self._get_fallback_destinations()
-            
-            with open(json_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            
-            # Transform the data into a dictionary keyed by destination name
-            destinations_dict = {}
-            for dest in data.get("destinations", []):
-                destinations_dict[dest["name"]] = {
-                    "attractions": dest.get("attractions", []),
-                    "safety_level": dest.get("safety_level", "medium"),
-                    "accessibility": dest.get("accessibility", "moderate"),
-                    "avg_daily_budget": dest.get("avg_daily_budget", {"low": 30, "mid": 70, "high": 150}),
-                    "description": dest.get("description", ""),
-                    "best_time": dest.get("best_time", "Oct-Apr")
-                }
-            
-            print(f"✓ Loaded {len(destinations_dict)} destinations from JSON file")
-            return destinations_dict
-            
-        except Exception as e:
-            print(f"⚠️  Error loading destinations JSON: {e}")
-            print("   Using fallback data instead")
-            return self._get_fallback_destinations()
-    
-    def _get_fallback_destinations(self) -> Dict[str, Any]:
-        """Fallback destinations data if JSON loading fails"""
-        return {
-            "Cairo": {
-                "attractions": ["Pyramids of Giza", "Egyptian Museum", "Khan el-Khalili", "Citadel of Saladin"],
-                "safety_level": "high",
-                "accessibility": "high",
-                "avg_daily_budget": {"low": 30, "mid": 70, "high": 150}
-            },
-            "Luxor": {
-                "attractions": ["Valley of the Kings", "Karnak Temple", "Luxor Temple", "Hatshepsut Temple"],
-                "safety_level": "high",
-                "accessibility": "moderate",
-                "avg_daily_budget": {"low": 40, "mid": 85, "high": 170}
-            },
-            "Aswan": {
-                "attractions": ["Philae Temple", "Abu Simbel", "Nubian Village", "Aswan High Dam"],
-                "safety_level": "high",
-                "accessibility": "moderate",
-                "avg_daily_budget": {"low": 45, "mid": 90, "high": 180}
-            }
-        }
+        # Use RAG instead of loading entire JSON
+        self.rag = destination_rag
+        print("✓ RAG system ready with ChromaDB")
         
     async def generate_itinerary(self, request: ItineraryGenerationRequest, user_id: int) -> Dict[str, Any]:
-        """Generate a complete AI-powered itinerary using Groq"""
+        """Generate AI-powered itinerary using Groq + RAG"""
         
         # Calculate trip duration
         total_days = (request.end_date - request.start_date).days + 1
@@ -121,15 +60,19 @@ class ItineraryGenerator:
         if total_days > 30:
             raise ValueError("Maximum trip duration is 30 days")
         
-        # Build AI prompt with real destination data
-        prompt = self._build_generation_prompt(request, total_days)
+        # 🔍 RAG: Get relevant destinations using semantic search
+        relevant_destinations = await self._get_relevant_destinations(request)
+        
+        print(f"🔍 RAG found {len(relevant_destinations)} relevant destinations")
+        
+        # Build AI prompt with RAG results (not entire JSON!)
+        prompt = self._build_generation_prompt(request, total_days, relevant_destinations)
         system_prompt = self._get_system_prompt()
         
-        # Call Groq API with comprehensive error handling
+        # Call Groq API
         try:
-            print(f"🤖 Calling Groq API (Llama 3.3) for {total_days}-day itinerary...")
+            print(f"🤖 Calling Groq API for {total_days}-day itinerary...")
             
-            # Groq uses same interface as OpenAI
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -137,47 +80,80 @@ class ItineraryGenerator:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,
-                response_format={"type": "json_object"}  # Force JSON output
+                response_format={"type": "json_object"}
             )
             
-            print("✓ Groq API response received (usually <1 second!)")
+            print("✓ Groq API response received")
             
-            # Parse the response
+            # Parse response
             content = response.choices[0].message.content
             itinerary_data = json.loads(content)
             
-            # Validate response structure
+            # Validate
             if "daily_plans" not in itinerary_data:
-                raise ValueError("AI response missing daily_plans field")
+                raise ValueError("AI response missing daily_plans")
             
-            if not isinstance(itinerary_data["daily_plans"], list):
-                raise ValueError("daily_plans must be a list")
-            
-            # Enhance with safety validation and accessibility filtering
+            # Enhance with safety validation
             enhanced_itinerary = await self._enhance_itinerary(
                 itinerary_data, 
                 request,
                 total_days
             )
             
-            print(f"✓ Itinerary enhanced with safety score: {enhanced_itinerary['safety_score']}")
+            print(f"✓ Itinerary enhanced (safety score: {enhanced_itinerary['safety_score']})")
             
             return enhanced_itinerary
             
         except json.JSONDecodeError as e:
-            raise Exception(f"Failed to parse AI response as JSON: {str(e)}")
+            raise Exception(f"Failed to parse AI response: {str(e)}")
         except Exception as e:
-            # Provide helpful error messages
             error_msg = str(e)
             if "invalid_api_key" in error_msg or "401" in error_msg:
-                raise Exception(
-                    "Invalid Groq API key. Please check your GROQ_API_KEY in .env file. "
-                    "Get a FREE key from: https://console.groq.com/keys"
-                )
+                raise Exception("Invalid Groq API key. Check GROQ_API_KEY in .env")
             elif "rate_limit" in error_msg.lower() or "429" in error_msg:
-                raise Exception("Groq rate limit exceeded. Please try again in a moment.")
+                raise Exception("Groq rate limit exceeded. Try again in a moment.")
             else:
                 raise Exception(f"Failed to generate itinerary: {error_msg}")
+    
+    async def _get_relevant_destinations(
+        self, 
+        request: ItineraryGenerationRequest
+    ) -> List[Dict[str, Any]]:
+        """Use RAG to find relevant destinations based on user preferences"""
+        
+        # Build search criteria
+        budget_max = request.budget_max
+        accessibility_required = False
+        
+        if request.accessibility_requirements:
+            acc = request.accessibility_requirements
+            if acc.wheelchair_accessible or acc.mobility_assistance:
+                accessibility_required = True
+        
+        # Determine safety level filter
+        safety_level = None
+        if request.is_solo_traveler or request.is_woman_traveler:
+            safety_level = "high"  # Prioritize high safety
+        
+        # Get destinations matching user preferences
+        relevant_dests = self.rag.get_destinations_for_preferences(
+            interests=request.interests or ["tourism", "culture", "history"],
+            budget_max=budget_max,
+            accessibility_required=accessibility_required,
+            safety_level=safety_level,
+            n_results=15  # Get top 15 most relevant
+        )
+        
+        # If user specified specific destinations, prioritize those
+        if request.destinations:
+            specified_dests = self.rag.get_destinations_by_names(request.destinations)
+            # Merge: specified destinations first, then RAG suggestions
+            relevant_dests = specified_dests + [
+                d for d in relevant_dests 
+                if d['name'] not in request.destinations
+            ]
+        
+        return relevant_dests[:10]  # Return top 10
     
     def _get_system_prompt(self) -> str:
         """System prompt for Egypt tourism AI"""
@@ -205,24 +181,30 @@ When creating itineraries, you:
 
 CRITICAL: You MUST respond with valid JSON only. No markdown, no explanations, just pure JSON."""
 
-    def _build_generation_prompt(self, request: ItineraryGenerationRequest, total_days: int) -> str:
-        """Build detailed prompt for itinerary generation with real destination data"""
+    def _build_generation_prompt(
+        self, 
+        request: ItineraryGenerationRequest, 
+        total_days: int,
+        relevant_destinations: List[Dict[str, Any]]
+    ) -> str:
+        """Build detailed prompt with RAG results"""
         
-        # Get destination information from loaded JSON
+        # Format destination context from RAG results
         destination_info = []
-        for dest in request.destinations:
-            if dest in self.egypt_destinations:
-                dest_data = self.egypt_destinations[dest]
-                attractions_list = ", ".join(dest_data.get("attractions", [])[:5])  # Top 5
-                destination_info.append(
-                    f"{dest}: {dest_data.get('description', '')} "
-                    f"Popular attractions: {attractions_list}. "
-                    f"Safety level: {dest_data.get('safety_level', 'medium')}. "
-                    f"Best time: {dest_data.get('best_time', 'Oct-Apr')}."
-                )
+        for dest in relevant_destinations:
+            attractions_list = ", ".join(dest.get("attractions", [])[:5])
+            destination_info.append(
+                f"**{dest['name']}**: {dest.get('description', '')} "
+                f"Main attractions: {attractions_list}. "
+                f"Safety: {dest.get('safety_level', 'medium')}, "
+                f"Accessibility: {dest.get('accessibility', 'moderate')}, "
+                f"Budget: ${dest.get('avg_budget_low')}-${dest.get('avg_budget_high')}/day. "
+                f"Best time: {dest.get('best_time', 'Oct-Apr')}."
+            )
         
-        destinations_context = "\n".join(destination_info) if destination_info else ""
+        destinations_context = "\n".join(destination_info)
         
+        # Accessibility text
         accessibility_text = ""
         if request.accessibility_requirements:
             acc = request.accessibility_requirements
@@ -238,6 +220,7 @@ CRITICAL: You MUST respond with valid JSON only. No markdown, no explanations, j
             if requirements:
                 accessibility_text = f"\nAccessibility Requirements: {', '.join(requirements)}"
         
+        # Safety context
         safety_context = ""
         if request.is_solo_traveler:
             safety_context += "\n- Solo traveler: prioritize well-lit, populated areas and verified services"
@@ -251,14 +234,16 @@ CRITICAL: You MUST respond with valid JSON only. No markdown, no explanations, j
 Trip Type: {request.trip_type.value}
 Dates: {request.start_date} to {request.end_date}
 Starting Point: {request.start_location}
-Destinations: {', '.join(request.destinations)}
+Requested Destinations: {', '.join(request.destinations) if request.destinations else 'flexible'}
 Group Size: {request.group_size} people
 Budget: {budget_text}{accessibility_text}
 Interests: {', '.join(request.interests) if request.interests else 'general tourism'}
 Dietary Restrictions: {', '.join(request.dietary_restrictions) if request.dietary_restrictions else 'none'}{safety_context}
 
-Destination Context:
+RELEVANT DESTINATIONS (Selected by AI based on your preferences):
 {destinations_context}
+
+IMPORTANT: Use ONLY the destinations listed above. These were specifically selected to match your interests, budget, safety requirements, and accessibility needs.
 
 Respond with ONLY valid JSON in this exact structure (no markdown, no code blocks):
 {{
@@ -319,7 +304,7 @@ Important guidelines:
 5. Consider Friday prayer times (12:00-14:00)
 6. Include specific GPS coordinates for each location
 7. Provide practical safety tips, not generic warnings
-8. Use the destination information provided above for authentic recommendations"""
+8. Use ONLY destinations from the list above"""
 
         return prompt
     
@@ -329,7 +314,7 @@ Important guidelines:
         request: ItineraryGenerationRequest,
         total_days: int
     ) -> Dict[str, Any]:
-        """Enhance AI-generated itinerary with safety validation and filtering"""
+        """Enhance AI-generated itinerary with safety validation"""
         
         # Add metadata
         itinerary_data["trip_type"] = request.trip_type.value
@@ -345,14 +330,14 @@ Important guidelines:
         itinerary_data["safety_score"] = safety_info["score"]
         itinerary_data["safety_notes"] = safety_info["notes"]
         
-        # Filter activities based on accessibility
+        # Filter by accessibility
         if request.accessibility_requirements:
             itinerary_data["daily_plans"] = self._filter_by_accessibility(
                 itinerary_data["daily_plans"],
                 request.accessibility_requirements
             )
         
-        # Add day numbers and ordering
+        # Add day numbers
         for day_idx, day_plan in enumerate(itinerary_data.get("daily_plans", []), 1):
             day_plan["day_number"] = day_idx
             for activity_idx, activity in enumerate(day_plan.get("activities", []), 1):
@@ -370,7 +355,7 @@ Important guidelines:
         itinerary_data: Dict[str, Any], 
         request: ItineraryGenerationRequest
     ) -> Dict[str, Any]:
-        """Calculate overall safety score and level"""
+        """Calculate overall safety score"""
         
         total_activities = 0
         high_safety_count = 0
@@ -404,7 +389,7 @@ Important guidelines:
             (low_safety_count * 0.2)
         ) / total_activities
         
-        # Determine safety level
+        # Determine level
         if safety_score >= 0.8:
             level = "high"
         elif safety_score >= 0.5:
@@ -413,14 +398,14 @@ Important guidelines:
             level = "low"
             safety_notes.append("This itinerary includes some higher-risk locations")
         
-        # Add context-specific notes
+        # Context-specific notes
         if request.is_solo_traveler:
             safety_notes.append("Share your itinerary with family/friends")
             safety_notes.append("Use registered taxi services only")
         
         if request.is_woman_traveler:
             safety_notes.append("Dress modestly, especially at religious sites")
-            safety_notes.append("Consider women-only tour groups for certain activities")
+            safety_notes.append("Consider women-only tour groups")
         
         return {
             "level": level,
@@ -433,7 +418,7 @@ Important guidelines:
         daily_plans: List[Dict[str, Any]], 
         requirements: AccessibilityRequirement
     ) -> List[Dict[str, Any]]:
-        """Filter and adjust activities based on accessibility requirements"""
+        """Filter activities by accessibility"""
         
         filtered_plans = []
         
@@ -444,7 +429,6 @@ Important guidelines:
                 # Check wheelchair accessibility
                 if requirements.wheelchair_accessible:
                     if not activity.get("wheelchair_accessible", False):
-                        # Add accessibility note
                         if "safety_warnings" not in activity:
                             activity["safety_warnings"] = []
                         activity["safety_warnings"].append(
@@ -478,7 +462,7 @@ Important guidelines:
         original_itinerary: Dict[str, Any],
         modified_itinerary: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Validate user modifications to ensure safety standards"""
+        """Validate user modifications"""
         
         validation_result = {
             "is_valid": True,
@@ -486,11 +470,10 @@ Important guidelines:
             "suggestions": []
         }
         
-        # Check for removed safety activities
         original_activities = self._get_all_activities(original_itinerary)
         modified_activities = self._get_all_activities(modified_itinerary)
         
-        # Safety validation checks
+        # Check for overload
         if len(modified_activities) > len(original_activities) * 1.5:
             validation_result["warnings"].append(
                 "You've added many activities - ensure adequate rest time"
@@ -504,15 +487,15 @@ Important guidelines:
                     hour = int(start_time.split(":")[0])
                     if hour >= 22 or hour <= 5:
                         validation_result["warnings"].append(
-                            f"Late night/early morning activity at {activity.get('location_name', 'unknown')} - ensure safe transportation"
+                            f"Late night activity at {activity.get('location_name')} - ensure safe transportation"
                         )
                 except ValueError:
-                    pass  # Invalid time format, skip
+                    pass
         
         return validation_result
     
     def _get_all_activities(self, itinerary: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Extract all activities from itinerary"""
+        """Extract all activities"""
         activities = []
         for day_plan in itinerary.get("daily_plans", []):
             activities.extend(day_plan.get("activities", []))

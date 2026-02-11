@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
+import '../services/social_api_service.dart';
 
 /// Instagram-style social feed with WCAG accessibility support
 class FeedScreen extends StatefulWidget {
@@ -10,7 +11,11 @@ class FeedScreen extends StatefulWidget {
   State<FeedScreen> createState() => _FeedScreenState();
 }
 
-class _FeedScreenState extends State<FeedScreen> {
+class _FeedScreenState extends State<FeedScreen>
+    with AutomaticKeepAliveClientMixin {
+  final SocialApiService _socialService = SocialApiService();
+  late Future<List<FeedPost>> _postsFuture;
+
   final List<FeedPost> _posts = [
     FeedPost(
       id: '1',
@@ -79,7 +84,26 @@ class _FeedScreenState extends State<FeedScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _postsFuture = _loadPosts();
+  }
+
+  Future<List<FeedPost>> _loadPosts() async {
+    final data = await _socialService.getPosts();
+    if (data.isEmpty) return _posts;
+    return data.map(FeedPost.fromJson).toList();
+  }
+
+  @override
+  void dispose() {
+    _socialService.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final backgroundColor =
@@ -93,38 +117,44 @@ class _FeedScreenState extends State<FeedScreen> {
       backgroundColor: backgroundColor,
       body: SafeArea(
         bottom: false,
-        child: CustomScrollView(
-          slivers: [
-            // Header
-            SliverToBoxAdapter(child: _buildHeader(textColor)),
+        child: FutureBuilder<List<FeedPost>>(
+          future: _postsFuture,
+          builder: (context, snapshot) {
+            final posts = snapshot.data ?? _posts;
+            return CustomScrollView(
+              slivers: [
+                // Header
+                SliverToBoxAdapter(child: _buildHeader(textColor)),
 
-            // Stories row
-            SliverToBoxAdapter(
-              child: _buildStoriesRow(
-                isDark,
-                cardColor,
-                textColor,
-                secondaryTextColor,
-              ),
-            ),
-
-            // Feed posts
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => _buildFeedPost(
-                  _posts[index],
-                  isDark,
-                  cardColor,
-                  textColor,
-                  secondaryTextColor,
+                // Stories row
+                SliverToBoxAdapter(
+                  child: _buildStoriesRow(
+                    isDark,
+                    cardColor,
+                    textColor,
+                    secondaryTextColor,
+                  ),
                 ),
-                childCount: _posts.length,
-              ),
-            ),
 
-            // Bottom padding for nav bar
-            const SliverToBoxAdapter(child: SizedBox(height: 120)),
-          ],
+                // Feed posts
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _buildFeedPost(
+                      posts[index],
+                      isDark,
+                      cardColor,
+                      textColor,
+                      secondaryTextColor,
+                    ),
+                    childCount: posts.length,
+                  ),
+                ),
+
+                // Bottom padding for nav bar
+                const SliverToBoxAdapter(child: SizedBox(height: 120)),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -156,11 +186,13 @@ class _FeedScreenState extends State<FeedScreen> {
           const SizedBox(width: 12),
           Semantics(
             button: true,
-            label: 'Direct messages',
+            label: 'AI Itinerary Planner',
+            hint: 'Open the AI assistant to plan your trip',
             child: _buildIconButton(
-              CupertinoIcons.paperplane,
-              () {},
+              CupertinoIcons.sparkles,
+              () => _navigateToItinerary(context),
               textColor,
+              hasGradient: true,
             ),
           ),
         ],
@@ -168,17 +200,41 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
-  Widget _buildIconButton(IconData icon, VoidCallback onTap, Color iconColor) {
+  void _navigateToItinerary(BuildContext context) {
+    // Find the MainNavigationShell and switch to itinerary tab (index 0)
+    final scaffold = context.findAncestorStateOfType<ScaffoldState>();
+    if (scaffold != null) {
+      // Navigate to tab 0 by finding the navigation state
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+
+  Widget _buildIconButton(
+    IconData icon,
+    VoidCallback onTap,
+    Color iconColor, {
+    bool hasGradient = false,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.1),
+          gradient:
+              hasGradient
+                  ? const LinearGradient(
+                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  )
+                  : null,
+          color: hasGradient ? null : iconColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, color: iconColor, size: 22),
+        child: Icon(
+          icon,
+          color: hasGradient ? Colors.white : iconColor,
+          size: 22,
+        ),
       ),
     );
   }
@@ -319,12 +375,27 @@ class _FeedScreenState extends State<FeedScreen> {
                         colors: [Color(0xFF667eea), Color(0xFFf5576c)],
                       ),
                     ),
-                    child: Center(
-                      child: Text(
-                        post.userAvatar,
-                        style: const TextStyle(fontSize: 24),
-                      ),
-                    ),
+                    child:
+                        post.userAvatar.startsWith('http')
+                            ? ClipOval(
+                              child: Image.network(
+                                post.userAvatar,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (context, error, stackTrace) => Center(
+                                      child: Text(
+                                        post.userAvatar,
+                                        style: const TextStyle(fontSize: 24),
+                                      ),
+                                    ),
+                              ),
+                            )
+                            : Center(
+                              child: Text(
+                                post.userAvatar,
+                                style: const TextStyle(fontSize: 24),
+                              ),
+                            ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -411,12 +482,25 @@ class _FeedScreenState extends State<FeedScreen> {
                     ],
                   ),
                 ),
-                child: Center(
-                  child: Text(
-                    post.imageEmoji,
-                    style: const TextStyle(fontSize: 120),
-                  ),
-                ),
+                child:
+                    post.mediaUrl != null && post.mediaUrl!.isNotEmpty
+                        ? Image.network(
+                          post.mediaUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder:
+                              (context, error, stackTrace) => Center(
+                                child: Text(
+                                  post.imageEmoji,
+                                  style: const TextStyle(fontSize: 120),
+                                ),
+                              ),
+                        )
+                        : Center(
+                          child: Text(
+                            post.imageEmoji,
+                            style: const TextStyle(fontSize: 120),
+                          ),
+                        ),
               ),
             ),
 
@@ -508,6 +592,9 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
+  @override
+  bool get wantKeepAlive => true;
+
   Widget _buildActionButton(IconData icon, String count, Color color) {
     return Row(
       children: [
@@ -541,6 +628,7 @@ class FeedPost {
   final String timeAgo;
   final String altText;
   final bool isPromotion;
+  final String? mediaUrl;
 
   FeedPost({
     required this.id,
@@ -555,5 +643,31 @@ class FeedPost {
     required this.timeAgo,
     required this.altText,
     required this.isPromotion,
+    this.mediaUrl,
   });
+
+  factory FeedPost.fromJson(Map<String, dynamic> json) {
+    String? mediaUrl = json['media_url']?.toString();
+    final mediaUrls = json['media_urls'];
+    if ((mediaUrl == null || mediaUrl.isEmpty) && mediaUrls is List) {
+      if (mediaUrls.isNotEmpty) {
+        mediaUrl = mediaUrls.first.toString();
+      }
+    }
+    return FeedPost(
+      id: json['_id']?.toString() ?? '',
+      username: json['author_username']?.toString() ?? 'unknown',
+      userAvatar: json['author_avatar']?.toString() ?? '👤',
+      isVerified: json['author_verified'] == true,
+      location: json['location']?.toString() ?? 'Unknown location',
+      imageEmoji: '📷',
+      caption: json['caption']?.toString() ?? '',
+      likes: (json['like_count'] as num?)?.toInt() ?? 0,
+      comments: (json['comment_count'] as num?)?.toInt() ?? 0,
+      timeAgo: 'just now',
+      altText: json['alt_text']?.toString() ?? '',
+      isPromotion: json['is_promoted'] == true,
+      mediaUrl: mediaUrl,
+    );
+  }
 }

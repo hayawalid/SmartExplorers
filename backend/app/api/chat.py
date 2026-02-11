@@ -14,6 +14,7 @@ from app.schemas.chat import (
     ChatMessage
 )
 from app.services.ai_assistant import ai_assistant
+from app.mongodb import get_database, mongodb
 
 # Create router with prefix and tags
 router = APIRouter(
@@ -66,6 +67,35 @@ async def send_message(request: ChatRequest):
             message=request.message,
             conversation_id=request.conversation_id,
             user_context=request.user_context
+        )
+
+        # Persist conversation to MongoDB
+        db = get_database()
+        conv_id = result["conversation_id"]
+        now = result["timestamp"]
+        messages = [
+            {"role": "user", "content": request.message, "timestamp": now},
+            {"role": "assistant", "content": result["message"], "timestamp": now},
+        ]
+
+        await db[mongodb.CONVERSATIONS].update_one(
+            {"conversation_id": conv_id},
+            {
+                "$setOnInsert": {
+                    "conversation_id": conv_id,
+                    "created_at": now,
+                    "is_active": True,
+                    "is_archived": False,
+                },
+                "$push": {"messages": {"$each": messages}},
+                "$set": {
+                    "last_message_at": now,
+                    "last_suggestions": result.get("suggestions") or [],
+                    "user_context": request.user_context,
+                },
+                "$inc": {"message_count": 2},
+            },
+            upsert=True,
         )
         
         return ChatResponse(**result)
