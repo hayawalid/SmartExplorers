@@ -10,11 +10,19 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./smartexplorers.db"
     MONGODB_URI: str = "mongodb://localhost:27017"
     
-    # OpenAI
+    # AI Services
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
-    GROQ_MODEL: str ="llama-3.3-70b-versatile"
-    GROQ_API_KEY: str =""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_API_KEY: str = ""
+    
+    # AI Assistant settings
+    AI_TEMPERATURE: float = 0.7
+    AI_MAX_TOKENS: int = 1000
+    
+    # Encryption (for identity verification)
+    # Generate with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
+    ENCRYPTION_MASTER_KEY: str = ""
     
     
     
