@@ -22,6 +22,10 @@ from app.api.preferences import router as preferences_router
 # ====== NEW: Import matching system ======
 from matching_api import router as matching_router, initialize_matching_system
 # =========================================
+# from app.api.itineraries import router as itinerary_router  # Add when ready
+from app.api.verification import router as verification_router
+
+# Add after existing routers
 
 
 @asynccontextmanager
@@ -85,6 +89,8 @@ app.include_router(preferences_router)
 # ====== NEW: Include matching router ======
 app.include_router(matching_router)
 # ==========================================
+app.include_router(verification_router)
+# app.include_router(itinerary_router)  # Add when ready
 
 
 @app.get("/")
