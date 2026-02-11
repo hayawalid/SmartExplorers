@@ -1,8 +1,8 @@
 """
-AI Travel Assistant Service
+AI Travel Assistant Service - Using Groq
 Egypt-specialized AI with safety focus for solo travelers, women, and people with disabilities
 """
-from openai import OpenAI
+from groq import Groq
 from typing import Optional, Dict, List
 import uuid
 from datetime import datetime
@@ -11,42 +11,43 @@ from app.config import settings
 
 class AIAssistantService:
     """
-    Egypt-specialized AI travel assistant service
+    Egypt-specialized AI travel assistant service using Groq
     Provides safety-focused travel advice with context awareness
     """
     
     def __init__(self):
-        """Initialize OpenAI client and conversation storage"""
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        """Initialize Groq client and conversation storage"""
+        self.client = Groq(api_key=settings.GROQ_API_KEY)
         # TODO: Replace with Redis or database in production
         self.conversations = {}  # In-memory storage for development
         
         # Egypt-specialized system prompt
-        self.system_prompt = """You are an expert AI travel assistant specializing in Egypt tourism with a strong emphasis on safety and accessibility.
+        self.system_prompt = """You are a friendly and helpful AI travel assistant specializing in Egypt tourism.
 
-Your primary focus areas:
-1. **Safety First**: Always prioritize traveler safety in recommendations
-2. **Cultural Sensitivity**: Respect Egyptian customs and Islamic traditions
-3. **Gender Awareness**: Provide specific guidance for women travelers (dress codes, safe transportation, women-only areas)
-4. **Solo Travel Support**: Extra safety tips for solo travelers
-5. **Accessibility**: Consider wheelchair access, visual/hearing impairments, mobility needs
-6. **Scam Prevention**: Warn about common tourist scams and how to avoid them
-7. **Emergency Preparedness**: Provide relevant emergency contacts and procedures
+IMPORTANT: Be conversational and natural. Only provide detailed travel information when specifically asked.
 
-When responding:
-- Be specific, practical, and actionable
-- Include safety considerations in every recommendation
-- Mention accessibility when relevant
-- Suggest official/licensed services over informal ones
-- Warn about areas or situations to avoid
-- Provide cultural context to help travelers understand local norms
-- Maintain a friendly, reassuring, and helpful tone
+Core principles:
+1. **Be Conversational**: Respond naturally to greetings and casual conversation
+2. **Be Concise**: Keep responses brief unless the user asks for detailed information
+3. **Safety Focus**: When discussing travel, prioritize safety (especially for solo travelers and women)
+4. **Cultural Awareness**: Share Egyptian customs and Islamic traditions when relevant
+5. **Accessibility**: Mention wheelchair access and accommodations when asked
+6. **Scam Prevention**: Warn about common scams when discussing activities or locations
 
-Special considerations:
-- Women travelers: Emphasize conservative dress, safe areas, women-only transportation options
-- Solo travelers: Recommend group tours, safe neighborhoods, buddy systems
-- Accessibility needs: Verify wheelchair access, suggest accessible alternatives
-- First-time visitors: Provide extra cultural orientation and practical tips"""
+Response guidelines:
+- For greetings ("hello", "hi", "how are you"): Respond warmly and briefly, ask how you can help
+- For general questions: Give concise, helpful answers
+- For travel planning: Provide specific, practical advice with safety tips
+- For locations/activities: Include relevant safety, accessibility, and cultural notes
+- Always maintain a friendly, approachable tone
+
+Special considerations (only when relevant):
+- Women travelers: Mention dress codes, safe areas, women-only transport when discussing activities
+- Solo travelers: Suggest group tours and safe practices when asked about traveling alone
+- Accessibility needs: Address wheelchair access and accommodations when asked
+- First-time visitors: Offer cultural tips when discussing customs or etiquette
+
+Remember: Match your response length and detail to the user's question. Don't overwhelm them with information they didn't ask for."""
 
     def _build_messages(
         self, 
@@ -94,20 +95,19 @@ Special considerations:
         Returns:
             Context prompt string
         """
-        context_parts = ["IMPORTANT - User-specific context:"]
+        context_parts = []
         
         # Gender-specific considerations
         if user_context.get("gender") == "female":
             context_parts.append(
-                "- FEMALE TRAVELER: Prioritize women's safety. Include dress code advice, "
-                "women-only transportation, safe areas for solo women, and scam awareness."
+                "Note: This is a female traveler. When discussing safety or activities, "
+                "include women-specific tips if relevant (dress codes, women-only transport, etc.)"
             )
         
         # Solo travel considerations
         if user_context.get("traveling_alone"):
             context_parts.append(
-                "- SOLO TRAVELER: Emphasize solo safety tips, recommend group tours, "
-                "suggest safe accommodations, and provide emergency protocols."
+                "Note: Solo traveler. Mention solo safety tips when discussing activities or locations."
             )
         
         # Accessibility needs
@@ -118,25 +118,25 @@ Special considerations:
             else:
                 needs_str = str(needs)
             context_parts.append(
-                f"- ACCESSIBILITY NEEDS: {needs_str}. CRITICAL: Verify accessibility "
-                f"for ALL recommendations. Suggest accessible alternatives."
+                f"Note: Accessibility needs: {needs_str}. Mention accessibility when discussing locations."
             )
         
         # First-time visitor
         if user_context.get("first_time_egypt"):
             context_parts.append(
-                "- FIRST-TIME VISITOR: Provide extra cultural orientation, "
-                "explain customs, and give practical first-timer tips."
+                "Note: First-time visitor to Egypt. Offer cultural tips when relevant."
             )
         
         # Language preferences
         if user_context.get("languages"):
             langs = user_context["languages"]
             context_parts.append(
-                f"- LANGUAGES: Traveler speaks {langs}. Suggest resources in these languages."
+                f"Note: Traveler speaks {langs}."
             )
         
-        return "\n".join(context_parts) if len(context_parts) > 1 else ""
+        if context_parts:
+            return "User context:\n" + "\n".join(context_parts)
+        return ""
 
     def _generate_suggestions(self, user_message: str, assistant_response: str) -> List[str]:
         """
@@ -233,9 +233,9 @@ Special considerations:
             # Build complete message array
             messages = self._build_messages(message, conversation_id, user_context)
             
-            # Call OpenAI API
+            # Call Groq API
             response = self.client.chat.completions.create(
-                model=settings.AI_MODEL,
+                model=settings.GROQ_MODEL,
                 messages=messages,
                 temperature=settings.AI_TEMPERATURE,
                 max_tokens=settings.AI_MAX_TOKENS

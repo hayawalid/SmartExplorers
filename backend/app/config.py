@@ -13,10 +13,10 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
     GROQ_MODEL: str ="llama-3.3-70b-versatile"
-    GROQ_API_KEY: str ="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"
+    GROQ_API_KEY: str =""
     
     # Security
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
