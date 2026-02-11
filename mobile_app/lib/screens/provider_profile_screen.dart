@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
+import '../services/profile_api_service.dart';
+import '../services/api_config.dart';
 
 /// Provider Profile Screen with 3 tabs: Portfolio, Credentials, Reviews
 /// Designed for service providers to showcase their work and qualifications
@@ -15,9 +17,10 @@ class ProviderProfileScreen extends StatefulWidget {
 class _ProviderProfileScreenState extends State<ProviderProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final ProfileApiService _profileService = ProfileApiService();
 
   // Provider data
-  final ProviderProfile _provider = ProviderProfile(
+  final ProviderProfile _fallbackProvider = ProviderProfile(
     name: 'Ahmed Hassan',
     serviceType: 'Tour Guide',
     bio:
@@ -31,7 +34,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
   );
 
   // Portfolio images
-  final List<PortfolioItem> _portfolio = [
+  final List<PortfolioItem> _fallbackPortfolio = [
     PortfolioItem(
       id: '1',
       title: 'Pyramids Tour',
@@ -89,7 +92,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
   ];
 
   // Credentials
-  final List<Credential> _credentials = [
+  final List<Credential> _fallbackCredentials = [
     Credential(
       title: 'Certified Egyptologist',
       issuer: 'Ministry of Tourism - Egypt',
@@ -121,7 +124,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
   ];
 
   // Reviews
-  final List<ProviderReview> _reviews = [
+  final List<ProviderReview> _fallbackReviews = [
     ProviderReview(
       id: '1',
       reviewerName: 'Sarah M.',
@@ -160,15 +163,48 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
     ),
   ];
 
+  late ProviderProfile _provider;
+  late List<PortfolioItem> _portfolio;
+  late List<Credential> _credentials;
+  late List<ProviderReview> _reviews;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _provider = _fallbackProvider;
+    _portfolio = _fallbackPortfolio;
+    _credentials = _fallbackCredentials;
+    _reviews = _fallbackReviews;
+    _loadProviderData();
+  }
+
+  Future<void> _loadProviderData() async {
+    try {
+      final user = await _profileService.getUserByUsername(
+        ApiConfig.demoProviderUsername,
+      );
+      final userId = user['_id'] as String;
+      final providerProfile = await _profileService.getProviderProfile(userId);
+      final portfolio = await _profileService.getProviderPortfolio(userId);
+      final credentials = await _profileService.getProviderCredentials(userId);
+      final reviews = await _profileService.getProviderReviews(userId);
+
+      setState(() {
+        _provider = ProviderProfile.fromJson(providerProfile ?? user);
+        _portfolio = portfolio.map(PortfolioItem.fromJson).toList();
+        _credentials = credentials.map(Credential.fromJson).toList();
+        _reviews = reviews.map(ProviderReview.fromJson).toList();
+      });
+    } catch (_) {
+      // Keep fallback data on error
+    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _profileService.dispose();
     super.dispose();
   }
 
@@ -1337,6 +1373,27 @@ class ProviderProfile {
     required this.languages,
     required this.memberSince,
   });
+
+  factory ProviderProfile.fromJson(Map<String, dynamic> json) {
+    return ProviderProfile(
+      name:
+          json['full_legal_name']?.toString() ??
+          json['full_name']?.toString() ??
+          'Unknown',
+      serviceType: json['service_type']?.toString() ?? 'Service',
+      bio: json['bio']?.toString() ?? '',
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      reviewCount: (json['review_count'] as num?)?.toInt() ?? 0,
+      completedTours: (json['completed_tours_count'] as num?)?.toInt() ?? 0,
+      isVerified: json['verified_flag'] == true,
+      languages:
+          (json['languages'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      memberSince: json['member_since']?.toString() ?? 'Unknown',
+    );
+  }
 }
 
 class PortfolioItem {
@@ -1351,6 +1408,15 @@ class PortfolioItem {
     required this.likes,
     required this.category,
   });
+
+  factory PortfolioItem.fromJson(Map<String, dynamic> json) {
+    return PortfolioItem(
+      id: json['_id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Untitled',
+      likes: (json['like_count'] as num?)?.toInt() ?? 0,
+      category: json['category']?.toString() ?? 'General',
+    );
+  }
 }
 
 class Credential {
@@ -1367,6 +1433,16 @@ class Credential {
     required this.isVerified,
     required this.icon,
   });
+
+  factory Credential.fromJson(Map<String, dynamic> json) {
+    return Credential(
+      title: json['title']?.toString() ?? 'Credential',
+      issuer: json['issuer']?.toString() ?? 'Issuer',
+      date: json['date']?.toString() ?? '',
+      isVerified: json['is_verified'] == true,
+      icon: json['icon']?.toString() ?? '🎓',
+    );
+  }
 }
 
 class ProviderReview {
@@ -1385,4 +1461,17 @@ class ProviderReview {
     required this.date,
     required this.helpful,
   });
+
+  factory ProviderReview.fromJson(Map<String, dynamic> json) {
+    return ProviderReview(
+      id: json['_id']?.toString() ?? '',
+      reviewerName: json['reviewer_name']?.toString() ?? 'Anonymous',
+      content: json['content']?.toString() ?? '',
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      date:
+          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      helpful: (json['helpful_count'] as num?)?.toInt() ?? 0,
+    );
+  }
 }

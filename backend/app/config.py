@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = "sqlite:///./smartexplorers.db"
+    MONGODB_URI: str = "mongodb://localhost:27017"
     
     # OpenAI
     OPENAI_API_KEY: str = ""

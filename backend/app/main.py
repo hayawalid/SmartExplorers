@@ -8,6 +8,12 @@ from contextlib import asynccontextmanager
 from app.config import settings
 from app.mongodb import connect_to_mongo, close_mongo_connection
 from app.api.chat import router as chat_router
+from app.api.users import router as users_router
+from app.api.profiles import router as profiles_router
+from app.api.social import router as social_router
+from app.api.marketplace import router as marketplace_router
+from app.api.safety import router as safety_router
+from app.api.preferences import router as preferences_router
 # from app.api.itineraries import router as itinerary_router  # Add when ready
 
 
@@ -47,6 +53,12 @@ app.add_middleware(
 
 # Include routers
 app.include_router(chat_router)
+app.include_router(users_router)
+app.include_router(profiles_router)
+app.include_router(social_router)
+app.include_router(marketplace_router)
+app.include_router(safety_router)
+app.include_router(preferences_router)
 # app.include_router(itinerary_router)  # Add when ready
 
 

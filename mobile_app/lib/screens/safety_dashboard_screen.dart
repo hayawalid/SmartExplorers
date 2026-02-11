@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/semantics.dart';
 import 'dart:ui';
+import '../services/profile_api_service.dart';
+import '../services/safety_api_service.dart';
+import '../services/api_config.dart';
 
 /// Safety Dashboard with WCAG 2.1 AA accessibility compliance
 /// Features: Emergency SOS with liveRegion, Semantics for screen readers
@@ -16,6 +19,12 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   bool _isTracking = true;
+  String? _userId;
+  final ProfileApiService _profileService = ProfileApiService();
+  final SafetyApiService _safetyService = SafetyApiService();
+  List<Map<String, dynamic>> _contacts = [];
+  final TextEditingController _contactNameController = TextEditingController();
+  final TextEditingController _contactPhoneController = TextEditingController();
 
   @override
   void initState() {
@@ -24,11 +33,35 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
+    _loadSafetyData();
+  }
+
+  Future<void> _loadSafetyData() async {
+    try {
+      final user = await _profileService.getUserByUsername(
+        ApiConfig.demoTravelerUsername,
+      );
+      final userId = user['_id'] as String;
+      final safetyProfile = await _safetyService.getSafetyProfile(userId);
+      final contacts = await _safetyService.getEmergencyContacts(userId);
+
+      setState(() {
+        _userId = userId;
+        _isTracking = safetyProfile['live_tracking_enabled'] == true;
+        _contacts = contacts;
+      });
+    } catch (_) {
+      // Keep defaults on error
+    }
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _profileService.dispose();
+    _safetyService.dispose();
+    _contactNameController.dispose();
+    _contactPhoneController.dispose();
     super.dispose();
   }
 
@@ -238,7 +271,14 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
               ),
               CupertinoSwitch(
                 value: _isTracking,
-                onChanged: (value) => setState(() => _isTracking = value),
+                onChanged: (value) async {
+                  setState(() => _isTracking = value);
+                  if (_userId != null) {
+                    await _safetyService.updateSafetyProfile(_userId!, {
+                      'live_tracking_enabled': value,
+                    });
+                  }
+                },
                 activeColor: const Color(0xFF4CAF50),
               ),
             ],
@@ -285,8 +325,13 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
                     CupertinoDialogAction(
                       isDestructiveAction: true,
                       child: const Text('Send Alert'),
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(context);
+                        if (_userId != null) {
+                          await _safetyService.createPanicEvent(_userId!, {
+                            'status': 'sent',
+                          });
+                        }
                         SemanticsService.announce(
                           'Emergency alert sent successfully',
                           TextDirection.ltr,
@@ -452,26 +497,43 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
           ),
         ),
         const SizedBox(height: 16),
-        _buildContactCard(
-          'Mom',
-          '+20 100 123 4567',
-          '👩',
-          isDark,
-          cardColor,
-          textColor,
-          secondaryTextColor,
-        ),
-        const SizedBox(height: 12),
-        _buildContactCard(
-          'Embassy',
-          '+20 2 2797 3300',
-          '🏛️',
-          isDark,
-          cardColor,
-          textColor,
-          secondaryTextColor,
-        ),
-        const SizedBox(height: 12),
+        if (_contacts.isEmpty) ...[
+          _buildContactCard(
+            'Mom',
+            '+20 100 123 4567',
+            '👩',
+            isDark,
+            cardColor,
+            textColor,
+            secondaryTextColor,
+          ),
+          const SizedBox(height: 12),
+          _buildContactCard(
+            'Embassy',
+            '+20 2 2797 3300',
+            '🏛️',
+            isDark,
+            cardColor,
+            textColor,
+            secondaryTextColor,
+          ),
+          const SizedBox(height: 12),
+        ] else ...[
+          ..._contacts.map((contact) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildContactCard(
+                contact['name']?.toString() ?? 'Contact',
+                contact['phone']?.toString() ?? '',
+                '📞',
+                isDark,
+                cardColor,
+                textColor,
+                secondaryTextColor,
+              ),
+            );
+          }).toList(),
+        ],
         _buildAddContactButton(isDark, textColor, secondaryTextColor),
       ],
     );
@@ -571,33 +633,92 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
     Color textColor,
     Color secondaryTextColor,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color:
-              isDark ? Colors.white.withOpacity(0.3) : const Color(0xFFD1D1D6),
-          width: 2,
-          style: BorderStyle.solid,
+    return GestureDetector(
+      onTap: _showAddContactDialog,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color:
+                isDark
+                    ? Colors.white.withOpacity(0.3)
+                    : const Color(0xFFD1D1D6),
+            width: 2,
+            style: BorderStyle.solid,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(CupertinoIcons.plus_circle_fill, color: secondaryTextColor),
+            const SizedBox(width: 8),
+            Text(
+              'Add Emergency Contact',
+              style: TextStyle(
+                fontSize: 14,
+                color: secondaryTextColor,
+                fontFamily: 'SF Pro Text',
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(CupertinoIcons.plus_circle_fill, color: secondaryTextColor),
-          const SizedBox(width: 8),
-          Text(
-            'Add Emergency Contact',
-            style: TextStyle(
-              fontSize: 14,
-              color: secondaryTextColor,
-              fontFamily: 'SF Pro Text',
-              fontWeight: FontWeight.w500,
+    );
+  }
+
+  void _showAddContactDialog() {
+    _contactNameController.clear();
+    _contactPhoneController.clear();
+
+    showCupertinoDialog(
+      context: context,
+      builder:
+          (context) => CupertinoAlertDialog(
+            title: const Text('Add Emergency Contact'),
+            content: Column(
+              children: [
+                const SizedBox(height: 8),
+                CupertinoTextField(
+                  controller: _contactNameController,
+                  placeholder: 'Name',
+                ),
+                const SizedBox(height: 8),
+                CupertinoTextField(
+                  controller: _contactPhoneController,
+                  placeholder: 'Phone',
+                  keyboardType: TextInputType.phone,
+                ),
+              ],
             ),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.pop(context),
+              ),
+              CupertinoDialogAction(
+                isDefaultAction: true,
+                child: const Text('Save'),
+                onPressed: () async {
+                  Navigator.pop(context);
+                  if (_userId == null) return;
+                  final name = _contactNameController.text.trim();
+                  final phone = _contactPhoneController.text.trim();
+                  if (name.isEmpty || phone.isEmpty) return;
+
+                  final created = await _safetyService.createEmergencyContact(
+                    _userId!,
+                    {'name': name, 'phone': phone},
+                  );
+
+                  setState(() {
+                    _contacts.add(created);
+                  });
+                },
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 

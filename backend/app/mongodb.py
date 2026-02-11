@@ -4,7 +4,7 @@ MongoDB Configuration for SmartExplorers
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import MongoClient
 from typing import Optional
-import os
+from app.config import settings
 
 
 class MongoDB:
@@ -44,10 +44,14 @@ mongodb = MongoDB()
 
 async def connect_to_mongo():
     """Connect to MongoDB"""
-    # Get MongoDB URI from environment
-    MONGO_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+    # Get MongoDB URI from settings
+    MONGO_URI = settings.MONGODB_URI
+    safe_uri = MONGO_URI
+    if "@" in MONGO_URI and ":" in MONGO_URI:
+        # mask credentials in logs
+        safe_uri = MONGO_URI.split("//")[0] + "//***:***@" + MONGO_URI.split("@")[-1]
     
-    print(f"Connecting to MongoDB at {MONGO_URI}")
+    print(f"Connecting to MongoDB at {safe_uri}")
     
     # Create async client
     mongodb.client = AsyncIOMotorClient(MONGO_URI)
@@ -128,5 +132,5 @@ def get_database():
 # Synchronous client (for scripts/testing)
 def get_sync_client():
     """Get synchronous MongoDB client"""
-    MONGO_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+    MONGO_URI = settings.MONGODB_URI
     return MongoClient(MONGO_URI)[mongodb.DATABASE_NAME]

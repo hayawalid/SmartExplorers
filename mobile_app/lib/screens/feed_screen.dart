@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
+import '../services/social_api_service.dart';
 
 /// Instagram-style social feed with WCAG accessibility support
 class FeedScreen extends StatefulWidget {
@@ -11,6 +12,9 @@ class FeedScreen extends StatefulWidget {
 }
 
 class _FeedScreenState extends State<FeedScreen> {
+  final SocialApiService _socialService = SocialApiService();
+  late Future<List<FeedPost>> _postsFuture;
+
   final List<FeedPost> _posts = [
     FeedPost(
       id: '1',
@@ -79,6 +83,24 @@ class _FeedScreenState extends State<FeedScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _postsFuture = _loadPosts();
+  }
+
+  Future<List<FeedPost>> _loadPosts() async {
+    final data = await _socialService.getPosts();
+    if (data.isEmpty) return _posts;
+    return data.map(FeedPost.fromJson).toList();
+  }
+
+  @override
+  void dispose() {
+    _socialService.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -93,38 +115,44 @@ class _FeedScreenState extends State<FeedScreen> {
       backgroundColor: backgroundColor,
       body: SafeArea(
         bottom: false,
-        child: CustomScrollView(
-          slivers: [
-            // Header
-            SliverToBoxAdapter(child: _buildHeader(textColor)),
+        child: FutureBuilder<List<FeedPost>>(
+          future: _postsFuture,
+          builder: (context, snapshot) {
+            final posts = snapshot.data ?? _posts;
+            return CustomScrollView(
+              slivers: [
+                // Header
+                SliverToBoxAdapter(child: _buildHeader(textColor)),
 
-            // Stories row
-            SliverToBoxAdapter(
-              child: _buildStoriesRow(
-                isDark,
-                cardColor,
-                textColor,
-                secondaryTextColor,
-              ),
-            ),
-
-            // Feed posts
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => _buildFeedPost(
-                  _posts[index],
-                  isDark,
-                  cardColor,
-                  textColor,
-                  secondaryTextColor,
+                // Stories row
+                SliverToBoxAdapter(
+                  child: _buildStoriesRow(
+                    isDark,
+                    cardColor,
+                    textColor,
+                    secondaryTextColor,
+                  ),
                 ),
-                childCount: _posts.length,
-              ),
-            ),
 
-            // Bottom padding for nav bar
-            const SliverToBoxAdapter(child: SizedBox(height: 120)),
-          ],
+                // Feed posts
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _buildFeedPost(
+                      posts[index],
+                      isDark,
+                      cardColor,
+                      textColor,
+                      secondaryTextColor,
+                    ),
+                    childCount: posts.length,
+                  ),
+                ),
+
+                // Bottom padding for nav bar
+                const SliverToBoxAdapter(child: SizedBox(height: 120)),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -582,4 +610,21 @@ class FeedPost {
     required this.altText,
     required this.isPromotion,
   });
+
+  factory FeedPost.fromJson(Map<String, dynamic> json) {
+    return FeedPost(
+      id: json['_id']?.toString() ?? '',
+      username: json['author_username']?.toString() ?? 'unknown',
+      userAvatar: json['author_avatar']?.toString() ?? '👤',
+      isVerified: json['author_verified'] == true,
+      location: json['location']?.toString() ?? 'Unknown location',
+      imageEmoji: '📷',
+      caption: json['caption']?.toString() ?? '',
+      likes: (json['like_count'] as num?)?.toInt() ?? 0,
+      comments: (json['comment_count'] as num?)?.toInt() ?? 0,
+      timeAgo: 'just now',
+      altText: json['alt_text']?.toString() ?? '',
+      isPromotion: json['is_promoted'] == true,
+    );
+  }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
+import '../services/profile_api_service.dart';
+import '../services/api_config.dart';
 
 /// Instagram-style Profile Screen with WCAG 2.1 AA accessibility compliance
 /// Features: Image grid tab, Reviews tab with filters/sorting, iOS modern design
@@ -14,6 +16,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final ProfileApiService _profileService = ProfileApiService();
 
   // Review filter and sort state
   String _selectedFilter = 'All';
@@ -33,7 +36,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   ];
 
   // Sample user data
-  final UserProfile _user = UserProfile(
+  final UserProfile _fallbackUser = UserProfile(
     name: 'Sarah Johnson',
     username: '@sarahtravels',
     bio:
@@ -48,7 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   );
 
   // Sample photos for grid
-  final List<TravelPhoto> _photos = [
+  final List<TravelPhoto> _fallbackPhotos = [
     TravelPhoto(id: '1', location: 'Pyramids of Giza', likes: 324),
     TravelPhoto(id: '2', location: 'Luxor Temple', likes: 256),
     TravelPhoto(id: '3', location: 'Nile Cruise', likes: 189),
@@ -61,7 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   ];
 
   // Sample reviews
-  List<UserReview> _reviews = [
+  List<UserReview> _fallbackReviews = [
     UserReview(
       id: '1',
       type: 'Guides',
@@ -119,6 +122,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     ),
   ];
 
+  late UserProfile _user;
+  late List<TravelPhoto> _photos;
+  late List<UserReview> _reviews;
+
   List<UserReview> get _filteredAndSortedReviews {
     var reviews =
         _selectedFilter == 'All'
@@ -146,11 +153,35 @@ class _ProfileScreenState extends State<ProfileScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _user = _fallbackUser;
+    _photos = _fallbackPhotos;
+    _reviews = _fallbackReviews;
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final user = await _profileService.getUserByUsername(
+        ApiConfig.demoTravelerUsername,
+      );
+      final userId = user['_id'] as String;
+      final photos = await _profileService.getUserPhotos(userId);
+      final reviews = await _profileService.getUserReviews(userId);
+
+      setState(() {
+        _user = UserProfile.fromJson(user);
+        _photos = photos.map(TravelPhoto.fromJson).toList();
+        _reviews = reviews.map(UserReview.fromJson).toList();
+      });
+    } catch (_) {
+      // Keep fallback data on error
+    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _profileService.dispose();
     super.dispose();
   }
 
@@ -1078,6 +1109,21 @@ class UserProfile {
     required this.rating,
     required this.memberSince,
   });
+
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
+    return UserProfile(
+      name: json['full_name']?.toString() ?? 'Unknown',
+      username: json['username']?.toString() ?? '@user',
+      bio: json['bio']?.toString() ?? '',
+      avatarUrl: json['avatar_url']?.toString() ?? '',
+      isVerified: json['verified_flag'] == true,
+      tripsCount: (json['trips_count'] as num?)?.toInt() ?? 0,
+      reviewsCount: (json['reviews_count'] as num?)?.toInt() ?? 0,
+      photosCount: (json['photos_count'] as num?)?.toInt() ?? 0,
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      memberSince: json['member_since']?.toString() ?? 'Unknown',
+    );
+  }
 }
 
 /// Travel photo model
@@ -1087,6 +1133,14 @@ class TravelPhoto {
   final int likes;
 
   TravelPhoto({required this.id, required this.location, required this.likes});
+
+  factory TravelPhoto.fromJson(Map<String, dynamic> json) {
+    return TravelPhoto(
+      id: json['_id']?.toString() ?? '',
+      location: json['location']?.toString() ?? 'Unknown',
+      likes: (json['like_count'] as num?)?.toInt() ?? 0,
+    );
+  }
 }
 
 /// User review model
@@ -1110,4 +1164,19 @@ class UserReview {
     required this.helpfulCount,
     required this.providerName,
   });
+
+  factory UserReview.fromJson(Map<String, dynamic> json) {
+    return UserReview(
+      id: json['_id']?.toString() ?? '',
+      type: json['review_type']?.toString() ?? 'Experiences',
+      title: json['title']?.toString() ?? '',
+      content: json['content']?.toString() ?? '',
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      date:
+          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      helpfulCount: (json['helpful_count'] as num?)?.toInt() ?? 0,
+      providerName: json['provider_name']?.toString() ?? '',
+    );
+  }
 }
