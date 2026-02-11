@@ -38,3 +38,5 @@ motor
 pymongo 
 passlib 
 bcrypt
+sentence-transformers
+chroma
