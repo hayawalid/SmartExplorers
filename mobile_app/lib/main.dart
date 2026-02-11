@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'screens/onboarding/onboarding_flow.dart';
 import 'screens/main_navigation_shell.dart';
 import 'screens/provider_navigation_shell.dart';
+import 'theme/app_theme.dart';
 import 'theme/theme_manager.dart';
 
 void main() {
@@ -29,10 +29,10 @@ class _SmartExplorersAppState extends ConsumerState<SmartExplorersApp> {
       title: 'SmartExplorers',
       debugShowCheckedModeBanner: false,
 
-      // Light theme with SF Pro Rounded and glassmorphism
+      // Smart Monochrome light theme
       theme: buildLightTheme(highContrast: themeManager.highContrastEnabled),
 
-      // Dark theme (Midnight/Obsidian) with high contrast support
+      // Eerie Black dark theme
       darkTheme: buildDarkTheme(highContrast: themeManager.highContrastEnabled),
 
       // Theme mode controlled by ThemeManager
@@ -40,7 +40,6 @@ class _SmartExplorersAppState extends ConsumerState<SmartExplorersApp> {
 
       // Accessibility text scaling
       builder: (context, child) {
-        // Auto-detect accessibility settings and update theme
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ref.read(themeManagerProvider).updateFromSystem(context);
         });

@@ -15,6 +15,15 @@ class ChatApiService {
     String? conversationId,
     Map<String, dynamic>? userContext,
   }) async {
+    if (ApiConfig.offlineMode) {
+      return ChatResponse(
+        message:
+            'AI assistant is unavailable in offline mode. '
+            'Start the backend server and set offlineMode = false in ApiConfig.',
+        conversationId: conversationId ?? 'offline',
+        timestamp: DateTime.now(),
+      );
+    }
     try {
       final request = ChatRequest(
         message: message,
