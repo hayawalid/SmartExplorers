@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
+import '../services/session_store.dart';
 import '../services/profile_api_service.dart';
 import '../services/api_config.dart';
 
@@ -15,7 +16,7 @@ class ProviderProfileScreen extends StatefulWidget {
 }
 
 class _ProviderProfileScreenState extends State<ProviderProfileScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late TabController _tabController;
   final ProfileApiService _profileService = ProfileApiService();
 
@@ -181,9 +182,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
 
   Future<void> _loadProviderData() async {
     try {
-      final user = await _profileService.getUserByUsername(
-        ApiConfig.demoProviderUsername,
-      );
+      final username =
+          SessionStore.instance.username ?? ApiConfig.demoProviderUsername;
+      final user = await _profileService.getUserByUsername(username);
       final userId = user['_id'] as String;
       final providerProfile = await _profileService.getProviderProfile(userId);
       final portfolio = await _profileService.getProviderPortfolio(userId);
@@ -210,6 +211,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -292,6 +294,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 
   Widget _buildProfileHeader(
     bool isDark,

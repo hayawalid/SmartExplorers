@@ -11,7 +11,8 @@ class FeedScreen extends StatefulWidget {
   State<FeedScreen> createState() => _FeedScreenState();
 }
 
-class _FeedScreenState extends State<FeedScreen> {
+class _FeedScreenState extends State<FeedScreen>
+    with AutomaticKeepAliveClientMixin {
   final SocialApiService _socialService = SocialApiService();
   late Future<List<FeedPost>> _postsFuture;
 
@@ -102,6 +103,7 @@ class _FeedScreenState extends State<FeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final backgroundColor =
@@ -373,12 +375,27 @@ class _FeedScreenState extends State<FeedScreen> {
                         colors: [Color(0xFF667eea), Color(0xFFf5576c)],
                       ),
                     ),
-                    child: Center(
-                      child: Text(
-                        post.userAvatar,
-                        style: const TextStyle(fontSize: 24),
-                      ),
-                    ),
+                    child:
+                        post.userAvatar.startsWith('http')
+                            ? ClipOval(
+                              child: Image.network(
+                                post.userAvatar,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (context, error, stackTrace) => Center(
+                                      child: Text(
+                                        post.userAvatar,
+                                        style: const TextStyle(fontSize: 24),
+                                      ),
+                                    ),
+                              ),
+                            )
+                            : Center(
+                              child: Text(
+                                post.userAvatar,
+                                style: const TextStyle(fontSize: 24),
+                              ),
+                            ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -465,12 +482,25 @@ class _FeedScreenState extends State<FeedScreen> {
                     ],
                   ),
                 ),
-                child: Center(
-                  child: Text(
-                    post.imageEmoji,
-                    style: const TextStyle(fontSize: 120),
-                  ),
-                ),
+                child:
+                    post.mediaUrl != null && post.mediaUrl!.isNotEmpty
+                        ? Image.network(
+                          post.mediaUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder:
+                              (context, error, stackTrace) => Center(
+                                child: Text(
+                                  post.imageEmoji,
+                                  style: const TextStyle(fontSize: 120),
+                                ),
+                              ),
+                        )
+                        : Center(
+                          child: Text(
+                            post.imageEmoji,
+                            style: const TextStyle(fontSize: 120),
+                          ),
+                        ),
               ),
             ),
 
@@ -562,6 +592,9 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
+  @override
+  bool get wantKeepAlive => true;
+
   Widget _buildActionButton(IconData icon, String count, Color color) {
     return Row(
       children: [
@@ -595,6 +628,7 @@ class FeedPost {
   final String timeAgo;
   final String altText;
   final bool isPromotion;
+  final String? mediaUrl;
 
   FeedPost({
     required this.id,
@@ -609,9 +643,17 @@ class FeedPost {
     required this.timeAgo,
     required this.altText,
     required this.isPromotion,
+    this.mediaUrl,
   });
 
   factory FeedPost.fromJson(Map<String, dynamic> json) {
+    String? mediaUrl = json['media_url']?.toString();
+    final mediaUrls = json['media_urls'];
+    if ((mediaUrl == null || mediaUrl.isEmpty) && mediaUrls is List) {
+      if (mediaUrls.isNotEmpty) {
+        mediaUrl = mediaUrls.first.toString();
+      }
+    }
     return FeedPost(
       id: json['_id']?.toString() ?? '',
       username: json['author_username']?.toString() ?? 'unknown',
@@ -625,6 +667,7 @@ class FeedPost {
       timeAgo: 'just now',
       altText: json['alt_text']?.toString() ?? '',
       isPromotion: json['is_promoted'] == true,
+      mediaUrl: mediaUrl,
     );
   }
 }

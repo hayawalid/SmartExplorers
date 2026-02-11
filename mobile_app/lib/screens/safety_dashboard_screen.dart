@@ -5,6 +5,7 @@ import 'dart:ui';
 import '../services/profile_api_service.dart';
 import '../services/safety_api_service.dart';
 import '../services/api_config.dart';
+import '../services/session_store.dart';
 
 /// Safety Dashboard with WCAG 2.1 AA accessibility compliance
 /// Features: Emergency SOS with liveRegion, Semantics for screen readers
@@ -16,7 +17,7 @@ class SafetyDashboardScreen extends StatefulWidget {
 }
 
 class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late AnimationController _pulseController;
   bool _isTracking = true;
   String? _userId;
@@ -38,9 +39,9 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
 
   Future<void> _loadSafetyData() async {
     try {
-      final user = await _profileService.getUserByUsername(
-        ApiConfig.demoTravelerUsername,
-      );
+      final username =
+          SessionStore.instance.username ?? ApiConfig.demoTravelerUsername;
+      final user = await _profileService.getUserByUsername(username);
       final userId = user['_id'] as String;
       final safetyProfile = await _safetyService.getSafetyProfile(userId);
       final contacts = await _safetyService.getEmergencyContacts(userId);
@@ -67,6 +68,7 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final backgroundColor =
@@ -141,6 +143,9 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 
   Widget _buildHeader(Color textColor, Color secondaryTextColor, bool isDark) {
     return Row(

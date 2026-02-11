@@ -21,6 +21,20 @@ class ProfileApiService {
     throw Exception('Failed to fetch user: ${response.body}');
   }
 
+  Future<Map<String, dynamic>> getUserByEmail(String email) async {
+    final response = await _client.get(
+      Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.usersEndpoint}/by-email/$email',
+      ),
+      headers: {'Accept': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to fetch user: ${response.body}');
+  }
+
   Future<Map<String, dynamic>?> getTravelerProfile(String userId) async {
     final response = await _client.get(
       Uri.parse(

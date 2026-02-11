@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
+import '../../services/profile_api_service.dart';
+import '../../services/session_store.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -16,7 +18,8 @@ class _LoginScreenState extends State<LoginScreen>
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
-  bool _isLoading = false; 
+  bool _isLoading = false;
+  final ProfileApiService _profileService = ProfileApiService();
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -40,6 +43,7 @@ class _LoginScreenState extends State<LoginScreen>
     _emailController.dispose();
     _passwordController.dispose();
     _fadeController.dispose();
+    _profileService.dispose();
     super.dispose();
   }
 
@@ -66,18 +70,30 @@ class _LoginScreenState extends State<LoginScreen>
     return null;
   }
 
-  void _handleLogin() {
+  void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-
-      // TODO: Implement actual login logic
-      Future.delayed(const Duration(seconds: 2), () {
+      try {
+        final user = await _profileService.getUserByEmail(
+          _emailController.text.trim(),
+        );
+        SessionStore.instance.setSession(
+          userId: user['_id'] as String,
+          username: user['username'] as String,
+          accountType: user['account_type'] as String,
+        );
         if (mounted) {
           setState(() => _isLoading = false);
-          // Navigate to home on success
           Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         }
-      });
+      } catch (_) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Login failed')));
+        }
+      }
     }
   }
 

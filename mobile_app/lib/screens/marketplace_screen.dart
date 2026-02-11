@@ -11,7 +11,8 @@ class MarketplaceScreen extends StatefulWidget {
   State<MarketplaceScreen> createState() => _MarketplaceScreenState();
 }
 
-class _MarketplaceScreenState extends State<MarketplaceScreen> {
+class _MarketplaceScreenState extends State<MarketplaceScreen>
+    with AutomaticKeepAliveClientMixin {
   final MarketplaceApiService _marketplaceService = MarketplaceApiService();
   late Future<List<ServiceProvider>> _providersFuture;
 
@@ -153,6 +154,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final backgroundColor =
@@ -237,6 +239,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 
   Widget _buildHeader(Color textColor, bool isDark) {
     return Padding(

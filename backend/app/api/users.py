@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Request
 from typing import Dict, Any
 from bson import ObjectId
 
@@ -7,16 +7,28 @@ from app.mongodb import get_database, mongodb
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
 
-def _serialize_user(doc: Dict[str, Any]) -> Dict[str, Any]:
+def _prefix_static(request: Request, url: str) -> str:
+    if url.startswith("/"):
+        return str(request.base_url).rstrip("/") + url
+    return url
+
+
+def _serialize_user(request: Request, doc: Dict[str, Any]) -> Dict[str, Any]:
     if not doc:
         return doc
     doc["_id"] = str(doc["_id"])
     doc.pop("hashed_password", None)
+    if doc.get("avatar_url"):
+        doc["avatar_url"] = _prefix_static(request, doc["avatar_url"])
+    if doc.get("profile_picture_url"):
+        doc["profile_picture_url"] = _prefix_static(
+            request, doc["profile_picture_url"]
+        )
     return doc
 
 
 @router.get("/{user_id}")
-async def get_user(user_id: str):
+async def get_user(user_id: str, request: Request):
     db = get_database()
     if not ObjectId.is_valid(user_id):
         raise HTTPException(status_code=400, detail="Invalid user_id")
@@ -25,21 +37,31 @@ async def get_user(user_id: str):
     if not doc:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return _serialize_user(doc)
+    return _serialize_user(request, doc)
 
 
 @router.get("/by-username/{username}")
-async def get_user_by_username(username: str):
+async def get_user_by_username(username: str, request: Request):
     db = get_database()
     doc = await db[mongodb.USERS].find_one({"username": username})
     if not doc:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return _serialize_user(doc)
+    return _serialize_user(request, doc)
+
+
+@router.get("/by-email/{email}")
+async def get_user_by_email(email: str, request: Request):
+    db = get_database()
+    doc = await db[mongodb.USERS].find_one({"email": email})
+    if not doc:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return _serialize_user(request, doc)
 
 
 @router.patch("/{user_id}")
-async def update_user(user_id: str, payload: Dict[str, Any] = Body(...)):
+async def update_user(user_id: str, request: Request, payload: Dict[str, Any] = Body(...)):
     db = get_database()
     if not ObjectId.is_valid(user_id):
         raise HTTPException(status_code=400, detail="Invalid user_id")
@@ -65,4 +87,4 @@ async def update_user(user_id: str, payload: Dict[str, Any] = Body(...)):
         raise HTTPException(status_code=404, detail="User not found")
 
     doc = await db[mongodb.USERS].find_one({"_id": ObjectId(user_id)})
-    return _serialize_user(doc)
+    return _serialize_user(request, doc)

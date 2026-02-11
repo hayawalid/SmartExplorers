@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
+import '../services/session_store.dart';
 import '../services/profile_api_service.dart';
 import '../services/api_config.dart';
 
@@ -14,7 +15,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late TabController _tabController;
   final ProfileApiService _profileService = ProfileApiService();
 
@@ -161,9 +162,9 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _loadProfile() async {
     try {
-      final user = await _profileService.getUserByUsername(
-        ApiConfig.demoTravelerUsername,
-      );
+      final username =
+          SessionStore.instance.username ?? ApiConfig.demoTravelerUsername;
+      final user = await _profileService.getUserByUsername(username);
       final userId = user['_id'] as String;
       final photos = await _profileService.getUserPhotos(userId);
       final reviews = await _profileService.getUserReviews(userId);
@@ -187,6 +188,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final backgroundColor =
@@ -372,26 +374,37 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           child: Container(
             margin: const EdgeInsets.all(3),
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: const Center(
-              child: Icon(
-                CupertinoIcons.person_fill,
-                size: 40,
-                color: Colors.white,
-              ),
-            ),
+            decoration: const BoxDecoration(shape: BoxShape.circle),
+            clipBehavior: Clip.antiAlias,
+            child:
+                _user.avatarUrl.isNotEmpty
+                    ? Image.network(
+                      _user.avatarUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder:
+                          (context, error, stackTrace) => const Center(
+                            child: Icon(
+                              CupertinoIcons.person_fill,
+                              color: Colors.white,
+                              size: 32,
+                            ),
+                          ),
+                    )
+                    : const Center(
+                      child: Icon(
+                        CupertinoIcons.person_fill,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
           ),
         ),
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 
   Widget _buildStatsRow(Color textColor, Color secondaryTextColor) {
     return Row(
@@ -525,23 +538,46 @@ class _ProfileScreenState extends State<ProfileScreen>
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Placeholder gradient based on index
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: _getPhotoGradient(index),
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                  // Image or placeholder gradient based on index
+                  if (photo.mediaUrl != null && photo.mediaUrl!.isNotEmpty)
+                    Image.network(
+                      photo.mediaUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder:
+                          (context, error, stackTrace) => Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: _getPhotoGradient(index),
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: Center(
+                              child: Icon(
+                                CupertinoIcons.photo,
+                                size: 32,
+                                color: Colors.white.withOpacity(0.7),
+                              ),
+                            ),
+                          ),
+                    )
+                  else
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: _getPhotoGradient(index),
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          CupertinoIcons.photo,
+                          size: 32,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
                       ),
                     ),
-                    child: Center(
-                      child: Icon(
-                        CupertinoIcons.photo,
-                        size: 32,
-                        color: Colors.white.withOpacity(0.7),
-                      ),
-                    ),
-                  ),
                   // Location overlay
                   Positioned(
                     bottom: 0,
@@ -961,17 +997,38 @@ class _ProfileScreenState extends State<ProfileScreen>
                           height: 200,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(16),
-                            gradient: LinearGradient(
-                              colors: _getPhotoGradient(int.parse(photo.id)),
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                            gradient:
+                                photo.mediaUrl == null ||
+                                        photo.mediaUrl!.isEmpty
+                                    ? LinearGradient(
+                                      colors: _getPhotoGradient(
+                                        int.tryParse(photo.id) ?? 0,
+                                      ),
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    )
+                                    : null,
                           ),
-                          child: const Icon(
-                            CupertinoIcons.photo,
-                            size: 64,
-                            color: Colors.white70,
-                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child:
+                              photo.mediaUrl != null &&
+                                      photo.mediaUrl!.isNotEmpty
+                                  ? Image.network(
+                                    photo.mediaUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const Icon(
+                                              CupertinoIcons.photo,
+                                              size: 64,
+                                              color: Colors.white70,
+                                            ),
+                                  )
+                                  : const Icon(
+                                    CupertinoIcons.photo,
+                                    size: 64,
+                                    color: Colors.white70,
+                                  ),
                         ),
                         const SizedBox(height: 24),
                         Text(
@@ -1131,14 +1188,21 @@ class TravelPhoto {
   final String id;
   final String location;
   final int likes;
+  final String? mediaUrl;
 
-  TravelPhoto({required this.id, required this.location, required this.likes});
+  TravelPhoto({
+    required this.id,
+    required this.location,
+    required this.likes,
+    this.mediaUrl,
+  });
 
   factory TravelPhoto.fromJson(Map<String, dynamic> json) {
     return TravelPhoto(
       id: json['_id']?.toString() ?? '',
       location: json['location']?.toString() ?? 'Unknown',
       likes: (json['like_count'] as num?)?.toInt() ?? 0,
+      mediaUrl: json['media_url']?.toString(),
     );
   }
 }

@@ -2,6 +2,7 @@
 SmartExplorers FastAPI Application with MongoDB
 """
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
@@ -41,6 +42,9 @@ app = FastAPI(
     version=settings.VERSION,
     lifespan=lifespan
 )
+
+# Static files (avatars, post images)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # CORS middleware
 app.add_middleware(
