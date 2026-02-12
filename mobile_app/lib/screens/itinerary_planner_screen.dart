@@ -6,6 +6,8 @@ import 'dart:async';
 import '../theme/app_theme.dart';
 import '../widgets/smart_explorers_logo.dart';
 import '../services/planner_api_service.dart';
+import '../services/profile_api_service.dart';
+import '../services/session_store.dart';
 import 'itinerary_calendar_screen.dart'; // Import the calendar screen
 
 /// Agentic AI Itinerary Planner
@@ -28,6 +30,10 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
   String? _conversationId;
   Map<String, dynamic>? _lastItinerary; // Stores the latest generated itinerary
 
+  // User profile context for personalized responses
+  final ProfileApiService _profileService = ProfileApiService();
+  Map<String, dynamic>? _userContext;
+
   // Sample prompt chips (Egypt-focused)
   static const _samplePrompts = [
     'Plan a 3-day Cairo trip',
@@ -49,6 +55,66 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
         isUser: false,
       ),
     );
+    _loadUserContext();
+  }
+
+  /// Fetch user + traveler/provider profile to pass as context to the LLM.
+  Future<void> _loadUserContext() async {
+    try {
+      final session = SessionStore.instance;
+      final username = session.username;
+      final userId = session.userId;
+      if (username == null || userId == null) return;
+
+      // Fetch base user record
+      final user = await _profileService.getUserByUsername(username);
+
+      // Build context map with fields the planner_service understands
+      final ctx = <String, dynamic>{
+        'gender': user['gender'] ?? '',
+        'nationality': user['nationality'] ?? user['country_of_origin'] ?? '',
+        'preferred_language': user['preferred_language'] ?? '',
+      };
+
+      // Fetch detailed profile (traveler or provider)
+      final accountType = session.accountType ?? user['account_type'] ?? '';
+      Map<String, dynamic>? profile;
+      if (accountType == 'traveler') {
+        profile = await _profileService.getTravelerProfile(userId);
+      } else if (accountType == 'service_provider') {
+        profile = await _profileService.getProviderProfile(userId);
+      }
+
+      if (profile != null) {
+        // Accessibility & disability flags
+        ctx['accessibility_needs'] = profile['accessibility_needs'];
+        ctx['wheelchair_access'] = profile['wheelchair_access'] ?? false;
+        ctx['visual_assistance'] = profile['visual_assistance'] ?? false;
+        ctx['hearing_assistance'] = profile['hearing_assistance'] ?? false;
+        ctx['mobility_support'] = profile['mobility_support'] ?? false;
+        ctx['sensory_sensitivity'] = profile['sensory_sensitivity'] ?? false;
+
+        // Travel preferences
+        ctx['traveling_alone'] = profile['traveling_alone'] ?? false;
+        ctx['first_time_egypt'] = profile['first_time_egypt'] ?? false;
+        ctx['dietary_restrictions_flag'] = profile['dietary_restrictions_flag'] ?? false;
+        ctx['dietary_restrictions'] = profile['dietary_restrictions'] ?? '';
+        ctx['travel_interests'] = profile['travel_interests'] ?? profile['setup_interests'] ?? [];
+        ctx['languages_spoken'] = profile['languages_spoken'] ?? profile['languages'] ?? [];
+        ctx['typical_budget_min'] = profile['typical_budget_min'] ?? profile['price_range_min'];
+        ctx['typical_budget_max'] = profile['typical_budget_max'] ?? profile['price_range_max'];
+      }
+
+      // Remove null / empty values to keep context clean
+      ctx.removeWhere((_, v) => v == null || v == '' || v == false || (v is List && v.isEmpty));
+
+      if (ctx.isNotEmpty) {
+        setState(() => _userContext = ctx);
+      }
+    } catch (e) {
+      // Non-fatal — planner still works, just without personalization
+      debugPrint('[ItineraryPlanner] Could not load user context: $e');
+    }
   }
 
   @override
@@ -79,6 +145,7 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
       final result = await PlannerApiService.instance.sendMessage(
         message: text,
         conversationId: _conversationId,
+        userContext: _userContext,
       );
 
       if (!mounted) return;

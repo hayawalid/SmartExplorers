@@ -49,6 +49,7 @@ IMPORTANT DATE/TIME RULES:
   * Diving/snorkeling: morning (08:00-12:00)
   * Religious sites: respect prayer times, avoid Friday 12:00-14:00
 - Add a "best_time_reason" field to each activity explaining WHY that time slot is optimal.
+- If the User has any type of diability or contextually should not go to a certain location, Do not include them in the itinerary and specify the reason. (women at night at empty area, wheelchair user at hiking spots)
 
 Return JSON:
 {
