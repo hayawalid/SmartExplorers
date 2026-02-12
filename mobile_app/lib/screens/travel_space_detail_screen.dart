@@ -25,11 +25,13 @@ class TravelSpaceDetailScreen extends StatefulWidget {
       _TravelSpaceDetailScreenState();
 }
 
+enum _MembershipStatus { none, pending, accepted }
+
 class _TravelSpaceDetailScreenState extends State<TravelSpaceDetailScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
-  bool _joined = false;
+  _MembershipStatus _membership = _MembershipStatus.none;
 
   // Sample members
   static const _members = [
@@ -207,7 +209,7 @@ class _TravelSpaceDetailScreenState extends State<TravelSpaceDetailScreen>
             ),
           ),
 
-          // Join / Leave button
+          // Join / Request / Pending button
           SliverToBoxAdapter(
             child: FadeTransition(
               opacity: _fadeAnimation,
@@ -215,33 +217,87 @@ class _TravelSpaceDetailScreenState extends State<TravelSpaceDetailScreen>
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     onPressed: () {
                       HapticFeedback.lightImpact();
-                      setState(() => _joined = !_joined);
+                      if (_membership == _MembershipStatus.none) {
+                        setState(() => _membership = _MembershipStatus.pending);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text(
+                              'Join request sent! Waiting for approval.',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        );
+                        // Simulate acceptance after 3 seconds (demo)
+                        Future.delayed(const Duration(seconds: 3), () {
+                          if (mounted &&
+                              _membership == _MembershipStatus.pending) {
+                            setState(
+                              () => _membership = _MembershipStatus.accepted,
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'You\'ve been accepted into ${widget.spaceName}!',
+                                ),
+                                backgroundColor: AppDesign.success,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            );
+                          }
+                        });
+                      } else if (_membership == _MembershipStatus.accepted) {
+                        setState(() => _membership = _MembershipStatus.none);
+                      }
                     },
+                    icon: Icon(
+                      _membership == _MembershipStatus.none
+                          ? LucideIcons.userPlus
+                          : _membership == _MembershipStatus.pending
+                          ? LucideIcons.clock
+                          : LucideIcons.logOut,
+                      size: 18,
+                    ),
+                    label: Text(
+                      _membership == _MembershipStatus.none
+                          ? 'Request to Join'
+                          : _membership == _MembershipStatus.pending
+                          ? 'Pending Approval…'
+                          : 'Leave Group',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          _joined
+                          _membership == _MembershipStatus.none
+                              ? AppDesign.electricCobalt
+                              : _membership == _MembershipStatus.pending
                               ? (isDark
+                                  ? const Color(0xFF2A2A30)
+                                  : const Color(0xFFFFF3E0))
+                              : (isDark
                                   ? AppDesign.darkGrey
-                                  : AppDesign.lightGrey)
-                              : AppDesign.electricCobalt,
+                                  : AppDesign.lightGrey),
                       foregroundColor:
-                          _joined
-                              ? (isDark ? Colors.white70 : AppDesign.midGrey)
-                              : Colors.white,
+                          _membership == _MembershipStatus.none
+                              ? Colors.white
+                              : _membership == _MembershipStatus.pending
+                              ? AppDesign.warning
+                              : (isDark ? Colors.white70 : AppDesign.midGrey),
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Text(
-                      _joined ? 'Leave Group' : 'Join Group',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -295,17 +351,60 @@ class _TravelSpaceDetailScreenState extends State<TravelSpaceDetailScreen>
             ),
           ),
 
-          // Itinerary activity cards
+          // Itinerary activity cards — blurred when not accepted
           SliverList(
             delegate: SliverChildBuilderDelegate((context, i) {
               final activity = _sharedItinerary[i];
+              final isLocked = _membership != _MembershipStatus.accepted;
               return FadeTransition(
                 opacity: _fadeAnimation,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                  child: _SharedActivityCard(
-                    activity: activity,
+                  child: _LockedItineraryWrapper(
+                    isLocked: isLocked,
                     isDark: isDark,
+                    onRequestJoin: () {
+                      if (_membership == _MembershipStatus.none) {
+                        HapticFeedback.lightImpact();
+                        setState(() => _membership = _MembershipStatus.pending);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text(
+                              'Join request sent! Waiting for approval.',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        );
+                        Future.delayed(const Duration(seconds: 3), () {
+                          if (mounted &&
+                              _membership == _MembershipStatus.pending) {
+                            setState(
+                              () => _membership = _MembershipStatus.accepted,
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'You\'ve been accepted into ${widget.spaceName}!',
+                                ),
+                                backgroundColor: AppDesign.success,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            );
+                          }
+                        });
+                      }
+                    },
+                    isPending: _membership == _MembershipStatus.pending,
+                    child: _SharedActivityCard(
+                      activity: activity,
+                      isDark: isDark,
+                    ),
                   ),
                 ),
               );
@@ -376,6 +475,129 @@ class _TravelSpaceDetailScreenState extends State<TravelSpaceDetailScreen>
             ),
           ),
           Icon(LucideIcons.messageCircle, size: 18, color: sub),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Locked / Blurred Itinerary Wrapper ──────────────────────────────
+/// Wraps an itinerary card and overlays a frosted-glass blur + join CTA
+/// when the user is not an accepted group member.
+class _LockedItineraryWrapper extends StatelessWidget {
+  final bool isLocked;
+  final bool isDark;
+  final bool isPending;
+  final VoidCallback onRequestJoin;
+  final Widget child;
+
+  const _LockedItineraryWrapper({
+    required this.isLocked,
+    required this.isDark,
+    required this.onRequestJoin,
+    required this.child,
+    this.isPending = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isLocked) return child;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Stack(
+        children: [
+          // The actual card rendered behind the blur
+          IgnorePointer(child: child),
+
+          // Blur overlay
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color:
+                      isDark
+                          ? Colors.black.withOpacity(0.45)
+                          : Colors.white.withOpacity(0.45),
+                ),
+              ),
+            ),
+          ),
+
+          // Lock icon + CTA overlay
+          Positioned.fill(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color:
+                          isDark
+                              ? const Color(0xFF2A2A30)
+                              : Colors.white.withOpacity(0.85),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isPending ? LucideIcons.clock : LucideIcons.lock,
+                      size: 28,
+                      color:
+                          isPending
+                              ? AppDesign.warning
+                              : AppDesign.electricCobalt,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    isPending ? 'Pending Approval' : 'Itinerary is private',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : AppDesign.eerieBlack,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isPending
+                        ? 'Your request is being reviewed'
+                        : 'Join this group to view',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? Colors.white60 : AppDesign.midGrey,
+                    ),
+                  ),
+                  if (!isPending) ...[
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: 180,
+                      child: ElevatedButton(
+                        onPressed: onRequestJoin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppDesign.electricCobalt,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Request to Join',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -60,7 +60,6 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
         _userId = userId;
         _isTracking = safetyProfile['live_tracking_enabled'] == true;
         _contacts = contacts;
-        _userCountry = country;
         _emergencyNumber = _getEmergencyNumberForCountry(country);
       });
     } catch (_) {
