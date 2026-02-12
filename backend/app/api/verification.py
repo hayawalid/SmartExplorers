@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import datetime
 import json
 
-from .database import get_db
+from database import get_db
 from ..models.verification import (
     IdentityVerification, 
     VerificationAuditLog,

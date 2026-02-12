@@ -20,7 +20,7 @@ from app.api.safety import router as safety_router
 from app.api.preferences import router as preferences_router
 
 # ====== NEW: Import matching system ======
-from matching_api import router as matching_router, initialize_matching_system
+from app.api.matching import router as matching_router, initialize_matching_system
 # =========================================
 # from app.api.itineraries import router as itinerary_router  # Add when ready
 from app.api.verification import router as verification_router
@@ -108,7 +108,7 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Detailed health check"""
-    from matching_api import _model_trained  # NEW
+    from app.api.matching import _model_trained  # NEW
     
     # Check MongoDB connection
     db_status = "connected" if mongodb.client else "disconnected"

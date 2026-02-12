@@ -1,7 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from app import config, settings
-
+from app.config import settings
 # Create engine
 if settings.DATABASE_URL.startswith("sqlite"):
     engine = create_engine(

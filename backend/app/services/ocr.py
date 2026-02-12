@@ -1,5 +1,7 @@
 """
+
 OCR service for extracting text from identity documents
+
 Uses Tesseract OCR + custom parsing for Egyptian IDs
 """
 
