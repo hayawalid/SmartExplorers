@@ -4,7 +4,8 @@ class ApiConfig {
   // For iOS Simulator: Use http://localhost:8000
   // For Android Emulator: Use http://10.0.2.2:8000
   // For Physical Device: Use your computer's IP (e.g., http://192.168.1.100:8000)
-  static const String baseUrl = 'http://10.0.2.2:8000';
+  static const String baseUrl = 'http://10.91.47.24:8000';
+
 
   // ── OFFLINE / MOCK MODE ──────────────────────────────────────────────
   // Set to true to bypass all network calls and use hardcoded dummy data.
