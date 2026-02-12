@@ -4,8 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
 import '../../theme/app_theme.dart';
-import '../../services/profile_api_service.dart';
-import '../../services/api_config.dart';
+import '../../services/auth_api_service.dart';
 
 class TravelerProfileSetupScreen extends StatefulWidget {
   const TravelerProfileSetupScreen({super.key});
@@ -18,9 +17,12 @@ class TravelerProfileSetupScreen extends StatefulWidget {
 class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
     with TickerProviderStateMixin {
   int _currentStep = 0;
+  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final ProfileApiService _profileService = ProfileApiService();
+  final AuthApiService _authService = AuthApiService();
 
   // New dropdown selections
   String _selectedCountry = '';
@@ -138,11 +140,14 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
 
   @override
   void dispose() {
+    _emailController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
     _fadeController.dispose();
     _pulseController.dispose();
-    _profileService.dispose();
+    _authService.dispose();
     super.dispose();
   }
 
@@ -155,43 +160,41 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
     } else {
       try {
         await _saveTravelerProfile();
-      } catch (_) {
-        // Continue to main app even if profile save fails (e.g. backend offline)
-      }
-      if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        if (mounted) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Signup failed: ${e.toString().replaceFirst('Exception: ', '')}',
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          );
+        }
       }
     }
   }
 
   Future<void> _saveTravelerProfile() async {
-    final user = await _profileService.getUserByUsername(
-      ApiConfig.demoTravelerUsername,
+    await _authService.signup(
+      email: _emailController.text.trim(),
+      username: _usernameController.text.trim(),
+      password: _passwordController.text,
+      fullName: _nameController.text.trim(),
+      accountType: 'traveler',
+      phoneNumber: _phoneController.text.trim(),
+      countryOfOrigin: _selectedCountry,
+      preferredLanguage: _selectedLanguage,
+      travelInterests: _selectedInterests,
+      accessibilityNeeds: _selectedAccessibility,
     );
-    final userId = user['_id'] as String;
-
-    final payload = {
-      'full_name': _nameController.text.trim(),
-      'phone_number': _phoneController.text.trim(),
-      'country_of_origin': _selectedCountry,
-      'preferred_language': _selectedLanguage,
-      'travel_interests': _selectedInterests,
-      'setup_interests': _selectedInterests,
-      'wheelchair_access': _selectedAccessibility.contains('Wheelchair Access'),
-      'visual_assistance': _selectedAccessibility.contains('Visual Assistance'),
-      'hearing_assistance': _selectedAccessibility.contains(
-        'Hearing Assistance',
-      ),
-      'mobility_support': _selectedAccessibility.contains('Mobility Support'),
-      'dietary_restrictions_flag': _selectedAccessibility.contains(
-        'Dietary Restrictions',
-      ),
-      'sensory_sensitivity': _selectedAccessibility.contains(
-        'Sensory Sensitivity',
-      ),
-    };
-
-    await _profileService.upsertTravelerProfile(userId, payload);
   }
 
   void _previousStep() {
@@ -207,7 +210,10 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
   bool get _canContinue {
     switch (_currentStep) {
       case 0:
-        return _nameController.text.isNotEmpty &&
+        return _emailController.text.isNotEmpty &&
+            _usernameController.text.isNotEmpty &&
+            _passwordController.text.length >= 8 &&
+            _nameController.text.isNotEmpty &&
             _phoneController.text.isNotEmpty;
       case 1:
         return _selectedCountry.isNotEmpty && _selectedLanguage.isNotEmpty;
@@ -565,6 +571,47 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
         const SizedBox(height: 32),
 
         _buildAnimatedTextField(
+          controller: _emailController,
+          label: 'Email',
+          hint: 'your@email.com',
+          icon: LucideIcons.mail,
+          keyboardType: TextInputType.emailAddress,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
+          delay: 100,
+        ),
+
+        const SizedBox(height: 16),
+
+        _buildAnimatedTextField(
+          controller: _usernameController,
+          label: 'Username',
+          hint: 'Choose a unique username',
+          icon: LucideIcons.atSign,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
+          delay: 150,
+        ),
+
+        const SizedBox(height: 16),
+
+        _buildAnimatedTextField(
+          controller: _passwordController,
+          label: 'Password',
+          hint: 'At least 8 characters',
+          icon: LucideIcons.lock,
+          obscureText: true,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
+          delay: 200,
+        ),
+
+        const SizedBox(height: 16),
+
+        _buildAnimatedTextField(
           controller: _nameController,
           label: 'Full Name',
           hint: 'How should we call you?',
@@ -572,7 +619,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
           isDark: isDark,
           textColor: textColor,
           cardColor: cardColor,
-          delay: 100,
+          delay: 250,
         ),
 
         const SizedBox(height: 16),
@@ -586,7 +633,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
           isDark: isDark,
           textColor: textColor,
           cardColor: cardColor,
-          delay: 200,
+          delay: 300,
         ),
       ],
     );
@@ -601,6 +648,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
     required Color textColor,
     required Color cardColor,
     TextInputType? keyboardType,
+    bool obscureText = false,
     required int delay,
   }) {
     return TweenAnimationBuilder<double>(
@@ -636,6 +684,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
         child: TextField(
           controller: controller,
           keyboardType: keyboardType,
+          obscureText: obscureText,
           style: TextStyle(color: textColor, fontSize: 16),
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(

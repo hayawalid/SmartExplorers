@@ -4,6 +4,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
 import 'dart:async';
 import '../theme/app_theme.dart';
+import '../services/planner_api_service.dart';
+import 'itinerary_calendar_screen.dart'; // Import the calendar screen
 
 /// Agentic AI Itinerary Planner
 /// Starts as chat-only, shows suggestion cards when AI creates itineraries
@@ -21,14 +23,18 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
   final List<_ChatItem> _chatItems = [];
   bool _isTyping = false;
 
-  // Sample prompt chips
+  // Real API state
+  String? _conversationId;
+  Map<String, dynamic>? _lastItinerary; // Stores the latest generated itinerary
+
+  // Sample prompt chips (Egypt-focused)
   static const _samplePrompts = [
-    'Plan a 3-day Tokyo trip',
-    'Weekend getaway near me',
-    'Food tour in Italy',
-    'Budget trip under \$500',
-    'Family-friendly activities',
-    'Romantic destinations',
+    'Plan a 3-day Cairo trip',
+    'Weekend in Luxor & Aswan',
+    'Family trip to Hurghada',
+    'Budget trip under \$300',
+    'Solo female trip to Egypt',
+    'Historical tour of Egypt',
   ];
 
   @override
@@ -36,7 +42,8 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
     super.initState();
     _chatItems.add(
       _ChatItem.message(
-        text: 'Hello! 🌍 I\'m your AI travel assistant. '
+        text:
+            'Hello! 🌍 I\'m your AI travel assistant. '
             'Tell me where you\'d like to go, and I\'ll create the perfect itinerary for you.',
         isUser: false,
       ),
@@ -53,166 +60,188 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
   void _send(String text) {
     if (text.trim().isEmpty) return;
     HapticFeedback.lightImpact();
-    
+
     setState(() {
       _chatItems.add(_ChatItem.message(text: text.trim(), isUser: true));
       _isTyping = true;
     });
-    
+
     _msgController.clear();
     _scrollChat();
 
-    // Simulate AI response
-    Future.delayed(const Duration(milliseconds: 1200), () {
+    // Call real backend
+    _callPlanner(text.trim());
+  }
+
+  Future<void> _callPlanner(String text) async {
+    try {
+      final result = await PlannerApiService.instance.sendMessage(
+        message: text,
+        conversationId: _conversationId,
+      );
+
       if (!mounted) return;
-      
-      final lowerText = text.toLowerCase();
-      final isItineraryRequest = lowerText.contains('plan') ||
-          lowerText.contains('trip') ||
-          lowerText.contains('itinerary') ||
-          lowerText.contains('tokyo') ||
-          lowerText.contains('travel') ||
-          lowerText.contains('day');
+
+      _conversationId = result['conversation_id'] as String?;
+      final mode = result['mode'] as String? ?? 'chat';
+      final message = result['message'] as String? ?? '';
+      // suggestions are available in result['suggestions'] for future use
+      final itinerary = result['itinerary'] as Map<String, dynamic>?;
 
       setState(() {
         _isTyping = false;
-        
-        if (isItineraryRequest) {
-          // Add text message
-          _chatItems.add(
-            _ChatItem.message(
-              text: 'I\'d love to help you plan an amazing 3-day Tokyo adventure! '
-                  'Here\'s a curated itinerary based on the best experiences:',
-              isUser: false,
-            ),
-          );
-          
-          // Add divider with "Planner" text
+
+        // Always add the text message from the LLM
+        _chatItems.add(_ChatItem.message(text: message, isUser: false));
+
+        if (mode == 'itinerary' && itinerary != null) {
+          _lastItinerary = itinerary;
+
+          // Add divider
           _chatItems.add(_ChatItem.divider(text: 'Planner'));
-          
-          // Add suggestion cards inline (no buttons on cards)
-          _chatItems.add(
-            _ChatItem.card(
-              suggestion: _SuggestionCard(
-                id: '1',
-                title: 'Park Hyatt Tokyo',
-                subtitle: 'Suggested Hotel',
-                location: 'Shinjuku, Tokyo',
-                price: '\$120',
-                priceUnit: '/ per Night',
-                rating: 4.8,
-                imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400',
-                amenities: ['2 Beds', 'Dinner', '2 Guest', 'Dinner'],
-                type: 'hotel',
-              ),
-            ),
-          );
-          
-          _chatItems.add(
-            _ChatItem.card(
-              suggestion: _SuggestionCard(
-                id: '2',
-                title: 'Senso-ji Temple',
-                subtitle: 'Must-Visit Attraction',
-                location: 'Asakusa, Tokyo',
-                price: 'Free',
-                priceUnit: '',
-                rating: 4.9,
-                imageUrl: 'https://images.unsplash.com/photo-1542640244-7e672d6cef4e?w=400',
-                amenities: ['Historic', 'Photos', 'Gardens'],
-                type: 'attraction',
-              ),
-            ),
-          );
-          
-          _chatItems.add(
-            _ChatItem.card(
-              suggestion: _SuggestionCard(
-                id: '3',
-                title: 'Sukiyabashi Jiro',
-                subtitle: 'Top Restaurant',
-                location: 'Ginza, Tokyo',
-                price: '\$300',
-                priceUnit: '/ person',
-                rating: 4.7,
-                imageUrl: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=400',
-                amenities: ['Sushi', '2 Guest', 'Dinner'],
-                type: 'restaurant',
-              ),
-            ),
-          );
-          
-          // Add plan action button after all cards
+
+          // Build cards from daily_plans
+          final dailyPlans = itinerary['daily_plans'] as List<dynamic>? ?? [];
+          int cardIdx = 0;
+          for (final dayPlan in dailyPlans) {
+            final activities = (dayPlan['activities'] as List<dynamic>?) ?? [];
+            final dayTitle =
+                dayPlan['title'] as String? ?? 'Day ${dayPlan['day']}';
+            for (final activity in activities) {
+              cardIdx++;
+              final costMin = activity['estimated_cost_min'];
+              final costMax = activity['estimated_cost_max'];
+              final priceStr =
+                  costMin != null
+                      ? '\$${costMin}${costMax != null ? ' - \$$costMax' : ''}'
+                      : 'Free';
+              final tags =
+                  (activity['tags'] as List<dynamic>?)
+                      ?.map((t) => t.toString())
+                      .toList() ??
+                  [];
+              final category = activity['category'] as String? ?? 'sightseeing';
+              final startTime = activity['start_time'] as String? ?? '';
+              final endTime = activity['end_time'] as String? ?? '';
+              final bestTimeReason =
+                  activity['best_time_reason'] as String? ?? '';
+              final dayDate = dayPlan['date'] as String? ?? '';
+              _chatItems.add(
+                _ChatItem.card(
+                  suggestion: _SuggestionCard(
+                    id: 'act_$cardIdx',
+                    title: activity['title'] as String? ?? 'Activity',
+                    subtitle: dayTitle,
+                    location: activity['location_name'] as String? ?? 'Egypt',
+                    price: priceStr,
+                    priceUnit: '',
+                    rating: 4.5,
+                    imageUrl: '',
+                    amenities: tags.take(4).toList(),
+                    type: category,
+                    date: dayDate,
+                    startTime: startTime,
+                    endTime: endTime,
+                    bestTimeReason: bestTimeReason,
+                  ),
+                ),
+              );
+            }
+          }
+
+          // Add Apply button
           _chatItems.add(
             _ChatItem.planAction(
-              planId: 'tokyo_day1',
+              planId: _conversationId ?? 'plan',
               label: 'Apply this plan to your itinerary',
-            ),
-          );
-        } else {
-          // Regular chat response
-          _chatItems.add(
-            _ChatItem.message(
-              text: 'That\'s exciting! What experiences are you looking for? '
-                  'Food, culture, nightlife, or a mix of everything?',
-              isUser: false,
             ),
           );
         }
       });
-      
-      _scrollChat();
-    });
-  }
 
-  void _applySuggestion(String id) {
-    HapticFeedback.mediumImpact();
-    
-    // Find and update the card
-    for (int i = 0; i < _chatItems.length; i++) {
-      if (_chatItems[i].isCard && _chatItems[i].suggestion?.id == id) {
-        setState(() {
-          _chatItems[i] = _ChatItem.card(
-            suggestion: _chatItems[i].suggestion!.copyWith(isSaved: true),
-          );
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ ${_chatItems[i].suggestion!.title} added to your itinerary'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppDesign.electricCobalt,
-            duration: const Duration(seconds: 2),
+      _scrollChat();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isTyping = false;
+        _chatItems.add(
+          _ChatItem.message(
+            text:
+                'Sorry, something went wrong. Please try again.\n(${e.toString()})',
+            isUser: false,
           ),
         );
-        break;
-      }
+      });
+      _scrollChat();
     }
   }
 
   void _applyPlan(String planId) {
     HapticFeedback.mediumImpact();
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('✓ Plan applied to your itinerary'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppDesign.electricCobalt,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-    
-    // Update the plan action button to show as applied
-    for (int i = 0; i < _chatItems.length; i++) {
-      if (_chatItems[i].isPlanAction && _chatItems[i].planAction?.planId == planId) {
-        setState(() {
-          _chatItems[i] = _ChatItem.planAction(
-            planId: planId,
-            label: '✓ Plan applied',
-          );
-        });
-        break;
+
+    if (_lastItinerary == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No itinerary to save.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Save to database, then navigate
+    _saveAndNavigate(planId);
+  }
+
+  Future<void> _saveAndNavigate(String planId) async {
+    try {
+      await PlannerApiService.instance.saveItinerary(
+        itinerary: _lastItinerary!,
+        conversationId: _conversationId,
+      );
+
+      if (!mounted) return;
+
+      // Update the button label to show success
+      for (int i = 0; i < _chatItems.length; i++) {
+        if (_chatItems[i].isPlanAction &&
+            _chatItems[i].planAction?.planId == planId) {
+          setState(() {
+            _chatItems[i] = _ChatItem.planAction(
+              planId: planId,
+              label: '✓ Plan saved to your itinerary',
+            );
+          });
+          break;
+        }
       }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('✓ Itinerary saved successfully!'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppDesign.electricCobalt,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Navigate to calendar screen with itinerary data
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => ItineraryCalendarScreen(itinerary: _lastItinerary),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save: ${e.toString()}'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -252,7 +281,7 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
 
   Widget _buildPlanActionButton(_PlanAction action, bool isDark) {
     final isApplied = action.label.contains('✓');
-    
+
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 20),
       child: SizedBox(
@@ -261,9 +290,10 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
         child: ElevatedButton(
           onPressed: isApplied ? null : () => _applyPlan(action.planId),
           style: ElevatedButton.styleFrom(
-            backgroundColor: isApplied
-                ? (isDark ? AppDesign.darkGrey : AppDesign.lightGrey)
-                : AppDesign.electricCobalt,
+            backgroundColor:
+                isApplied
+                    ? (isDark ? AppDesign.darkGrey : AppDesign.lightGrey)
+                    : AppDesign.electricCobalt,
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -283,9 +313,10 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: isApplied
-                      ? (isDark ? Colors.white38 : AppDesign.midGrey)
-                      : Colors.white,
+                  color:
+                      isApplied
+                          ? (isDark ? Colors.white38 : AppDesign.midGrey)
+                          : Colors.white,
                 ),
               ),
             ],
@@ -325,7 +356,7 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
           children: [
             // Header
             _buildHeader(isDark, textColor),
-            
+
             // Single chat view with inline cards
             Expanded(
               child: ListView.builder(
@@ -336,9 +367,9 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
                   if (i == _chatItems.length && _isTyping) {
                     return _buildTypingIndicator(isDark);
                   }
-                  
+
                   final item = _chatItems[i];
-                  
+
                   // Render based on item type
                   if (item.isMessage) {
                     return _buildChatBubble(item.message!, isDark);
@@ -356,15 +387,15 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
                   } else if (item.isPlanAction) {
                     return _buildPlanActionButton(item.planAction!, isDark);
                   }
-                  
+
                   return const SizedBox.shrink();
                 },
               ),
             ),
-            
+
             // Chat input
             _buildChatInput(isDark, textColor),
-            
+
             SizedBox(height: MediaQuery.of(context).padding.bottom + 88),
           ],
         ),
@@ -399,10 +430,7 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
               ),
               Text(
                 'Active',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.green,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.green),
               ),
             ],
           ),
@@ -413,7 +441,7 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
 
   Widget _buildChatInput(bool isDark, Color textColor) {
     final hasCards = _chatItems.any((item) => item.isCard);
-    
+
     return Column(
       children: [
         // Prompt chips (show when no cards yet)
@@ -425,23 +453,25 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
               padding: const EdgeInsets.symmetric(horizontal: 20),
               itemCount: _samplePrompts.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) => ActionChip(
-                label: Text(
-                  _samplePrompts[i],
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.white70 : AppDesign.eerieBlack,
+              itemBuilder:
+                  (_, i) => ActionChip(
+                    label: Text(
+                      _samplePrompts[i],
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white70 : AppDesign.eerieBlack,
+                      ),
+                    ),
+                    backgroundColor:
+                        isDark ? AppDesign.darkGrey : AppDesign.offWhite,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppDesign.radius),
+                      side: BorderSide(
+                        color: isDark ? Colors.white10 : AppDesign.lightGrey,
+                      ),
+                    ),
+                    onPressed: () => _send(_samplePrompts[i]),
                   ),
-                ),
-                backgroundColor: isDark ? AppDesign.darkGrey : AppDesign.offWhite,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppDesign.radius),
-                  side: BorderSide(
-                    color: isDark ? Colors.white10 : AppDesign.lightGrey,
-                  ),
-                ),
-                onPressed: () => _send(_samplePrompts[i]),
-              ),
             ),
           ),
         const SizedBox(height: 8),
@@ -468,7 +498,8 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
                           decoration: InputDecoration(
                             hintText: 'Ask me anything...',
                             hintStyle: TextStyle(
-                              color: isDark ? Colors.white38 : AppDesign.midGrey,
+                              color:
+                                  isDark ? Colors.white38 : AppDesign.midGrey,
                             ),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
@@ -524,9 +555,10 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: msg.isUser
-              ? AppDesign.electricCobalt
-              : (isDark ? AppDesign.darkGrey : AppDesign.offWhite),
+          color:
+              msg.isUser
+                  ? AppDesign.electricCobalt
+                  : (isDark ? AppDesign.darkGrey : AppDesign.offWhite),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(20),
             topRight: const Radius.circular(20),
@@ -539,9 +571,10 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
           style: TextStyle(
             fontSize: 14,
             height: 1.45,
-            color: msg.isUser
-                ? Colors.white
-                : (isDark ? Colors.white : AppDesign.eerieBlack),
+            color:
+                msg.isUser
+                    ? Colors.white
+                    : (isDark ? Colors.white : AppDesign.eerieBlack),
           ),
         ),
       ),
@@ -578,17 +611,18 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: 600 + i * 200),
-      builder: (_, v, __) => Opacity(
-        opacity: 0.3 + 0.7 * v,
-        child: Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppDesign.electricCobalt.withOpacity(0.6),
+      builder:
+          (_, v, __) => Opacity(
+            opacity: 0.3 + 0.7 * v,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppDesign.electricCobalt.withOpacity(0.6),
+              ),
+            ),
           ),
-        ),
-      ),
     );
   }
 }
@@ -613,15 +647,16 @@ class _SuggestionCardWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? AppDesign.darkGrey : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: isDark
-            ? []
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+        boxShadow:
+            isDark
+                ? []
+                : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -638,7 +673,7 @@ class _SuggestionCardWidget extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // Image with overlay
           Stack(
             children: [
@@ -666,7 +701,7 @@ class _SuggestionCardWidget extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               // Bookmark button
               Positioned(
                 top: 12,
@@ -689,13 +724,14 @@ class _SuggestionCardWidget extends StatelessWidget {
                         ? LucideIcons.bookmark
                         : LucideIcons.bookmark,
                     size: 18,
-                    color: suggestion.isSaved
-                        ? AppDesign.electricCobalt
-                        : AppDesign.midGrey,
+                    color:
+                        suggestion.isSaved
+                            ? AppDesign.electricCobalt
+                            : AppDesign.midGrey,
                   ),
                 ),
               ),
-              
+
               // Rating badge
               Positioned(
                 top: 12,
@@ -738,7 +774,7 @@ class _SuggestionCardWidget extends StatelessWidget {
               ),
             ],
           ),
-          
+
           // Content
           Padding(
             padding: const EdgeInsets.all(16),
@@ -774,7 +810,8 @@ class _SuggestionCardWidget extends StatelessWidget {
                             suggestion.priceUnit,
                             style: TextStyle(
                               fontSize: 11,
-                              color: isDark ? Colors.white54 : AppDesign.midGrey,
+                              color:
+                                  isDark ? Colors.white54 : AppDesign.midGrey,
                             ),
                           ),
                       ],
@@ -790,17 +827,88 @@ class _SuggestionCardWidget extends StatelessWidget {
                       color: isDark ? Colors.white54 : AppDesign.midGrey,
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      suggestion.location,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isDark ? Colors.white70 : AppDesign.midGrey,
+                    Expanded(
+                      child: Text(
+                        suggestion.location,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? Colors.white70 : AppDesign.midGrey,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
+                // Date & Time row
+                if (suggestion.startTime.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Row(
+                      children: [
+                        Icon(
+                          LucideIcons.clock,
+                          size: 14,
+                          color: AppDesign.electricCobalt,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${suggestion.startTime} – ${suggestion.endTime}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : AppDesign.eerieBlack,
+                          ),
+                        ),
+                        if (suggestion.date.isNotEmpty) ...[
+                          const SizedBox(width: 12),
+                          Icon(
+                            LucideIcons.calendar,
+                            size: 14,
+                            color: AppDesign.electricCobalt,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            suggestion.date,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color:
+                                  isDark ? Colors.white : AppDesign.eerieBlack,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                // Best-time reason tip
+                if (suggestion.bestTimeReason.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          LucideIcons.lightbulb,
+                          size: 14,
+                          color: Colors.amber,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            suggestion.bestTimeReason,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                              color:
+                                  isDark ? Colors.white54 : AppDesign.midGrey,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 16),
-                
+
                 // Amenities
                 Row(
                   children: [
@@ -811,7 +919,8 @@ class _SuggestionCardWidget extends StatelessWidget {
                           child: Container(
                             width: 1,
                             height: 12,
-                            color: isDark ? Colors.white10 : AppDesign.lightGrey,
+                            color:
+                                isDark ? Colors.white10 : AppDesign.lightGrey,
                           ),
                         ),
                       Row(
@@ -826,7 +935,8 @@ class _SuggestionCardWidget extends StatelessWidget {
                             suggestion.amenities[i],
                             style: TextStyle(
                               fontSize: 11,
-                              color: isDark ? Colors.white70 : AppDesign.midGrey,
+                              color:
+                                  isDark ? Colors.white70 : AppDesign.midGrey,
                             ),
                           ),
                         ],
@@ -835,7 +945,7 @@ class _SuggestionCardWidget extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Action button (only show if enabled)
                 if (showButton)
                   SizedBox(
@@ -844,9 +954,12 @@ class _SuggestionCardWidget extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: suggestion.isSaved ? null : onApply,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: suggestion.isSaved
-                            ? (isDark ? AppDesign.darkGrey : AppDesign.lightGrey)
-                            : const Color(0xFF1A1D3F),
+                        backgroundColor:
+                            suggestion.isSaved
+                                ? (isDark
+                                    ? AppDesign.darkGrey
+                                    : AppDesign.lightGrey)
+                                : const Color(0xFF1A1D3F),
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -854,13 +967,18 @@ class _SuggestionCardWidget extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        suggestion.isSaved ? 'Saved to itinerary' : 'Save to itinerary',
+                        suggestion.isSaved
+                            ? 'Saved to itinerary'
+                            : 'Save to itinerary',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: suggestion.isSaved
-                              ? (isDark ? Colors.white38 : AppDesign.midGrey)
-                              : Colors.white,
+                          color:
+                              suggestion.isSaved
+                                  ? (isDark
+                                      ? Colors.white38
+                                      : AppDesign.midGrey)
+                                  : Colors.white,
                         ),
                       ),
                     ),
@@ -911,6 +1029,10 @@ class _SuggestionCard {
     required this.amenities,
     required this.type,
     this.isSaved = false,
+    this.date = '',
+    this.startTime = '',
+    this.endTime = '',
+    this.bestTimeReason = '',
   });
 
   final String id;
@@ -924,12 +1046,12 @@ class _SuggestionCard {
   final List<String> amenities;
   final String type;
   final bool isSaved;
+  final String date;
+  final String startTime;
+  final String endTime;
+  final String bestTimeReason;
 
-  _SuggestionCard copyWith({
-    String? title,
-    String? price,
-    bool? isSaved,
-  }) {
+  _SuggestionCard copyWith({String? title, String? price, bool? isSaved}) {
     return _SuggestionCard(
       id: id,
       title: title ?? this.title,
@@ -942,6 +1064,10 @@ class _SuggestionCard {
       amenities: amenities,
       type: type,
       isSaved: isSaved ?? this.isSaved,
+      date: date,
+      startTime: startTime,
+      endTime: endTime,
+      bestTimeReason: bestTimeReason,
     );
   }
 }
@@ -966,7 +1092,10 @@ class _ChatItem {
     return _ChatItem._(dividerText: text);
   }
 
-  factory _ChatItem.planAction({required String planId, required String label}) {
+  factory _ChatItem.planAction({
+    required String planId,
+    required String label,
+  }) {
     return _ChatItem._(planAction: _PlanAction(planId: planId, label: label));
   }
 

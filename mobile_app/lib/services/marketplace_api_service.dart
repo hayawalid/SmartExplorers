@@ -9,7 +9,7 @@ class MarketplaceApiService {
     : _client = client ?? http.Client();
 
   Future<List<Map<String, dynamic>>> getListings({String? category}) async {
-    if (ApiConfig.offlineMode) return [];
+    // if (ApiConfig.offlineMode) return []; // COMMENTED OUT
     final query = category != null ? '?category=$category' : '';
     final response = await _client.get(
       Uri.parse(

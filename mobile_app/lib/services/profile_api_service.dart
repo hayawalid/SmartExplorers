@@ -8,12 +8,12 @@ class ProfileApiService {
   ProfileApiService({http.Client? client}) : _client = client ?? http.Client();
 
   Future<Map<String, dynamic>> getUserByUsername(String username) async {
-    // ── Offline mock ──
-    if (ApiConfig.offlineMode) {
-      final mock = ApiConfig.findDummyUserByUsername(username);
-      if (mock != null) return Map<String, dynamic>.from(mock);
-      throw Exception('User not found (offline mode)');
-    }
+    // ── Offline mock (commented out – using real backend) ──
+    // if (ApiConfig.offlineMode) {
+    //   final mock = ApiConfig.findDummyUserByUsername(username);
+    //   if (mock != null) return Map<String, dynamic>.from(mock);
+    //   throw Exception('User not found (offline mode)');
+    // }
 
     final response = await _client.get(
       Uri.parse(
@@ -29,12 +29,12 @@ class ProfileApiService {
   }
 
   Future<Map<String, dynamic>> getUserByEmail(String email) async {
-    // ── Offline mock ──
-    if (ApiConfig.offlineMode) {
-      final mock = ApiConfig.findDummyUserByEmail(email);
-      if (mock != null) return Map<String, dynamic>.from(mock);
-      throw Exception('User not found (offline mode)');
-    }
+    // ── Offline mock (commented out – using real backend) ──
+    // if (ApiConfig.offlineMode) {
+    //   final mock = ApiConfig.findDummyUserByEmail(email);
+    //   if (mock != null) return Map<String, dynamic>.from(mock);
+    //   throw Exception('User not found (offline mode)');
+    // }
 
     final response = await _client.get(
       Uri.parse(
@@ -50,7 +50,7 @@ class ProfileApiService {
   }
 
   Future<Map<String, dynamic>?> getTravelerProfile(String userId) async {
-    if (ApiConfig.offlineMode) return {'user_id': userId};
+    // if (ApiConfig.offlineMode) return {'user_id': userId}; // COMMENTED OUT
     final response = await _client.get(
       Uri.parse(
         '${ApiConfig.baseUrl}${ApiConfig.profilesEndpoint}/travelers/$userId',

@@ -3,8 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
 import '../../theme/app_theme.dart';
-import '../../services/api_config.dart';
-import '../../services/profile_api_service.dart';
+import '../../services/auth_api_service.dart';
 import '../../services/session_store.dart';
 
 /// Login Screen – Same cinematic photo as auth choice, with frosted-glass
@@ -23,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
-  final ProfileApiService _profileService = ProfileApiService();
+  final AuthApiService _authService = AuthApiService();
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -47,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen>
     _emailController.dispose();
     _passwordController.dispose();
     _fadeController.dispose();
-    _profileService.dispose();
+    _authService.dispose();
     super.dispose();
   }
 
@@ -71,24 +70,8 @@ class _LoginScreenState extends State<LoginScreen>
         final email = _emailController.text.trim();
         final password = _passwordController.text;
 
-        if (ApiConfig.offlineMode) {
-          final mock = ApiConfig.findDummyUserByEmail(email);
-          if (mock == null || mock['password'] != password) {
-            throw Exception('Invalid credentials');
-          }
-          SessionStore.instance.setSession(
-            userId: mock['_id']!,
-            username: mock['username']!,
-            accountType: mock['account_type']!,
-          );
-        } else {
-          final user = await _profileService.getUserByEmail(email);
-          SessionStore.instance.setSession(
-            userId: user['_id'] as String,
-            username: user['username'] as String,
-            accountType: user['account_type'] as String,
-          );
-        }
+        // Call the real backend login endpoint
+        await _authService.login(email: email, password: password);
 
         if (mounted) {
           setState(() => _isLoading = false);
@@ -98,12 +81,14 @@ class _LoginScreenState extends State<LoginScreen>
                   : '/';
           Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
         }
-      } catch (_) {
+      } catch (e) {
         if (mounted) {
           setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Login failed. Check your email & password.'),
+              content: Text(
+                'Login failed: ${e.toString().replaceFirst('Exception: ', '')}',
+              ),
               backgroundColor: AppDesign.danger,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(

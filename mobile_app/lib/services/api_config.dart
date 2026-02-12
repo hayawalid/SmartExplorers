@@ -9,13 +9,15 @@ class ApiConfig {
   // ── OFFLINE / MOCK MODE ──────────────────────────────────────────────
   // Set to true to bypass all network calls and use hardcoded dummy data.
   // Flip back to false once the backend is running.
-  static const bool offlineMode = true;
+  // static const bool offlineMode = true; // COMMENTED OUT – using real backend now
+  static const bool offlineMode = false;
 
   // API endpoints
   static const String chatEndpoint = '/api/v1/chat/';
   static const String conversationEndpoint = '/api/v1/chat/conversation';
   static const String clearConversationEndpoint = '/api/v1/chat/conversation';
 
+  static const String authEndpoint = '/api/v1/auth';
   static const String usersEndpoint = '/api/v1/users';
   static const String profilesEndpoint = '/api/v1/profiles';
   static const String socialEndpoint = '/api/v1/social';
