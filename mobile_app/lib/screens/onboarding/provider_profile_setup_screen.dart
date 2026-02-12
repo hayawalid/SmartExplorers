@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
-import 'dart:math' as math;
-import '../../services/profile_api_service.dart';
-import '../../services/api_config.dart';
+import '../../services/auth_api_service.dart';
 
 class ProviderProfileSetupScreen extends StatefulWidget {
   const ProviderProfileSetupScreen({super.key});
@@ -17,11 +15,14 @@ class ProviderProfileSetupScreen extends StatefulWidget {
 class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     with TickerProviderStateMixin {
   int _currentStep = 0;
+  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _bioController = TextEditingController();
   String _selectedService = '';
-  final ProfileApiService _profileService = ProfileApiService();
+  final AuthApiService _authService = AuthApiService();
 
   // Verification state
   bool _idScanning = false;
@@ -114,6 +115,9 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
 
   @override
   void dispose() {
+    _emailController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
     _bioController.dispose();
@@ -121,7 +125,7 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     _pulseController.dispose();
     _scanController.dispose();
     _celebrationController.dispose();
-    _profileService.dispose();
+    _authService.dispose();
     super.dispose();
   }
 
@@ -132,37 +136,43 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
       _fadeController.forward();
       HapticFeedback.mediumImpact();
     } else {
-      await _saveProviderProfile();
-      // Navigate to provider home
-      Navigator.of(
-        context,
-      ).pushNamedAndRemoveUntil('/provider_home', (route) => false);
+      try {
+        await _saveProviderProfile();
+        if (mounted) {
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil('/provider_home', (route) => false);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Signup failed: ${e.toString().replaceFirst('Exception: ', '')}',
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          );
+        }
+      }
     }
   }
 
   Future<void> _saveProviderProfile() async {
-    final user = await _profileService.getUserByUsername(
-      ApiConfig.demoProviderUsername,
+    await _authService.signup(
+      email: _emailController.text.trim(),
+      username: _usernameController.text.trim(),
+      password: _passwordController.text,
+      fullName: _nameController.text.trim(),
+      accountType: 'service_provider',
+      phoneNumber: _phoneController.text.trim(),
+      serviceType: _selectedService.toLowerCase().replaceAll(' ', '_'),
+      bio: _bioController.text.trim(),
     );
-    final userId = user['_id'] as String;
-
-    String verificationStatus = 'pending';
-    if (_idCaptured && _selfieCaptured) {
-      verificationStatus = 'verified';
-    } else if (_idCaptured) {
-      verificationStatus = 'id_captured';
-    }
-
-    final payload = {
-      'full_legal_name': _nameController.text.trim(),
-      'phone_number': _phoneController.text.trim(),
-      'bio': _bioController.text.trim(),
-      'service_type': _selectedService.toLowerCase().replaceAll(' ', '_'),
-      'verification_status': verificationStatus,
-      'verified_flag': _idCaptured && _selfieCaptured,
-    };
-
-    await _profileService.upsertProviderProfile(userId, payload);
   }
 
   void _previousStep() {
@@ -219,7 +229,10 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
   bool get _canContinue {
     switch (_currentStep) {
       case 0:
-        return _nameController.text.isNotEmpty &&
+        return _emailController.text.isNotEmpty &&
+            _usernameController.text.isNotEmpty &&
+            _passwordController.text.length >= 8 &&
+            _nameController.text.isNotEmpty &&
             _phoneController.text.isNotEmpty;
       case 1:
         return _selectedService.isNotEmpty;
@@ -581,6 +594,47 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
         const SizedBox(height: 32),
 
         _buildAnimatedTextField(
+          controller: _emailController,
+          label: 'Email',
+          hint: 'your@email.com',
+          icon: CupertinoIcons.mail_solid,
+          keyboardType: TextInputType.emailAddress,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
+          delay: 100,
+        ),
+
+        const SizedBox(height: 16),
+
+        _buildAnimatedTextField(
+          controller: _usernameController,
+          label: 'Username',
+          hint: 'Choose a unique username',
+          icon: CupertinoIcons.at,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
+          delay: 150,
+        ),
+
+        const SizedBox(height: 16),
+
+        _buildAnimatedTextField(
+          controller: _passwordController,
+          label: 'Password',
+          hint: 'At least 8 characters',
+          icon: CupertinoIcons.lock_fill,
+          obscureText: true,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
+          delay: 200,
+        ),
+
+        const SizedBox(height: 16),
+
+        _buildAnimatedTextField(
           controller: _nameController,
           label: 'Full Legal Name',
           hint: 'As it appears on your ID',
@@ -588,7 +642,7 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
           isDark: isDark,
           textColor: textColor,
           cardColor: cardColor,
-          delay: 100,
+          delay: 250,
         ),
 
         const SizedBox(height: 16),
@@ -602,7 +656,7 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
           isDark: isDark,
           textColor: textColor,
           cardColor: cardColor,
-          delay: 200,
+          delay: 300,
         ),
 
         const SizedBox(height: 16),
@@ -616,7 +670,7 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
           isDark: isDark,
           textColor: textColor,
           cardColor: cardColor,
-          delay: 300,
+          delay: 350,
         ),
       ],
     );
@@ -632,6 +686,7 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     required Color cardColor,
     TextInputType? keyboardType,
     int maxLines = 1,
+    bool obscureText = false,
     required int delay,
   }) {
     return TweenAnimationBuilder<double>(
@@ -667,7 +722,8 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
         child: TextField(
           controller: controller,
           keyboardType: keyboardType,
-          maxLines: maxLines,
+          maxLines: obscureText ? 1 : maxLines,
+          obscureText: obscureText,
           style: TextStyle(color: textColor, fontSize: 16),
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(

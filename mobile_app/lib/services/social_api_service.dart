@@ -8,6 +8,7 @@ class SocialApiService {
   SocialApiService({http.Client? client}) : _client = client ?? http.Client();
 
   Future<List<Map<String, dynamic>>> getPosts() async {
+    // if (ApiConfig.offlineMode) return []; // COMMENTED OUT
     final response = await _client.get(
       Uri.parse('${ApiConfig.baseUrl}${ApiConfig.socialEndpoint}/posts'),
       headers: {'Accept': 'application/json'},

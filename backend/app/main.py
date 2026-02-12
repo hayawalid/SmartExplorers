@@ -11,7 +11,9 @@ from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.mongodb import connect_to_mongo, close_mongo_connection, mongodb
+from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
+from app.api.planner import router as planner_router
 from app.api.users import router as users_router
 from app.api.profiles import router as profiles_router
 from app.api.social import router as social_router
@@ -20,10 +22,11 @@ from app.api.safety import router as safety_router
 from app.api.preferences import router as preferences_router
 
 # ====== NEW: Import matching system ======
+# from matching_api import router as matching_router, initialize_matching_system  # COMMENTED OUT – module doesn't exist yet
 from app.api.matching import router as matching_router, initialize_matching_system
 # =========================================
 # from app.api.itineraries import router as itinerary_router  # Add when ready
-from app.api.verification import router as verification_router
+# from app.api.verification import router as verification_router  # COMMENTED OUT – uses SQLAlchemy, not MongoDB
 
 # Add after existing routers
 
@@ -38,14 +41,15 @@ async def lifespan(app: FastAPI):
     await connect_to_mongo()
     
     # ====== NEW: Initialize matching system on startup ======
-    try:
-        print("Initializing Smart Matching System...")
-        db = mongodb.client[mongodb.DATABASE_NAME]
-        await initialize_matching_system(db, n_clusters=5)
-        print("✅ Smart Matching System initialized")
-    except Exception as e:
-        print(f"⚠️  Matching system initialization warning: {e}")
-        print("   You can manually train the model by calling POST /api/matching/train")
+    # (commented out – matching_api module doesn't exist yet)
+    # try:
+    #     print("Initializing Smart Matching System...")
+    #     db = mongodb.client[mongodb.DATABASE_NAME]
+    #     await initialize_matching_system(db, n_clusters=5)
+    #     print("✅ Smart Matching System initialized")
+    # except Exception as e:
+    #     print(f"⚠️  Matching system initialization warning: {e}")
+    #     print("   You can manually train the model by calling POST /api/matching/train")
     # ========================================================
     
     print("✅ Application started successfully")
@@ -78,7 +82,9 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth_router)
 app.include_router(chat_router)
+app.include_router(planner_router)
 app.include_router(users_router)
 app.include_router(profiles_router)
 app.include_router(social_router)
@@ -87,9 +93,9 @@ app.include_router(safety_router)
 app.include_router(preferences_router)
 
 # ====== NEW: Include matching router ======
-app.include_router(matching_router)
+# app.include_router(matching_router)  # COMMENTED OUT – module doesn't exist yet
 # ==========================================
-app.include_router(verification_router)
+# app.include_router(verification_router)  # COMMENTED OUT – uses SQLAlchemy
 # app.include_router(itinerary_router)  # Add when ready
 
 
@@ -108,6 +114,7 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Detailed health check"""
+    # from matching_api import _model_trained  # COMMENTED OUT
     from app.api.matching import _model_trained  # NEW
     
     # Check MongoDB connection
@@ -119,7 +126,7 @@ async def health_check():
         "database_type": "MongoDB",
         "database_name": mongodb.DATABASE_NAME,
         "ai_service": "ready" if settings.GROQ_API_KEY else "not_configured",
-        "matching_system": "trained" if _model_trained else "not_trained"  # NEW
+        # "matching_system": "trained" if _model_trained else "not_trained"
     }
 
 

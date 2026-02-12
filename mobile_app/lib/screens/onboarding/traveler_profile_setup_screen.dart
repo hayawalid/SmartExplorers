@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
-import '../../services/profile_api_service.dart';
-import '../../services/api_config.dart';
+import '../../theme/app_theme.dart';
+import '../../services/auth_api_service.dart';
 
 class TravelerProfileSetupScreen extends StatefulWidget {
   const TravelerProfileSetupScreen({super.key});
@@ -16,9 +17,12 @@ class TravelerProfileSetupScreen extends StatefulWidget {
 class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
     with TickerProviderStateMixin {
   int _currentStep = 0;
+  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final ProfileApiService _profileService = ProfileApiService();
+  final AuthApiService _authService = AuthApiService();
 
   // New dropdown selections
   String _selectedCountry = '';
@@ -136,11 +140,14 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
 
   @override
   void dispose() {
+    _emailController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
     _fadeController.dispose();
     _pulseController.dispose();
-    _profileService.dispose();
+    _authService.dispose();
     super.dispose();
   }
 
@@ -151,40 +158,43 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
       _fadeController.forward();
       HapticFeedback.mediumImpact();
     } else {
-      await _saveTravelerProfile();
-      // Navigate to home/main app
-      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      try {
+        await _saveTravelerProfile();
+        if (mounted) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Signup failed: ${e.toString().replaceFirst('Exception: ', '')}',
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          );
+        }
+      }
     }
   }
 
   Future<void> _saveTravelerProfile() async {
-    final user = await _profileService.getUserByUsername(
-      ApiConfig.demoTravelerUsername,
+    await _authService.signup(
+      email: _emailController.text.trim(),
+      username: _usernameController.text.trim(),
+      password: _passwordController.text,
+      fullName: _nameController.text.trim(),
+      accountType: 'traveler',
+      phoneNumber: _phoneController.text.trim(),
+      countryOfOrigin: _selectedCountry,
+      preferredLanguage: _selectedLanguage,
+      travelInterests: _selectedInterests,
+      accessibilityNeeds: _selectedAccessibility,
     );
-    final userId = user['_id'] as String;
-
-    final payload = {
-      'full_name': _nameController.text.trim(),
-      'phone_number': _phoneController.text.trim(),
-      'country_of_origin': _selectedCountry,
-      'preferred_language': _selectedLanguage,
-      'travel_interests': _selectedInterests,
-      'setup_interests': _selectedInterests,
-      'wheelchair_access': _selectedAccessibility.contains('Wheelchair Access'),
-      'visual_assistance': _selectedAccessibility.contains('Visual Assistance'),
-      'hearing_assistance': _selectedAccessibility.contains(
-        'Hearing Assistance',
-      ),
-      'mobility_support': _selectedAccessibility.contains('Mobility Support'),
-      'dietary_restrictions_flag': _selectedAccessibility.contains(
-        'Dietary Restrictions',
-      ),
-      'sensory_sensitivity': _selectedAccessibility.contains(
-        'Sensory Sensitivity',
-      ),
-    };
-
-    await _profileService.upsertTravelerProfile(userId, payload);
   }
 
   void _previousStep() {
@@ -200,7 +210,10 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
   bool get _canContinue {
     switch (_currentStep) {
       case 0:
-        return _nameController.text.isNotEmpty &&
+        return _emailController.text.isNotEmpty &&
+            _usernameController.text.isNotEmpty &&
+            _passwordController.text.length >= 8 &&
+            _nameController.text.isNotEmpty &&
             _phoneController.text.isNotEmpty;
       case 1:
         return _selectedCountry.isNotEmpty && _selectedLanguage.isNotEmpty;
@@ -218,12 +231,11 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final backgroundColor =
-        isDark ? const Color(0xFF0A0A0F) : const Color(0xFFF8F9FA);
-    final cardColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF1A1A2E);
-    final subtitleColor = isDark ? Colors.white70 : const Color(0xFF6B7280);
-    final accentGradient = const [Color(0xFF667EEA), Color(0xFF764BA2)];
+    final backgroundColor = isDark ? AppDesign.eerieBlack : AppDesign.pureWhite;
+    final cardColor = isDark ? AppDesign.cardDark : AppDesign.pureWhite;
+    final textColor = isDark ? Colors.white : AppDesign.eerieBlack;
+    final subtitleColor = isDark ? Colors.white54 : AppDesign.midGrey;
+    final accentGradient = const [AppDesign.electricCobalt, Color(0xFF1A3FCC)];
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -265,22 +277,13 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
   }
 
   Widget _buildAnimatedBackground(bool isDark) {
-    final baseColor =
-        _currentStep == 0
-            ? const Color(0xFF667EEA)
-            : _currentStep == 1
-            ? const Color(0xFF11998E)
-            : _currentStep == 2
-            ? const Color(0xFFF093FB)
-            : const Color(0xFFD4AF37);
-
     return AnimatedContainer(
       duration: const Duration(milliseconds: 500),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            baseColor.withValues(alpha: isDark ? 0.15 : 0.1),
-            isDark ? const Color(0xFF0A0A0F) : const Color(0xFFF8F9FA),
+            AppDesign.electricCobalt.withOpacity(isDark ? 0.08 : 0.05),
+            isDark ? AppDesign.eerieBlack : AppDesign.pureWhite,
           ],
           begin: Alignment.topCenter,
           end: Alignment.center,
@@ -313,7 +316,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                         ? Colors.white.withValues(alpha: 0.1)
                         : Colors.black.withValues(alpha: 0.05),
               ),
-              child: Icon(CupertinoIcons.back, color: textColor, size: 20),
+              child: Icon(LucideIcons.arrowLeft, color: textColor, size: 20),
             ),
           ),
           const Spacer(),
@@ -356,13 +359,9 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                     height: 6,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(3),
-                      gradient:
-                          isActive
-                              ? LinearGradient(colors: accentGradient)
-                              : null,
                       color:
                           isActive
-                              ? null
+                              ? AppDesign.electricCobalt
                               : (isDark
                                   ? Colors.white.withValues(alpha: 0.15)
                                   : Colors.black.withValues(alpha: 0.08)),
@@ -377,13 +376,9 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient:
-                          isCompleted
-                              ? LinearGradient(colors: accentGradient)
-                              : null,
                       color:
                           isCompleted
-                              ? null
+                              ? AppDesign.electricCobalt
                               : (isDark
                                   ? Colors.white.withValues(alpha: 0.15)
                                   : Colors.black.withValues(alpha: 0.08)),
@@ -391,7 +386,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                     child:
                         isCompleted
                             ? const Icon(
-                              CupertinoIcons.checkmark,
+                              LucideIcons.check,
                               size: 6,
                               color: Colors.white,
                             )
@@ -481,11 +476,11 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: accentGradient),
+                      color: AppDesign.electricCobalt,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Icon(
-                      CupertinoIcons.person_crop_circle_badge_plus,
+                      LucideIcons.userPlus,
                       color: Colors.white,
                       size: 28,
                     ),
@@ -546,7 +541,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                   alignment: Alignment.center,
                   children: [
                     Icon(
-                      CupertinoIcons.person_fill,
+                      LucideIcons.user,
                       size: 50,
                       color: isDark ? Colors.white54 : Colors.black26,
                     ),
@@ -560,7 +555,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                           gradient: LinearGradient(colors: accentGradient),
                         ),
                         child: const Icon(
-                          CupertinoIcons.camera_fill,
+                          LucideIcons.camera,
                           size: 18,
                           color: Colors.white,
                         ),
@@ -576,10 +571,11 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
         const SizedBox(height: 32),
 
         _buildAnimatedTextField(
-          controller: _nameController,
-          label: 'Full Name',
-          hint: 'How should we call you?',
-          icon: CupertinoIcons.person_fill,
+          controller: _emailController,
+          label: 'Email',
+          hint: 'your@email.com',
+          icon: LucideIcons.mail,
+          keyboardType: TextInputType.emailAddress,
           isDark: isDark,
           textColor: textColor,
           cardColor: cardColor,
@@ -589,15 +585,55 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
         const SizedBox(height: 16),
 
         _buildAnimatedTextField(
-          controller: _phoneController,
-          label: 'Phone Number',
-          hint: 'For emergency contact',
-          icon: CupertinoIcons.phone_fill,
-          keyboardType: TextInputType.phone,
+          controller: _usernameController,
+          label: 'Username',
+          hint: 'Choose a unique username',
+          icon: LucideIcons.atSign,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
+          delay: 150,
+        ),
+
+        const SizedBox(height: 16),
+
+        _buildAnimatedTextField(
+          controller: _passwordController,
+          label: 'Password',
+          hint: 'At least 8 characters',
+          icon: LucideIcons.lock,
+          obscureText: true,
           isDark: isDark,
           textColor: textColor,
           cardColor: cardColor,
           delay: 200,
+        ),
+
+        const SizedBox(height: 16),
+
+        _buildAnimatedTextField(
+          controller: _nameController,
+          label: 'Full Name',
+          hint: 'How should we call you?',
+          icon: LucideIcons.user,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
+          delay: 250,
+        ),
+
+        const SizedBox(height: 16),
+
+        _buildAnimatedTextField(
+          controller: _phoneController,
+          label: 'Phone Number',
+          hint: 'For emergency contact',
+          icon: LucideIcons.phone,
+          keyboardType: TextInputType.phone,
+          isDark: isDark,
+          textColor: textColor,
+          cardColor: cardColor,
+          delay: 300,
         ),
       ],
     );
@@ -612,6 +648,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
     required Color textColor,
     required Color cardColor,
     TextInputType? keyboardType,
+    bool obscureText = false,
     required int delay,
   }) {
     return TweenAnimationBuilder<double>(
@@ -647,6 +684,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
         child: TextField(
           controller: controller,
           keyboardType: keyboardType,
+          obscureText: obscureText,
           style: TextStyle(color: textColor, fontSize: 16),
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
@@ -690,13 +728,11 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF11998E), Color(0xFF38EF7D)],
-                ),
+                color: AppDesign.electricCobalt,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(
-                CupertinoIcons.globe,
+                LucideIcons.globe,
                 color: Colors.white,
                 size: 28,
               ),
@@ -741,7 +777,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
         _buildDropdownSelector(
           value: _selectedCountry,
           hint: 'Select your country',
-          icon: CupertinoIcons.flag_fill,
+          icon: LucideIcons.flag,
           items: _countries.map((c) => '${c['flag']} ${c['name']}').toList(),
           onChanged: (value) {
             HapticFeedback.selectionClick();
@@ -767,7 +803,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
         _buildDropdownSelector(
           value: _selectedLanguage,
           hint: 'Select preferred language',
-          icon: CupertinoIcons.text_bubble_fill,
+          icon: LucideIcons.messageSquare,
           items:
               _languages.map((l) => '${l['name']} (${l['native']})').toList(),
           onChanged: (value) {
@@ -802,7 +838,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  CupertinoIcons.info_circle_fill,
+                  LucideIcons.info,
                   color: Color(0xFF11998E),
                   size: 22,
                 ),
@@ -873,7 +909,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
             children: [
               Padding(
                 padding: const EdgeInsets.only(left: 16, right: 12),
-                child: Icon(icon, color: const Color(0xFF667EEA), size: 22),
+                child: Icon(icon, color: AppDesign.electricCobalt, size: 22),
               ),
               Text(
                 hint,
@@ -890,8 +926,8 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
           icon: Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Icon(
-              CupertinoIcons.chevron_down,
-              color: isDark ? Colors.white70 : const Color(0xFF6B7280),
+              LucideIcons.chevronDown,
+              color: isDark ? Colors.white70 : AppDesign.midGrey,
               size: 18,
             ),
           ),
@@ -904,7 +940,11 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(left: 16, right: 12),
-                    child: Icon(icon, color: const Color(0xFF667EEA), size: 22),
+                    child: Icon(
+                      icon,
+                      color: AppDesign.electricCobalt,
+                      size: 22,
+                    ),
                   ),
                   Expanded(
                     child: Text(
@@ -950,13 +990,11 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFF093FB), Color(0xFFF5576C)],
-                ),
+                color: AppDesign.electricCobalt,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(
-                CupertinoIcons.heart_fill,
+                LucideIcons.heart,
                 color: Colors.white,
                 size: 28,
               ),
@@ -1118,7 +1156,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                       child:
                           isSelected
                               ? const Icon(
-                                CupertinoIcons.checkmark,
+                                LucideIcons.check,
                                 size: 14,
                                 color: Colors.white,
                               )
@@ -1163,13 +1201,11 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFD4AF37), Color(0xFFB8860B)],
-                ),
+                color: AppDesign.electricCobalt,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(
-                CupertinoIcons.sparkles,
+                LucideIcons.sparkles,
                 color: Colors.white,
                 size: 28,
               ),
@@ -1351,13 +1387,13 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 18),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: accentGradient),
-              borderRadius: BorderRadius.circular(16),
+              color: AppDesign.electricCobalt,
+              borderRadius: AppDesign.borderRadius,
               boxShadow:
                   _canContinue
                       ? [
                         BoxShadow(
-                          color: accentGradient[0].withValues(alpha: 0.4),
+                          color: AppDesign.electricCobalt.withOpacity(0.35),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -1378,8 +1414,8 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
                 const SizedBox(width: 8),
                 Icon(
                   _currentStep == 3
-                      ? CupertinoIcons.sparkles
-                      : CupertinoIcons.arrow_right,
+                      ? LucideIcons.sparkles
+                      : LucideIcons.arrowRight,
                   color: Colors.white,
                   size: 20,
                 ),
