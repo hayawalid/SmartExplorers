@@ -37,6 +37,9 @@ import os
 from dataclasses import dataclass
 import json
 import requests
+from pymongo import MongoClient
+from bson import ObjectId
+import certifi
 
 
 @dataclass
@@ -77,6 +80,13 @@ class SmartMatchingEngine:
         self.kmeans_model = None
         self.n_clusters = 5
         
+        # MongoDB connection
+        self.mongodb_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+        self.db_name = os.getenv("MONGODB_DB_NAME", "smartexplorers")
+        
+        self.mongo_client = None
+        self.db = None
+        
         # Common languages
         self.common_languages = [
             "Arabic", "English", "French", "German", "Spanish", "Italian",
@@ -84,6 +94,395 @@ class SmartMatchingEngine:
         ]
         
         print("✓ Matching engine initialized (keyword-based)")
+        
+        # Initialize MongoDB connection
+        self._init_mongodb()
+    
+    # ==================== DATABASE FETCHING ====================
+    
+    def _init_mongodb(self):
+        """Initialize MongoDB connection"""
+        try:
+            if self.mongodb_uri:
+                self.mongo_client = MongoClient(
+                    self.mongodb_uri,
+                    tlsCAFile=certifi.where(),
+                    serverSelectionTimeoutMS=5000
+                )
+                self.db = self.mongo_client[self.db_name]
+                
+                # Test connection
+                self.mongo_client.admin.command('ping')
+                print(f"✓ MongoDB connected successfully to {self.db_name}")
+                
+                # Debug: List collections
+                collections = self.db.list_collection_names()
+                print(f"📋 Available collections: {collections}")
+                
+            else:
+                print("⚠️  MongoDB URI not found, using mock data")
+        except Exception as e:
+            print(f"⚠️  MongoDB connection failed: {e}, using mock data")
+            self.mongo_client = None
+            self.db = None
+    
+    def _convert_objectid(self, data: Dict) -> Dict:
+        """Convert ObjectId to string for JSON serialization"""
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if isinstance(value, ObjectId):
+                    data[key] = str(value)
+                elif isinstance(value, dict):
+                    data[key] = self._convert_objectid(value)
+                elif isinstance(value, list):
+                    data[key] = [
+                        self._convert_objectid(item) if isinstance(item, dict) else item
+                        for item in value
+                    ]
+        return data
+    
+    def fetch_all_users(self) -> List[Dict[str, Any]]:
+        """
+        Fetch all users from MongoDB with their associated profiles
+        
+        Returns:
+            List of user documents with embedded profile data
+        """
+        all_users = []
+        
+        if self.db is None:
+            print("⚠️  No database connection, using mock users for testing")
+            return self._get_mock_users()
+        
+        try:
+            # Get all users from the users collection
+            users_collection = self.db['users']
+            users = list(users_collection.find({}))
+            
+            print(f"📡 Found {len(users)} users in database")
+            
+            for user in users:
+                user = self._convert_objectid(user)
+                user_id = user['_id']
+                
+                # Fetch the appropriate profile based on account_type
+                if user.get('account_type') == 'traveler':
+                    # Get traveler profile
+                    profile = self.db['traveler_profiles'].find_one({'user_id': user_id})
+                    if profile:
+                        profile = self._convert_objectid(profile)
+                        user['profile'] = profile
+                        print(f"  ✓ Loaded traveler: {user.get('full_name', user.get('username'))}")
+                    else:
+                        print(f"  ⚠️  No profile found for traveler: {user.get('email')}")
+                        user['profile'] = {}
+                        
+                elif user.get('account_type') == 'service_provider':
+                    # Get service provider profile
+                    profile = self.db['service_provider_profiles'].find_one({'user_id': user_id})
+                    if profile:
+                        profile = self._convert_objectid(profile)
+                        user['provider_profile'] = profile
+                        print(f"  ✓ Loaded service provider: {user.get('full_name', user.get('username'))}")
+                    else:
+                        print(f"  ⚠️  No profile found for service provider: {user.get('email')}")
+                        user['provider_profile'] = {}
+                
+                # Add bio if it exists in user document
+                if 'bio' not in user:
+                    user['bio'] = ''
+                
+                all_users.append(user)
+            
+            print(f"\n✓ Total {len(all_users)} users loaded from database")
+            
+        except Exception as e:
+            print(f"⚠️  Error fetching from database: {e}")
+            print("⚠️  Falling back to mock users")
+            return self._get_mock_users()
+        
+        # If no users found, use mock data
+        if not all_users:
+            print("⚠️  No users found in database, using mock users")
+            return self._get_mock_users()
+        
+        return all_users
+    
+    def fetch_users_by_type(self, account_type: str) -> List[Dict[str, Any]]:
+        """
+        Fetch users by account type with their profiles
+        
+        Args:
+            account_type: Either 'traveler' or 'service_provider'
+        
+        Returns:
+            List of users of specified type with profiles
+        """
+        if self.db is None:
+            return []
+        
+        users = []
+        
+        try:
+            # Get users of specified type
+            users_collection = self.db['users']
+            user_docs = list(users_collection.find({'account_type': account_type}))
+            
+            for user in user_docs:
+                user = self._convert_objectid(user)
+                user_id = user['_id']
+                
+                # Fetch profile
+                if account_type == 'traveler':
+                    profile = self.db['traveler_profiles'].find_one({'user_id': user_id})
+                    if profile:
+                        profile = self._convert_objectid(profile)
+                        user['profile'] = profile
+                else:
+                    profile = self.db['service_provider_profiles'].find_one({'user_id': user_id})
+                    if profile:
+                        profile = self._convert_objectid(profile)
+                        user['provider_profile'] = profile
+                
+                users.append(user)
+            
+            print(f"✓ Fetched {len(users)} {account_type}s from database")
+            
+        except Exception as e:
+            print(f"⚠️  Error fetching {account_type}s: {e}")
+        
+        return users
+    
+    def fetch_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch a single user by ID with their profile
+        
+        Args:
+            user_id: The user's ObjectId as string
+        
+        Returns:
+            User document with profile or None if not found
+        """
+        if self.db is None:
+            return None
+        
+        try:
+            # Convert string ID to ObjectId
+            try:
+                obj_id = ObjectId(user_id)
+            except:
+                print(f"⚠️  Invalid ObjectId format: {user_id}")
+                return None
+            
+            # Find user
+            users_collection = self.db['users']
+            user = users_collection.find_one({'_id': obj_id})
+            
+            if user:
+                user = self._convert_objectid(user)
+                user_id = user['_id']
+                
+                # Fetch profile based on account type
+                if user.get('account_type') == 'traveler':
+                    profile = self.db['traveler_profiles'].find_one({'user_id': user_id})
+                    if profile:
+                        profile = self._convert_objectid(profile)
+                        user['profile'] = profile
+                elif user.get('account_type') == 'service_provider':
+                    profile = self.db['service_provider_profiles'].find_one({'user_id': user_id})
+                    if profile:
+                        profile = self._convert_objectid(profile)
+                        user['provider_profile'] = profile
+                
+                return user
+            
+        except Exception as e:
+            print(f"⚠️  Error fetching user {user_id}: {e}")
+        
+        return None
+    
+    def fetch_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch a single user by email with their profile
+        
+        Args:
+            email: The user's email address
+        
+        Returns:
+            User document with profile or None if not found
+        """
+        if self.db is None:
+            return None
+        
+        try:
+            # Find user by email
+            users_collection = self.db['users']
+            user = users_collection.find_one({'email': email})
+            
+            if user:
+                user = self._convert_objectid(user)
+                user_id = user['_id']
+                
+                # Fetch profile based on account type
+                if user.get('account_type') == 'traveler':
+                    profile = self.db['traveler_profiles'].find_one({'user_id': user_id})
+                    if profile:
+                        profile = self._convert_objectid(profile)
+                        user['profile'] = profile
+                elif user.get('account_type') == 'service_provider':
+                    profile = self.db['service_provider_profiles'].find_one({'user_id': user_id})
+                    if profile:
+                        profile = self._convert_objectid(profile)
+                        user['provider_profile'] = profile
+                
+                return user
+            
+        except Exception as e:
+            print(f"⚠️  Error fetching user by email {email}: {e}")
+        
+        return None
+    
+    def _get_mock_users(self) -> List[Dict[str, Any]]:
+        """Generate mock users for testing when database is unavailable"""
+        print("📊 Generating mock users for testing...")
+        
+        from datetime import datetime
+        
+        mock_users = [
+            {
+                "_id": "1",
+                "email": "sarah.johnson@email.com",
+                "full_name": "Sarah Johnson",
+                "username": "sarah_explorer",
+                "account_type": "traveler",
+                "verified_flag": True,
+                "bio": "Solo female traveler passionate about ancient history and photography. First time visiting Egypt!",
+                "profile": {
+                    "date_of_birth": datetime(1995, 3, 15),
+                    "gender": "female",
+                    "nationality": "American",
+                    "languages_spoken": ["English", "Spanish"],
+                    "travel_interests": ["Ancient History", "Photography", "Culture & Arts", "Food & Cuisine"],
+                    "setup_interests": ["History/Archaeology", "Photography", "Culture & Arts"],
+                    "typical_budget_min": 50,
+                    "typical_budget_max": 150,
+                    "is_solo_traveler": True,
+                    "first_time_egypt": True,
+                    "traveling_alone": True,
+                    "wheelchair_access": False,
+                    "visual_assistance": False,
+                    "hearing_assistance": False,
+                    "mobility_support": False
+                }
+            },
+            {
+                "_id": "2",
+                "email": "ahmed.hassan@email.com",
+                "full_name": "Ahmed Hassan",
+                "username": "ahmed_adventurer",
+                "account_type": "traveler",
+                "verified_flag": True,
+                "bio": "Egyptian local showing visitors the hidden gems of Cairo. Love adventure and food!",
+                "profile": {
+                    "date_of_birth": datetime(1988, 7, 22),
+                    "gender": "male",
+                    "nationality": "Egyptian",
+                    "languages_spoken": ["Arabic", "English", "French"],
+                    "travel_interests": ["Adventure", "Food & Cuisine", "Nature", "Desert Safari"],
+                    "setup_interests": ["Adventure", "Food & Cuisine", "Relaxation"],
+                    "typical_budget_min": 30,
+                    "typical_budget_max": 80,
+                    "is_solo_traveler": False,
+                    "first_time_egypt": False,
+                    "traveling_alone": False,
+                    "wheelchair_access": False,
+                    "visual_assistance": False,
+                    "hearing_assistance": False,
+                    "mobility_support": False
+                }
+            },
+            {
+                "_id": "3",
+                "email": "david.oconnor@email.com",
+                "full_name": "David O'Connor",
+                "username": "david_wheelchair",
+                "account_type": "traveler",
+                "verified_flag": True,
+                "bio": "Wheelchair user proving accessibility shouldn't limit adventure. Sharing accessible travel tips!",
+                "profile": {
+                    "date_of_birth": datetime(1985, 9, 14),
+                    "gender": "male",
+                    "nationality": "British",
+                    "languages_spoken": ["English"],
+                    "travel_interests": ["Ancient History", "Culture & Arts", "Food & Cuisine"],
+                    "setup_interests": ["History/Archaeology", "Culture & Arts", "Food & Cuisine"],
+                    "typical_budget_min": 100,
+                    "typical_budget_max": 300,
+                    "is_solo_traveler": True,
+                    "first_time_egypt": True,
+                    "traveling_alone": True,
+                    "wheelchair_access": True,
+                    "visual_assistance": False,
+                    "hearing_assistance": False,
+                    "mobility_support": True
+                }
+            },
+            {
+                "_id": "4",
+                "email": "mohamed.guide@egypttours.com",
+                "full_name": "Mohamed Ibrahim",
+                "username": "mohamed_guide",
+                "account_type": "service_provider",
+                "verified_flag": True,
+                "bio": "Licensed Egyptologist guide with 15 years experience. Specializing in Giza and Saqqara tours.",
+                "provider_profile": {
+                    "verified_flag": True,
+                    "languages": ["Arabic", "English", "French", "German"],
+                    "services_offered": ["Pyramid Tours", "Museum Tours", "Historical Site Visits", "Custom Itineraries"],
+                    "price_range_min": 50,
+                    "price_range_max": 150,
+                    "service_type": "tour_guide",
+                    "wheelchair_access": True,
+                    "visual_assistance": False,
+                    "hearing_assistance": False,
+                    "mobility_support": False,
+                    "rating": 4.9,
+                    "review_count": 127
+                }
+            },
+            {
+                "_id": "5",
+                "email": "nadia.photo@egyptphoto.com",
+                "full_name": "Nadia El-Sayed",
+                "username": "nadia_photographer",
+                "account_type": "service_provider",
+                "verified_flag": True,
+                "bio": "Professional photographer specializing in travel and portrait photography at iconic Egyptian locations.",
+                "provider_profile": {
+                    "verified_flag": True,
+                    "languages": ["Arabic", "English", "Italian"],
+                    "services_offered": ["Portrait Photography", "Couple Shoots", "Family Photos", "Drone Photography"],
+                    "price_range_min": 100,
+                    "price_range_max": 500,
+                    "service_type": "photographer",
+                    "wheelchair_access": False,
+                    "visual_assistance": False,
+                    "hearing_assistance": False,
+                    "mobility_support": False,
+                    "rating": 4.8,
+                    "review_count": 89
+                }
+            }
+        ]
+        
+        print(f"✓ Generated {len(mock_users)} mock users")
+        return mock_users
+    
+    def close(self):
+        """Close MongoDB connection"""
+        if self.mongo_client:
+            self.mongo_client.close()
+            print("✓ MongoDB connection closed")
     
     # ==================== POINT 1: VERIFICATION FILTERING ====================
     
@@ -227,6 +626,7 @@ class SmartMatchingEngine:
         self.kmeans_model = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
         self.kmeans_model.fit(X_scaled)
         
+        print(f"✓ Trained {n_clusters} clusters on {len(verified_users)} verified users")
         return self.kmeans_model.labels_
     
     def _get_cluster(self, user: Dict[str, Any]) -> int:
@@ -431,12 +831,12 @@ Be honest and critical. A poor match is better than a forced match."""
         
         # POINT 1: Check target user verification
         if not self._is_verified(target_user):
-            print(f"⚠️  Target user {target_user.get('full_name')} is NOT VERIFIED")
+            print(f"⚠️  Target user {target_user.get('full_name', target_user.get('username'))} is NOT VERIFIED")
             return []
         
         target_type = target_user.get("account_type")
         target_cluster = self._get_cluster(target_user)
-        target_profile = target_user.get("profile", {})
+        target_profile = target_user.get("profile", {}) if target_type == "traveler" else target_user.get("provider_profile", {})
         
         matches = []
         
@@ -451,8 +851,8 @@ Be honest and critical. A poor match is better than a forced match."""
             if not self._is_verified(candidate):
                 continue  # Skip unverified users entirely
             
-            # Service providers cannot request matches
-            if target_type == "service_provider" and candidate_type == "traveler":
+            # Service providers cannot request matches with other service providers
+            if target_type == "service_provider" and candidate_type == "service_provider":
                 continue
             
             # Get candidate cluster (POINT 3: Demographic clustering)
@@ -462,7 +862,7 @@ Be honest and critical. A poor match is better than a forced match."""
             candidate_profile = candidate.get("profile", {}) if candidate_type == "traveler" else candidate.get("provider_profile", {})
             
             # Check languages (REQUIRED)
-            target_languages = target_profile.get("languages_spoken", [])
+            target_languages = target_profile.get("languages_spoken", []) or target_profile.get("languages", [])
             candidate_languages = candidate_profile.get("languages", []) if candidate_type == "service_provider" else candidate_profile.get("languages_spoken", [])
             
             has_common_language, common_languages = self._check_language_compatibility(
@@ -478,7 +878,11 @@ Be honest and critical. A poor match is better than a forced match."""
             interest_similarity = self._calculate_interest_similarity(target_user, candidate)
             
             # Get common interests (for display)
-            target_interests = target_profile.get("travel_interests", []) + target_profile.get("setup_interests", [])
+            if target_type == "traveler":
+                target_interests = target_profile.get("travel_interests", []) + target_profile.get("setup_interests", [])
+            else:
+                target_interests = target_profile.get("services_offered", [])
+                
             if candidate_type == "traveler":
                 candidate_interests = candidate_profile.get("travel_interests", []) + candidate_profile.get("setup_interests", [])
             else:
@@ -488,8 +892,8 @@ Be honest and critical. A poor match is better than a forced match."""
             
             # Budget compatibility
             target_budget = (
-                target_profile.get("typical_budget_min", 0),
-                target_profile.get("typical_budget_max", 1000)
+                target_profile.get("typical_budget_min", 0) or target_profile.get("price_range_min", 0),
+                target_profile.get("typical_budget_max", 1000) or target_profile.get("price_range_max", 1000)
             )
             candidate_budget = (
                 candidate_profile.get("price_range_min" if candidate_type == "service_provider" else "typical_budget_min", 0),
@@ -542,7 +946,7 @@ Be honest and critical. A poor match is better than a forced match."""
             
             # Create match result
             match = MatchResult(
-                matched_user_id=candidate.get("email", ""),
+                matched_user_id=candidate.get("email", "") or candidate.get("_id", ""),
                 match_score=match_score,
                 match_quality=match_quality,
                 match_reasons=match_reasons,
@@ -638,3 +1042,59 @@ Be honest and critical. A poor match is better than a forced match."""
             "top_languages": Counter(all_languages).most_common(5),
             "cluster_distribution": dict(Counter(all_clusters))
         }
+
+
+# ==================== USAGE EXAMPLE ====================
+
+if __name__ == "__main__":
+    # Initialize engine
+    engine = SmartMatchingEngine()
+    
+    try:
+        # Fetch all users from MongoDB
+        print("\n📡 Fetching users from database...")
+        all_users = engine.fetch_all_users()
+        
+        if len(all_users) < 2:
+            print("❌ Not enough users for matching (need at least 2)")
+            print("   Please run the dummy data generator first:")
+            print("   python -m backend.dummy_data_generator")
+        else:
+            # Split target and candidates (first user is target)
+            target_user = all_users[0]
+            candidate_users = all_users[1:]
+            
+            print(f"\n🎯 Target user: {target_user.get('full_name', target_user.get('username'))} ({target_user.get('account_type')})")
+            print(f"👥 Candidate users: {len(candidate_users)}")
+            
+            # Train clusters
+            print("\n📊 Training demographic clusters...")
+            engine.train_clusters(all_users)
+            
+            # Find matches
+            print("\n🔍 Finding matches...")
+            matches = engine.find_matches(
+                target_user, 
+                candidate_users, 
+                top_k=5, 
+                use_llm_verification=False
+            )
+            
+            # View results
+            print(f"\n✅ Found {len(matches)} matches:\n")
+            for i, m in enumerate(matches, 1):
+                print(f"{i}. Score: {m.match_score:.1%} | Quality: {m.match_quality}")
+                print(f"   User: {m.matched_user_id}")
+                print(f"   Reasons: {', '.join(m.match_reasons[:2])}")
+                print()
+            
+            # Get statistics
+            stats = engine.get_match_statistics(matches)
+            print("📈 Match Statistics:")
+            print(f"   Average score: {stats['average_score']:.1%}")
+            print(f"   Perfect matches: {stats['perfect_matches']}")
+            print(f"   Great matches: {stats['great_matches']}")
+    
+    finally:
+        # Close database connection
+        engine.close()
