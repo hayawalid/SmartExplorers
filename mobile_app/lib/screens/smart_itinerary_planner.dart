@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
 import 'dart:async';
+import '../widgets/smart_explorers_logo.dart';
 
 /// Egypt-Themed Itinerary Planner combining AI chat and destination cards
 /// Color Palette: Desert Sand, Nile Blue, Ancient Gold, Warm Terracotta
@@ -551,6 +552,8 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
             ),
           ),
           const SizedBox(width: 16),
+          const SmartExplorersLogo(size: LogoSize.tiny, showText: false),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -78,6 +78,8 @@ class _LoginScreenState extends State<LoginScreen>
           final route =
               SessionStore.instance.accountType == 'service_provider'
                   ? '/provider_home'
+                  : SessionStore.instance.accountType == 'admin'
+                  ? '/admin'
                   : '/';
           Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
         }
@@ -111,12 +113,22 @@ class _LoginScreenState extends State<LoginScreen>
           fit: StackFit.expand,
           children: [
             // ── Background photograph ──
-            Image.asset('lib/public/onboarding_bg.jpg', fit: BoxFit.cover),
+            Image.asset(
+              'lib/public/WhatsApp Image 2026-02-12 at 2.12.53 PM.jpeg',
+              fit: BoxFit.cover,
+            ),
 
             // ── Blur overlay (always on – the "blurred overlay" effect) ──
             BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: Container(color: Colors.black.withValues(alpha: 0.5)),
+              child: Container(
+                color: const Color.fromARGB(
+                  255,
+                  0,
+                  0,
+                  0,
+                ).withValues(alpha: 0.5),
+              ),
             ),
 
             // ── Content ──
@@ -246,7 +258,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       child: Text(
                                         'Forgot Password?',
                                         style: TextStyle(
-                                          color: AppDesign.electricCobalt
+                                          color: AppDesign.onboardingAccent
                                               .withValues(alpha: 0.9),
                                           fontWeight: FontWeight.w500,
                                           fontSize: 13,
@@ -265,10 +277,10 @@ class _LoginScreenState extends State<LoginScreen>
                                           _isLoading ? null : _handleLogin,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
-                                            AppDesign.electricCobalt,
+                                            AppDesign.onboardingAccent,
                                         foregroundColor: Colors.white,
                                         disabledBackgroundColor: AppDesign
-                                            .electricCobalt
+                                            .onboardingAccent
                                             .withValues(alpha: 0.5),
                                         elevation: 0,
                                         shape: RoundedRectangleBorder(
@@ -368,7 +380,7 @@ class _LoginScreenState extends State<LoginScreen>
                             child: const Text(
                               'Sign Up',
                               style: TextStyle(
-                                color: AppDesign.electricCobalt,
+                                color: AppDesign.onboardingAccent,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               ),
@@ -415,7 +427,7 @@ class _LoginScreenState extends State<LoginScreen>
         errorStyle: const TextStyle(color: AppDesign.danger, fontSize: 12),
         prefixIcon: Padding(
           padding: const EdgeInsets.only(left: 16, right: 12),
-          child: Icon(icon, color: AppDesign.electricCobalt, size: 20),
+          child: Icon(icon, color: AppDesign.onboardingAccent, size: 20),
         ),
         suffixIcon:
             suffix != null
@@ -437,7 +449,7 @@ class _LoginScreenState extends State<LoginScreen>
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(
-            color: AppDesign.electricCobalt,
+            color: AppDesign.onboardingAccent,
             width: 1.5,
           ),
         ),

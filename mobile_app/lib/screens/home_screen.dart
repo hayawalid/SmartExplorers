@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
+import '../widgets/smart_explorers_logo.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -159,6 +160,8 @@ class _HomeScreenState extends State<HomeScreen>
       padding: const EdgeInsets.all(24),
       child: Row(
         children: [
+          const SmartExplorersLogo(size: LogoSize.tiny, showText: false),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

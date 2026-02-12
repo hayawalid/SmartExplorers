@@ -23,6 +23,16 @@ class AppDesign {
   static const Color danger = Color(0xFFFF3B5C);
   static const Color info = Color(0xFF1A1A1A);
 
+  // Onboarding accent – warm coral-orange pop color
+  static const Color onboardingAccent = Color(0xFFE8604C);
+
+  // Navigation tab colors (each tab gets its own accent)
+  static const Color navExplore = Color(0xFF4A90D9); // ocean blue
+  static const Color navConcierge = Color(0xFF9B59B6); // amethyst purple
+  static const Color navItinerary = Color(0xFFE8604C); // coral
+  static const Color navSafety = Color(0xFF00C566); // green
+  static const Color navProfile = Color(0xFFD4AF37); // gold
+
   // ── Radius ────────────────────────────────────────────────────────────
   static const double radius = 24.0;
   static final BorderRadius borderRadius = BorderRadius.circular(radius);

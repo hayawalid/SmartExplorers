@@ -55,6 +55,8 @@ class AuthApiService {
     String? preferredLanguage,
     List<String>? travelInterests,
     List<String>? accessibilityNeeds,
+    String? dateOfBirth,
+    String? gender,
     String? serviceType,
     String? bio,
   }) async {
@@ -68,6 +70,12 @@ class AuthApiService {
 
     if (phoneNumber != null && phoneNumber.isNotEmpty) {
       payload['phone_number'] = phoneNumber;
+    }
+    if (dateOfBirth != null && dateOfBirth.isNotEmpty) {
+      payload['date_of_birth'] = dateOfBirth;
+    }
+    if (gender != null && gender.isNotEmpty) {
+      payload['gender'] = gender;
     }
     if (countryOfOrigin != null && countryOfOrigin.isNotEmpty) {
       payload['country_of_origin'] = countryOfOrigin;

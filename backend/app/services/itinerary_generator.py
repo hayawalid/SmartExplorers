@@ -15,6 +15,7 @@ from ..schemas.itinerary import (
 )
 from ..config import settings
 from .destination_rag import destination_rag  # RAG service
+from .itinerary_place_verifier import itinerary_place_verifier  # Verify-Verify-Verify
 
 
 class ItineraryGenerator:
@@ -102,7 +103,48 @@ class ItineraryGenerator:
             
             print(f"✓ Itinerary enhanced (safety score: {enhanced_itinerary['safety_score']})")
             
-            return enhanced_itinerary
+            # ============================================================
+            # VERIFY-VERIFY-VERIFY: Triple verification of every place
+            # Uses Google Maps, Google Places, and AI Safety Analysis
+            # ============================================================
+            print("\n🔍 Starting Verify-Verify-Verify pipeline...")
+            
+            accessibility_needs = None
+            if request.accessibility_requirements:
+                accessibility_needs = {
+                    "wheelchair_accessible": request.accessibility_requirements.wheelchair_accessible,
+                    "visual_impairment_support": request.accessibility_requirements.visual_impairment_support,
+                    "hearing_impairment_support": request.accessibility_requirements.hearing_impairment_support,
+                    "mobility_assistance": request.accessibility_requirements.mobility_assistance,
+                }
+            
+            try:
+                verified_itinerary = await itinerary_place_verifier.verify_itinerary(
+                    itinerary_data=enhanced_itinerary,
+                    is_solo_traveler=request.is_solo_traveler,
+                    is_woman_traveler=request.is_woman_traveler,
+                    accessibility_needs=accessibility_needs
+                )
+                
+                verification_info = verified_itinerary.get("verification", {})
+                print(
+                    f"✓ Verification complete: "
+                    f"{verification_info.get('verified_count', 0)}/"
+                    f"{verification_info.get('total_activities', 0)} places verified "
+                    f"({verification_info.get('verification_rate', 0)}%)"
+                )
+                
+                return verified_itinerary
+                
+            except Exception as verify_err:
+                # Verification is best-effort; return unverified itinerary on failure
+                print(f"⚠️  Verification pipeline error: {verify_err}")
+                enhanced_itinerary["verification"] = {
+                    "status": "skipped",
+                    "reason": str(verify_err),
+                    "verified_at": None
+                }
+                return enhanced_itinerary
             
         except json.JSONDecodeError as e:
             raise Exception(f"Failed to parse AI response: {str(e)}")

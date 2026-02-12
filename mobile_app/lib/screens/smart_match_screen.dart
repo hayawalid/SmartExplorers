@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:math' as math;
 import '../theme/app_theme.dart';
+import '../widgets/smart_explorers_logo.dart';
 import '../widgets/animated_builder.dart';
 import '../services/planner_api_service.dart';
 import 'itinerary_calendar_screen.dart';
@@ -82,12 +83,11 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
               child: Row(
                 children: [
-                  Icon(
-                    LucideIcons.briefcase,
-                    color: AppDesign.electricCobalt,
-                    size: 24,
+                  const SmartExplorersLogo(
+                    size: LogoSize.tiny,
+                    showText: false,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Text(
                     'Concierge',
                     style: Theme.of(

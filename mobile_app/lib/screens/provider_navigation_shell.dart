@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
+import '../theme/app_theme.dart';
 import 'feed_screen.dart';
 import 'safety_dashboard_screen.dart';
 import 'provider_profile_screen.dart';
@@ -25,25 +26,25 @@ class _ProviderNavigationShellState extends State<ProviderNavigationShell>
     ProviderNavItem(
       icon: CupertinoIcons.person_2_fill,
       label: 'Requests',
-      activeColor: const Color(0xFF667EEA),
+      activeColor: AppDesign.navExplore,
       semanticLabel: 'Match requests from travelers',
     ),
     ProviderNavItem(
       icon: CupertinoIcons.photo_fill_on_rectangle_fill,
       label: 'Feed',
-      activeColor: const Color(0xFFF093FB),
+      activeColor: AppDesign.navConcierge,
       semanticLabel: 'Social feed and promotions',
     ),
     ProviderNavItem(
       icon: CupertinoIcons.shield_fill,
       label: 'Safety',
-      activeColor: const Color(0xFFF5576C),
+      activeColor: AppDesign.navSafety,
       semanticLabel: 'Emergency SOS and safety',
     ),
     ProviderNavItem(
       icon: CupertinoIcons.person_fill,
       label: 'Profile',
-      activeColor: const Color(0xFFD4AF37),
+      activeColor: AppDesign.navProfile,
       semanticLabel: 'Your provider profile',
     ),
   ];
@@ -74,8 +75,7 @@ class _ProviderNavigationShellState extends State<ProviderNavigationShell>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final backgroundColor =
-        isDark ? const Color(0xFF0A0A0F) : const Color(0xFFF8F9FA);
+    final backgroundColor = isDark ? AppDesign.eerieBlack : AppDesign.offWhite;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -106,7 +106,7 @@ class _ProviderNavigationShellState extends State<ProviderNavigationShell>
   }
 
   Widget _buildFloatingNavBar(bool isDark) {
-    final navBarColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final navBarColor = isDark ? AppDesign.cardDark : Colors.white;
     final borderColor =
         isDark
             ? Colors.white.withValues(alpha: 0.1)
@@ -307,11 +307,10 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final backgroundColor =
-        isDark ? const Color(0xFF0A0A0F) : const Color(0xFFF8F9FA);
-    final cardColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF1A1A2E);
-    final subtitleColor = isDark ? Colors.white70 : const Color(0xFF6B7280);
+    final backgroundColor = isDark ? AppDesign.eerieBlack : AppDesign.offWhite;
+    final cardColor = isDark ? AppDesign.cardDark : Colors.white;
+    final textColor = isDark ? Colors.white : AppDesign.eerieBlack;
+    final subtitleColor = isDark ? Colors.white70 : AppDesign.midGrey;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -328,7 +327,7 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+                        colors: [AppDesign.navExplore, AppDesign.navConcierge],
                       ),
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -387,7 +386,7 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                             width: 8,
                             height: 8,
                             decoration: const BoxDecoration(
-                              color: Color(0xFFF5576C),
+                              color: AppDesign.onboardingAccent,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -443,7 +442,7 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF5576C),
+                            color: AppDesign.onboardingAccent,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
@@ -470,7 +469,7 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF38EF7D),
+                            color: AppDesign.navSafety,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
@@ -600,7 +599,7 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
               border: Border.all(
                 color:
                     request.isNew
-                        ? const Color(0xFF667EEA).withValues(alpha: 0.5)
+                        ? AppDesign.navExplore.withValues(alpha: 0.5)
                         : (isDark
                             ? Colors.white.withValues(alpha: 0.1)
                             : Colors.black.withValues(alpha: 0.06)),
@@ -614,7 +613,7 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                 ),
                 if (request.isNew)
                   BoxShadow(
-                    color: const Color(0xFF667EEA).withValues(alpha: 0.2),
+                    color: AppDesign.navExplore.withValues(alpha: 0.2),
                     blurRadius: 16,
                     offset: const Offset(0, 4),
                   ),
@@ -682,7 +681,7 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF667EEA),
+                                          color: AppDesign.navExplore,
                                           borderRadius: BorderRadius.circular(
                                             8,
                                           ),
@@ -704,7 +703,7 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                                     const Icon(
                                       CupertinoIcons.star_fill,
                                       size: 14,
-                                      color: Color(0xFFD4AF37),
+                                      color: AppDesign.navProfile,
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
@@ -724,7 +723,7 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
-                              color: const Color(0xFF38EF7D),
+                              color: AppDesign.navSafety,
                             ),
                           ),
                         ],
@@ -824,7 +823,7 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFFF5576C),
+                                    color: AppDesign.onboardingAccent,
                                   ),
                                 ),
                               ),
@@ -841,8 +840,8 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [
-                                    Color(0xFF38EF7D),
-                                    Color(0xFF11998E),
+                                    AppDesign.navSafety,
+                                    AppDesign.navSafety,
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(12),
@@ -876,8 +875,8 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [
-                                    Color(0xFF667EEA),
-                                    Color(0xFF764BA2),
+                                    AppDesign.navExplore,
+                                    AppDesign.navConcierge,
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(12),

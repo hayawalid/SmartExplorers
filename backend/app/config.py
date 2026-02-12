@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     GROQ_API_KEY: str = ""
     
+    # Map verification uses FREE APIs (Nominatim + Overpass) - no key needed
+    
+    # Social Media Verification (optional)
+    FACEBOOK_ACCESS_TOKEN: str = ""
+    
     # AI Assistant settings
     AI_TEMPERATURE: float = 0.7
     AI_MAX_TOKENS: int = 1000

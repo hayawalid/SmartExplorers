@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
+import '../widgets/smart_explorers_logo.dart';
 import '../services/chat_api_service.dart';
 import '../models/chat_models.dart' as models;
 
@@ -221,27 +222,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
       padding: const EdgeInsets.all(24),
       child: Row(
         children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [Color(0xFF764ba2), Color(0xFF667eea)],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF764ba2).withOpacity(0.4),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Text('🤖', style: TextStyle(fontSize: 26)),
-            ),
-          ),
-          const SizedBox(width: 16),
+          const SmartExplorersLogo(size: LogoSize.tiny, showText: false),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

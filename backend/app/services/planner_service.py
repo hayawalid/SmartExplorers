@@ -241,18 +241,78 @@ RULES:
 
     @staticmethod
     def _format_user_context(ctx: Dict[str, Any]) -> str:
-        """Build a user-context system note."""
+        """Build a user-context system note with full profile awareness."""
         parts: List[str] = []
-        if ctx.get("gender") == "female":
-            parts.append("Female traveler – include women-specific safety tips when relevant.")
+
+        # Gender-aware safety
+        gender = ctx.get("gender", "").lower()
+        if gender == "female":
+            parts.append("Female traveler – include women-specific safety tips, recommend women-friendly accommodations, suggest well-lit and populated areas, and consider cultural dress code guidance.")
+        elif gender:
+            parts.append(f"Traveler gender: {gender}.")
+
+        # Solo travel
         if ctx.get("traveling_alone"):
-            parts.append("Solo traveler – mention solo safety tips.")
-        if ctx.get("accessibility_needs"):
-            parts.append(f"Accessibility needs: {ctx['accessibility_needs']}.")
+            parts.append("Solo traveler – prioritize well-lit populated areas, verified services, and include solo safety tips. Suggest group tours for remote areas.")
+
+        # Nationality-aware recommendations
+        nationality = ctx.get("nationality") or ctx.get("country_of_origin")
+        if nationality:
+            parts.append(f"Traveler nationality: {nationality}. Consider relevant visa tips, cultural connection points, and include their embassy contact in safety recommendations.")
+
+        # Disability / Accessibility – detailed per type
+        accessibility = ctx.get("accessibility_needs")
+        if accessibility:
+            if isinstance(accessibility, list):
+                accessibility = ", ".join(accessibility)
+            parts.append(f"Accessibility requirements: {accessibility}.")
+
+        wheelchair = ctx.get("wheelchair_access")
+        visual = ctx.get("visual_assistance")
+        hearing = ctx.get("hearing_assistance")
+        mobility = ctx.get("mobility_support")
+        sensory = ctx.get("sensory_sensitivity")
+
+        if wheelchair:
+            parts.append("Wheelchair user – ONLY suggest wheelchair-accessible venues, ramps, accessible transportation. Avoid sites with stairs-only access like certain tombs.")
+        if visual:
+            parts.append("Visually impaired traveler – suggest audio-guided tours, tactile experiences, and avoid activities requiring sight. Ensure all locations have accessible pathways.")
+        if hearing:
+            parts.append("Hearing impaired traveler – recommend visual-centric experiences, written guides, and ensure emergency contact methods don't rely solely on phone calls.")
+        if mobility:
+            parts.append("Mobility impaired traveler – limit walking distances, suggest accessible transport, and avoid uneven terrain. Include rest stops between activities.")
+        if sensory:
+            parts.append("Sensory sensitivity – avoid very crowded or loud locations during peak hours. Suggest quieter visiting times and calm environments.")
+
+        # Dietary restrictions
+        if ctx.get("dietary_restrictions_flag") or ctx.get("dietary_restrictions"):
+            diet = ctx.get("dietary_restrictions", "has dietary restrictions")
+            parts.append(f"Dietary needs: {diet}. Suggest restaurants that accommodate these restrictions.")
+
+        # First-time visitor
         if ctx.get("first_time_egypt"):
-            parts.append("First-time visitor to Egypt.")
+            parts.append("First-time visitor to Egypt – include practical tips about currency, tipping customs, transportation, and cultural etiquette.")
+
+        # Language
+        language = ctx.get("preferred_language") or ctx.get("language")
+        if language:
+            parts.append(f"Preferred language: {language}. Consider language barriers at suggested locations.")
+
+        # Budget range
+        budget_min = ctx.get("budget_min") or ctx.get("typical_budget_min")
+        budget_max = ctx.get("budget_max") or ctx.get("typical_budget_max")
+        if budget_min or budget_max:
+            parts.append(f"Budget range: ${budget_min or '?'} – ${budget_max or '?'} per day.")
+
+        # Interests
+        interests = ctx.get("interests") or ctx.get("travel_interests")
+        if interests:
+            if isinstance(interests, list):
+                interests = ", ".join(interests)
+            parts.append(f"Travel interests: {interests}.")
+
         if parts:
-            return "User profile:\n" + "\n".join(parts)
+            return "TRAVELER PROFILE (use this to personalize the itinerary for safety and comfort):\n" + "\n".join(parts)
         return ""
 
 

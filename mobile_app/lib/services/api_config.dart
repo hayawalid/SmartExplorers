@@ -4,7 +4,7 @@ class ApiConfig {
   // For iOS Simulator: Use http://localhost:8000
   // For Android Emulator: Use http://10.0.2.2:8000
   // For Physical Device: Use your computer's IP (e.g., http://192.168.1.100:8000)
-  static const String baseUrl = 'http://localhost:8000';
+  static const String baseUrl = 'http://10.0.2.2:8000';
 
   // ── OFFLINE / MOCK MODE ──────────────────────────────────────────────
   // Set to true to bypass all network calls and use hardcoded dummy data.
@@ -24,6 +24,7 @@ class ApiConfig {
   static const String marketplaceEndpoint = '/api/v1/marketplace';
   static const String safetyEndpoint = '/api/v1/safety';
   static const String preferencesEndpoint = '/api/v1/preferences';
+  static const String adminEndpoint = '/api/v1/admin';
 
   // Demo users (until auth is added)
   static const String demoTravelerUsername = 'sarah_explorer';

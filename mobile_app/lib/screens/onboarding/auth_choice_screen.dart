@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
 import '../../theme/app_theme.dart';
+import '../../widgets/smart_explorers_logo.dart';
 import 'account_type_screen.dart';
 import 'login_screen.dart';
 
@@ -50,7 +51,10 @@ class _AuthChoiceScreenState extends State<AuthChoiceScreen>
           fit: StackFit.expand,
           children: [
             // ── Full-bleed cinematic photograph ──
-            Image.asset('lib/public/onboarding_bg.jpg', fit: BoxFit.cover),
+            Image.asset(
+              'lib/public/WhatsApp Image 2026-02-12 at 2.12.53 PM.jpeg',
+              fit: BoxFit.cover,
+            ),
 
             // ── Dark cinematic gradient overlay ──
             Container(
@@ -151,7 +155,7 @@ class _AuthChoiceScreenState extends State<AuthChoiceScreen>
                               );
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppDesign.electricCobalt,
+                              backgroundColor: AppDesign.onboardingAccent,
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(

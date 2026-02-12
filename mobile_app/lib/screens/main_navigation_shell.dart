@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
 import '../theme/app_theme.dart';
+import '../widgets/smart_explorers_logo.dart';
 import 'itinerary_planner_screen.dart';
 import 'feed_screen.dart';
 import 'profile_screen.dart';
@@ -10,7 +11,7 @@ import 'smart_match_screen.dart';
 import 'safety_hub_screen.dart';
 
 /// Main navigation shell – 5-tab floating bottom bar
-/// Uses outlined → filled Lucide icons with Electric Cobalt accent
+/// Each tab has a unique accent color
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({Key? key}) : super(key: key);
 
@@ -29,30 +30,35 @@ class _MainNavigationShellState extends State<MainNavigationShell>
       activeIcon: LucideIcons.compass,
       label: 'Explore',
       semanticLabel: 'Community Feed',
+      activeColor: AppDesign.navExplore,
     ),
     _NavTab(
       icon: LucideIcons.briefcase,
       activeIcon: LucideIcons.briefcase,
       label: 'Concierge',
       semanticLabel: 'Accepted trips and matching',
+      activeColor: AppDesign.navConcierge,
     ),
     _NavTab(
       icon: LucideIcons.sparkles,
       activeIcon: LucideIcons.sparkles,
       label: 'Itinerary',
       semanticLabel: 'AI Itinerary Planner',
+      activeColor: AppDesign.navItinerary,
     ),
     _NavTab(
       icon: LucideIcons.shield,
       activeIcon: LucideIcons.shield,
       label: 'Safety',
       semanticLabel: 'Emergency services',
+      activeColor: AppDesign.navSafety,
     ),
     _NavTab(
       icon: LucideIcons.user,
       activeIcon: LucideIcons.user,
       label: 'Profile',
       semanticLabel: 'Account management',
+      activeColor: AppDesign.navProfile,
     ),
   ];
 
@@ -154,6 +160,7 @@ class _FloatingNavBar extends StatelessWidget {
             children: List.generate(tabs.length, (i) {
               final isActive = i == currentIndex;
               final tab = tabs[i];
+              final tabColor = isActive ? tab.activeColor : inactive;
               return Semantics(
                 button: true,
                 selected: isActive,
@@ -177,7 +184,7 @@ class _FloatingNavBar extends StatelessWidget {
                         borderRadius: BorderRadius.circular(18),
                         color:
                             isActive
-                                ? AppDesign.electricCobalt.withOpacity(0.12)
+                                ? tab.activeColor.withOpacity(0.12)
                                 : Colors.transparent,
                       ),
                       child: Column(
@@ -187,8 +194,7 @@ class _FloatingNavBar extends StatelessWidget {
                           Icon(
                             isActive ? tab.activeIcon : tab.icon,
                             size: 22,
-                            color:
-                                isActive ? AppDesign.electricCobalt : inactive,
+                            color: tabColor,
                           ),
                           const SizedBox(height: 4),
                           AnimatedDefaultTextStyle(
@@ -197,10 +203,7 @@ class _FloatingNavBar extends StatelessWidget {
                               fontSize: 10,
                               fontWeight:
                                   isActive ? FontWeight.w600 : FontWeight.w400,
-                              color:
-                                  isActive
-                                      ? AppDesign.electricCobalt
-                                      : inactive,
+                              color: tabColor,
                               letterSpacing: 0.1,
                             ),
                             child: Text(tab.label),
@@ -226,10 +229,12 @@ class _NavTab {
     required this.activeIcon,
     required this.label,
     required this.semanticLabel,
+    required this.activeColor,
   });
 
   final IconData icon;
   final IconData activeIcon;
   final String label;
   final String semanticLabel;
+  final Color activeColor;
 }

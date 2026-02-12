@@ -2,51 +2,92 @@
 RAG Service with ChromaDB for Egypt Destinations
 Semantic search over destinations data
 """
+import sys
 import json
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-import chromadb
-from chromadb.config import Settings
-from chromadb.utils import embedding_functions
+
+# Try to patch sqlite3 on Windows where the bundled version is too old
+try:
+    __import__('pysqlite3')
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+except ImportError:
+    pass  # pysqlite3 not installed; will fall back gracefully below
+
+# Try to import ChromaDB (requires sqlite3 >= 3.35.0)
+try:
+    import chromadb
+    from chromadb.config import Settings as ChromaSettings
+    from chromadb.utils import embedding_functions
+    CHROMADB_AVAILABLE = True
+except Exception:
+    CHROMADB_AVAILABLE = False
 
 
 class DestinationRAG:
-    """RAG system for semantic search over Egypt destinations"""
+    """RAG system for semantic search over Egypt destinations.
+    Falls back to simple keyword search if ChromaDB is unavailable."""
     
     def __init__(self):
-        """Initialize ChromaDB and load destinations"""
+        """Initialize ChromaDB (or fallback) and load destinations"""
         
-        # Initialize ChromaDB client (persistent storage)
-        self.client = chromadb.PersistentClient(
-            path="./chroma_db",
-            settings=Settings(
-                anonymized_telemetry=False,
-                allow_reset=True
-            )
-        )
+        self._fallback_destinations: List[Dict[str, Any]] = []
+        self.collection = None
         
-        # Use sentence transformers for embeddings (free, local)
-        self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name="all-MiniLM-L6-v2"  # Fast, good quality
-        )
+        if not CHROMADB_AVAILABLE:
+            print("⚠️  ChromaDB unavailable (SQLite too old). Using keyword fallback.")
+            self._load_fallback_destinations()
+            return
         
-        # Get or create collection
-        self.collection_name = "egypt_destinations"
         try:
-            self.collection = self.client.get_collection(
-                name=self.collection_name,
-                embedding_function=self.embedding_function
+            # Initialize ChromaDB client (persistent storage)
+            self.client = chromadb.PersistentClient(
+                path="./chroma_db",
+                settings=ChromaSettings(
+                    anonymized_telemetry=False,
+                    allow_reset=True
+                )
             )
-            print(f"✓ Loaded existing ChromaDB collection: {self.collection_name}")
-        except:
-            self.collection = self.client.create_collection(
-                name=self.collection_name,
-                embedding_function=self.embedding_function,
-                metadata={"description": "Egypt tourism destinations with semantic search"}
+        
+            # Use sentence transformers for embeddings (free, local)
+            self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name="all-MiniLM-L6-v2"  # Fast, good quality
             )
-            print(f"✓ Created new ChromaDB collection: {self.collection_name}")
-            # Load and index destinations
-            self._load_and_index_destinations()
+            
+            # Get or create collection
+            self.collection_name = "egypt_destinations"
+            try:
+                self.collection = self.client.get_collection(
+                    name=self.collection_name,
+                    embedding_function=self.embedding_function
+                )
+                print(f"\u2713 Loaded existing ChromaDB collection: {self.collection_name}")
+            except:
+                self.collection = self.client.create_collection(
+                    name=self.collection_name,
+                    embedding_function=self.embedding_function,
+                    metadata={"description": "Egypt tourism destinations with semantic search"}
+                )
+                print(f"\u2713 Created new ChromaDB collection: {self.collection_name}")
+                # Load and index destinations
+                self._load_and_index_destinations()
+        except Exception as e:
+            print(f"\u26a0\ufe0f  ChromaDB init failed ({e}). Using keyword fallback.")
+            self.collection = None
+            self._load_fallback_destinations()
+    
+    def _load_fallback_destinations(self):
+        """Load destinations from JSON for simple keyword search (no ChromaDB)"""
+        try:
+            current_dir = Path(__file__).parent.parent
+            json_path = current_dir / "data" / "egypt_destinations.json"
+            if json_path.exists():
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                self._fallback_destinations = data.get("destinations", [])
+                print(f"\u2713 Loaded {len(self._fallback_destinations)} destinations (keyword mode)")
+        except Exception as e:
+            print(f"\u26a0\ufe0f  Could not load destinations: {e}")
     
     def _load_and_index_destinations(self):
         """Load destinations from JSON and index in ChromaDB"""
@@ -135,16 +176,35 @@ class DestinationRAG:
         filters: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """
-        Semantic search for destinations
-        
-        Args:
-            query: Natural language query (e.g., "ancient temples with good accessibility")
-            n_results: Number of results to return
-            filters: Optional metadata filters (e.g., {"safety_level": "high"})
-        
-        Returns:
-            List of matching destinations with metadata
+        Semantic search for destinations (or keyword fallback)
         """
+        
+        # ---- Keyword fallback when ChromaDB is unavailable ----
+        if self.collection is None:
+            query_lower = query.lower()
+            scored = []
+            for dest in self._fallback_destinations:
+                text = json.dumps(dest, default=str).lower()
+                score = sum(1 for word in query_lower.split() if word in text)
+                if score > 0:
+                    scored.append((score, dest))
+            scored.sort(key=lambda x: x[0], reverse=True)
+            return [
+                {
+                    "name": d.get("name", ""),
+                    "safety_level": d.get("safety_level", "medium"),
+                    "accessibility": d.get("accessibility", "moderate"),
+                    "best_time": d.get("best_time", "Oct-Apr"),
+                    "avg_budget_low": d.get("avg_daily_budget", {}).get("low", 30),
+                    "avg_budget_mid": d.get("avg_daily_budget", {}).get("mid", 70),
+                    "avg_budget_high": d.get("avg_daily_budget", {}).get("high", 150),
+                    "description": d.get("description", ""),
+                    "attractions": d.get("attractions", []),
+                }
+                for _, d in scored[:n_results]
+            ]
+        
+        # ---- ChromaDB semantic search ----
         
         # Build where clause for filtering
         where_clause = None
@@ -176,6 +236,23 @@ class DestinationRAG:
     
     def get_destinations_by_names(self, destination_names: List[str]) -> List[Dict[str, Any]]:
         """Get full destination data by name"""
+        
+        # Fallback mode
+        if self.collection is None:
+            results = []
+            for name in destination_names:
+                for d in self._fallback_destinations:
+                    if d.get("name", "").lower() == name.lower():
+                        results.append({
+                            "name": d.get("name", ""),
+                            "description": d.get("description", ""),
+                            "attractions": d.get("attractions", []),
+                            "safety_level": d.get("safety_level", "medium"),
+                            "accessibility": d.get("accessibility", "moderate"),
+                            "best_time": d.get("best_time", ""),
+                        })
+                        break
+            return results
         
         destinations = []
         
@@ -251,6 +328,9 @@ class DestinationRAG:
     
     def reset_database(self):
         """Reset ChromaDB (useful for updates)"""
+        if self.collection is None:
+            self._load_fallback_destinations()
+            return
         try:
             self.client.delete_collection(name=self.collection_name)
             print(f"✓ Deleted collection: {self.collection_name}")

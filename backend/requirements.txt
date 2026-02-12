@@ -30,4 +30,6 @@ pymongo==4.6.1
 bcrypt
 sentence-transformers
 chromadb
-"pydantic[email]"
+email-validator
+geopy
+groq

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/semantics.dart';
 import 'dart:ui';
+import '../widgets/smart_explorers_logo.dart';
 import '../services/profile_api_service.dart';
 import '../services/safety_api_service.dart';
 import '../services/api_config.dart';
@@ -24,6 +25,7 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
   final ProfileApiService _profileService = ProfileApiService();
   final SafetyApiService _safetyService = SafetyApiService();
   List<Map<String, dynamic>> _contacts = [];
+  String _emergencyNumber = '122';
   final TextEditingController _contactNameController = TextEditingController();
   final TextEditingController _contactPhoneController = TextEditingController();
 
@@ -46,14 +48,61 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
       final safetyProfile = await _safetyService.getSafetyProfile(userId);
       final contacts = await _safetyService.getEmergencyContacts(userId);
 
+      // Get user profile country
+      String country = 'Egypt';
+      try {
+        final profile = await _profileService.getTravelerProfile(userId);
+        country =
+            profile?['country_of_origin'] ?? profile?['nationality'] ?? 'Egypt';
+      } catch (_) {}
+
       setState(() {
         _userId = userId;
         _isTracking = safetyProfile['live_tracking_enabled'] == true;
         _contacts = contacts;
+        _userCountry = country;
+        _emergencyNumber = _getEmergencyNumberForCountry(country);
       });
     } catch (_) {
       // Keep defaults on error
     }
+  }
+
+  static String _getEmergencyNumberForCountry(String country) {
+    final c = country.toLowerCase();
+    const numbers = {
+      'egypt': '122',
+      'united states': '911',
+      'usa': '911',
+      'united kingdom': '999',
+      'uk': '999',
+      'japan': '110',
+      'saudi arabia': '999',
+      'uae': '999',
+      'turkey': '155',
+      'india': '112',
+      'germany': '112',
+      'france': '17',
+      'italy': '112',
+      'spain': '112',
+      'morocco': '19',
+      'brazil': '190',
+      'australia': '000',
+      'canada': '911',
+      'china': '110',
+      'south korea': '112',
+      'mexico': '911',
+      'russia': '112',
+      'south africa': '10111',
+      'thailand': '191',
+      'jordan': '911',
+      'lebanon': '112',
+      'tunisia': '197',
+    };
+    for (final entry in numbers.entries) {
+      if (c.contains(entry.key)) return entry.value;
+    }
+    return '112';
   }
 
   @override
@@ -150,6 +199,8 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
   Widget _buildHeader(Color textColor, Color secondaryTextColor, bool isDark) {
     return Row(
       children: [
+        const SmartExplorersLogo(size: LogoSize.tiny, showText: false),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,7 +466,7 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
     final actions = [
       {
         'icon': CupertinoIcons.phone_fill,
-        'label': 'Call 122',
+        'label': 'Call $_emergencyNumber',
         'color': Color(0xFF667eea),
       },
       {

@@ -70,6 +70,9 @@ class SignupRequest(BaseModel):
     preferred_language: Optional[str] = None
     travel_interests: Optional[List[str]] = None
     accessibility_needs: Optional[List[str]] = None
+    # Common optional fields
+    date_of_birth: Optional[str] = None
+    gender: Optional[str] = None
     # Provider-specific onboarding fields (optional)
     service_type: Optional[str] = None
     bio: Optional[str] = None
@@ -108,6 +111,8 @@ async def signup(body: SignupRequest, request: Request):
         "phone_number": body.phone_number,
         "avatar_url": None,
         "bio": body.bio,
+        "date_of_birth": body.date_of_birth,
+        "gender": body.gender,
         "is_verified": False,
         "is_active": True,
         "created_at": now,

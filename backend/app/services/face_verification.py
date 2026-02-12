@@ -5,16 +5,23 @@ Uses DeepFace for face detection and verification
 
 from typing import Dict, Tuple, Optional
 import io
-import numpy as np
-from PIL import Image
-import cv2
+
+try:
+    import numpy as np
+    from PIL import Image
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
 
 try:
     from deepface import DeepFace
     DEEPFACE_AVAILABLE = True
 except ImportError:
     DEEPFACE_AVAILABLE = False
-    print("⚠️  DeepFace not installed. Face verification will use mock mode.")
+
+if not CV2_AVAILABLE or not DEEPFACE_AVAILABLE:
+    print("⚠️  OpenCV/DeepFace not installed. Face verification will use mock mode.")
 
 
 class FaceVerificationService:
@@ -22,7 +29,7 @@ class FaceVerificationService:
     
     def __init__(self):
         """Initialize face verification service"""
-        self.deepface_available = DEEPFACE_AVAILABLE
+        self.deepface_available = DEEPFACE_AVAILABLE and CV2_AVAILABLE
         self.model_name = "VGG-Face"  # Options: VGG-Face, Facenet, OpenFace, DeepFace
         self.distance_metric = "cosine"  # Options: cosine, euclidean, euclidean_l2
         self.confidence_threshold = 0.70  # 70% confidence threshold

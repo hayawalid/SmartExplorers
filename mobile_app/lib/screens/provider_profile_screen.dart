@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
+import '../theme/app_theme.dart';
+import '../widgets/smart_explorers_logo.dart';
 import '../services/session_store.dart';
 import '../services/profile_api_service.dart';
 import '../services/api_config.dart';
@@ -215,11 +217,10 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final backgroundColor =
-        isDark ? const Color(0xFF0A0A0F) : const Color(0xFFF8F9FA);
-    final cardColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF1A1A2E);
-    final subtitleColor = isDark ? Colors.white70 : const Color(0xFF6B7280);
+    final backgroundColor = isDark ? AppDesign.eerieBlack : AppDesign.offWhite;
+    final cardColor = isDark ? AppDesign.cardDark : Colors.white;
+    final textColor = isDark ? Colors.white : AppDesign.eerieBlack;
+    final subtitleColor = isDark ? Colors.white54 : AppDesign.midGrey;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -232,13 +233,23 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
                 pinned: true,
                 backgroundColor: cardColor.withValues(alpha: 0.95),
                 elevation: 0,
-                title: Text(
-                  'My Profile',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 17,
-                    color: textColor,
-                  ),
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SmartExplorersLogo(
+                      size: LogoSize.tiny,
+                      showText: false,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'My Profile',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 17,
+                        color: textColor,
+                      ),
+                    ),
+                  ],
                 ),
                 actions: [
                   CupertinoButton(
@@ -319,11 +330,14 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFF093FB), Color(0xFFF5576C)],
+                    colors: [
+                      AppDesign.navConcierge,
+                      AppDesign.onboardingAccent,
+                    ],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFF093FB).withValues(alpha: 0.4),
+                      color: AppDesign.navConcierge.withValues(alpha: 0.4),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
@@ -341,8 +355,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
                         colors: [
-                          const Color(0xFFF093FB).withValues(alpha: 0.3),
-                          const Color(0xFFF5576C).withValues(alpha: 0.3),
+                          AppDesign.navConcierge.withValues(alpha: 0.3),
+                          AppDesign.onboardingAccent.withValues(alpha: 0.3),
                         ],
                       ),
                     ),
@@ -441,7 +455,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFF093FB).withValues(alpha: 0.15),
+              color: AppDesign.navConcierge.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -449,7 +463,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFFF093FB),
+                color: AppDesign.navConcierge,
               ),
             ),
           ),
@@ -560,7 +574,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
       color: cardColor,
       child: TabBar(
         controller: _tabController,
-        indicatorColor: const Color(0xFFF093FB),
+        indicatorColor: AppDesign.navConcierge,
         indicatorWeight: 2,
         labelColor: textColor,
         unselectedLabelColor: subtitleColor,
@@ -658,13 +672,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: const Color(0xFFF093FB),
+                          color: AppDesign.navConcierge,
                           width: 2,
                         ),
                       ),
                       child: const Icon(
                         CupertinoIcons.plus,
-                        color: Color(0xFFF093FB),
+                        color: AppDesign.navConcierge,
                         size: 28,
                       ),
                     ),
@@ -686,7 +700,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
           final item = _portfolio[index - 1];
           final gradients = [
             [const Color(0xFF667EEA), const Color(0xFF764BA2)],
-            [const Color(0xFFF093FB), const Color(0xFFF5576C)],
+            [AppDesign.navConcierge, AppDesign.onboardingAccent],
             [const Color(0xFF11998E), const Color(0xFF38EF7D)],
             [const Color(0xFF4FACFE), const Color(0xFF00F2FE)],
             [const Color(0xFFD4AF37), const Color(0xFFB8860B)],
@@ -799,7 +813,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
               color: cardColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFFF093FB).withValues(alpha: 0.5),
+                color: AppDesign.navConcierge.withValues(alpha: 0.5),
                 width: 2,
                 style: BorderStyle.solid,
               ),
@@ -810,12 +824,12 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF093FB).withValues(alpha: 0.15),
+                    color: AppDesign.navConcierge.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     CupertinoIcons.plus,
-                    color: Color(0xFFF093FB),
+                    color: AppDesign.navConcierge,
                     size: 24,
                   ),
                 ),
@@ -954,8 +968,10 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                const Color(0xFFF093FB).withValues(alpha: isDark ? 0.15 : 0.1),
-                const Color(0xFFF5576C).withValues(alpha: isDark ? 0.15 : 0.1),
+                AppDesign.navConcierge.withValues(alpha: isDark ? 0.15 : 0.1),
+                AppDesign.onboardingAccent.withValues(
+                  alpha: isDark ? 0.15 : 0.1,
+                ),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
@@ -1296,7 +1312,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
                         icon: CupertinoIcons.square_arrow_right,
                         title: 'Log Out',
                         onTap: () {},
-                        textColor: const Color(0xFFF5576C),
+                        textColor: AppDesign.onboardingAccent,
                         subtitleColor: subtitleColor,
                         isDestructive: true,
                       ),
@@ -1334,7 +1350,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
             Icon(
               icon,
               size: 24,
-              color: isDestructive ? const Color(0xFFF5576C) : textColor,
+              color: isDestructive ? AppDesign.onboardingAccent : textColor,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -1343,7 +1359,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: isDestructive ? const Color(0xFFF5576C) : textColor,
+                  color: isDestructive ? AppDesign.onboardingAccent : textColor,
                 ),
               ),
             ),

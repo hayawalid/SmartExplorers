@@ -3,6 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../widgets/animated_builder.dart';
+import '../widgets/smart_explorers_logo.dart';
+import '../services/safety_api_service.dart';
+import '../services/session_store.dart';
+import '../services/profile_api_service.dart';
 
 /// Tab 5: Safety Hub
 /// High-visibility layout with large SOS button
@@ -18,56 +22,15 @@ class _SafetyHubScreenState extends State<SafetyHubScreen>
     with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late final AnimationController _sosController;
   bool _isTracking = true;
+  final SafetyApiService _safetyService = SafetyApiService();
+  final ProfileApiService _profileService = ProfileApiService();
 
-  // Demo emergency contacts for Egypt
-  final List<_EmergencyContact> _contacts = const [
-    _EmergencyContact(
-      name: 'Tourist Police',
-      number: '126',
-      icon: LucideIcons.shield,
-      color: Color(0xFF1A1A1A),
-    ),
-    _EmergencyContact(
-      name: 'Ambulance',
-      number: '123',
-      icon: LucideIcons.heartPulse,
-      color: Color(0xFFFF3B5C),
-    ),
-    _EmergencyContact(
-      name: 'Embassy (US)',
-      number: '+20 2 2797 3300',
-      icon: LucideIcons.landmark,
-      color: Color(0xFF00C566),
-    ),
-    _EmergencyContact(
-      name: 'Fire Department',
-      number: '180',
-      icon: LucideIcons.flame,
-      color: Color(0xFFFFA726),
-    ),
-    _EmergencyContact(
-      name: 'Local Police',
-      number: '122',
-      icon: LucideIcons.siren,
-      color: Color(0xFF9B59B6),
-    ),
-  ];
-
-  // Personal emergency contacts
-  final List<_EmergencyContact> _personalContacts = const [
-    _EmergencyContact(
-      name: 'Mom',
-      number: '+1 555 0101',
-      icon: LucideIcons.userCircle,
-      color: Color(0xFFFF6B6B),
-    ),
-    _EmergencyContact(
-      name: 'Travel Insurance',
-      number: '+44 800 123 456',
-      icon: LucideIcons.fileCheck,
-      color: Color(0xFF1A1A1A),
-    ),
-  ];
+  List<_EmergencyContact> _contacts = [];
+  List<_EmergencyContact> _personalContacts = [];
+  bool _loadingContacts = true;
+  String _locationLabel = '';
+  String _currencySymbol = '';
+  String _currencyCode = '';
 
   @override
   void initState() {
@@ -76,12 +39,165 @@ class _SafetyHubScreenState extends State<SafetyHubScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
+    _loadEmergencyData();
   }
 
   @override
   void dispose() {
     _sosController.dispose();
+    _safetyService.dispose();
+    _profileService.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadEmergencyData() async {
+    final userId = SessionStore.instance.userId;
+    if (userId == null) {
+      setState(() => _loadingContacts = false);
+      return;
+    }
+
+    try {
+      // Get user profile to find their country of origin
+      final username = SessionStore.instance.username ?? '';
+      Map<String, dynamic>? user;
+      if (username.isNotEmpty) {
+        user = await _profileService.getUserByUsername(username);
+      }
+
+      String country = 'Egypt';
+      String location = '';
+      if (user != null) {
+        // Try to get traveler profile for country
+        try {
+          final profile = await _profileService.getTravelerProfile(
+            user['_id'] ?? userId,
+          );
+          country =
+              profile?['country_of_origin'] ??
+              profile?['nationality'] ??
+              'Egypt';
+          location = profile?['current_city'] ?? profile?['city'] ?? '';
+        } catch (_) {}
+      }
+
+      // Derive currency from country
+      final currencyInfo = _getCurrencyForCountry(country);
+
+      // Fetch emergency numbers from backend (includes embassy based on country)
+      List<_EmergencyContact> localContacts = [];
+      try {
+        final response = await _safetyService.getEmergencyNumbers(country);
+        final numbers = response['emergency_numbers'] as List<dynamic>? ?? [];
+        for (final n in numbers) {
+          localContacts.add(
+            _EmergencyContact(
+              name: n['name'] ?? '',
+              number: n['number'] ?? '',
+              icon: _iconFromString(n['icon'] ?? 'shield'),
+              color:
+                  n['category'] == 'embassy'
+                      ? const Color(0xFF00C566)
+                      : _colorForEmergency(n['icon'] ?? 'shield'),
+            ),
+          );
+        }
+      } catch (_) {
+        // Fallback to basic numbers if API fails
+        localContacts = const [
+          _EmergencyContact(
+            name: 'Tourist Police',
+            number: '126',
+            icon: LucideIcons.shield,
+            color: Color(0xFF4A90D9),
+          ),
+          _EmergencyContact(
+            name: 'Ambulance',
+            number: '123',
+            icon: LucideIcons.heartPulse,
+            color: Color(0xFFFF3B5C),
+          ),
+          _EmergencyContact(
+            name: 'Fire Department',
+            number: '180',
+            icon: LucideIcons.flame,
+            color: Color(0xFFFFA726),
+          ),
+          _EmergencyContact(
+            name: 'Local Police',
+            number: '122',
+            icon: LucideIcons.siren,
+            color: Color(0xFF9B59B6),
+          ),
+        ];
+      }
+
+      // Fetch personal emergency contacts from DB
+      List<_EmergencyContact> personalContacts = [];
+      try {
+        final dbContacts = await _safetyService.getEmergencyContacts(userId);
+        for (final c in dbContacts) {
+          personalContacts.add(
+            _EmergencyContact(
+              name: c['name'] ?? 'Contact',
+              number: c['phone_number'] ?? c['number'] ?? '',
+              icon: LucideIcons.userCircle,
+              color: const Color(0xFFE8604C),
+              dbId: c['_id'],
+            ),
+          );
+        }
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _contacts = localContacts;
+          _personalContacts = personalContacts;
+          _locationLabel = location.isNotEmpty ? location : country;
+          _currencySymbol = currencyInfo['symbol'] ?? '\$';
+          _currencyCode = currencyInfo['code'] ?? 'USD';
+          _loadingContacts = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingContacts = false);
+    }
+  }
+
+  IconData _iconFromString(String icon) {
+    switch (icon) {
+      case 'shield':
+        return LucideIcons.shield;
+      case 'heart_pulse':
+        return LucideIcons.heartPulse;
+      case 'flame':
+        return LucideIcons.flame;
+      case 'siren':
+        return LucideIcons.siren;
+      case 'landmark':
+        return LucideIcons.landmark;
+      case 'car':
+        return LucideIcons.car;
+      default:
+        return LucideIcons.phone;
+    }
+  }
+
+  Color _colorForEmergency(String icon) {
+    switch (icon) {
+      case 'shield':
+        return const Color(0xFF4A90D9);
+      case 'heart_pulse':
+        return const Color(0xFFFF3B5C);
+      case 'flame':
+        return const Color(0xFFFFA726);
+      case 'siren':
+        return const Color(0xFF9B59B6);
+      case 'car':
+        return const Color(0xFF11998E);
+      default:
+        return const Color(0xFF4A90D9);
+    }
   }
 
   @override
@@ -110,12 +226,11 @@ class _SafetyHubScreenState extends State<SafetyHubScreen>
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
               child: Row(
                 children: [
-                  Icon(
-                    LucideIcons.shield,
-                    color: AppDesign.electricCobalt,
-                    size: 24,
+                  const SmartExplorersLogo(
+                    size: LogoSize.tiny,
+                    showText: false,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Text(
                     'Safety Hub',
                     style: Theme.of(
@@ -212,24 +327,39 @@ class _SafetyHubScreenState extends State<SafetyHubScreen>
             const SizedBox(height: 24),
 
             // ── Local Emergency Contacts ─────────────────────────────
-            _sectionTitle('Local Emergency — Cairo', text),
+            _sectionTitle('Local Emergency — $_locationLabel', text),
             const SizedBox(height: 8),
-            ..._contacts.map((c) => _contactTile(c, isDark, card, text, sub)),
+            if (_loadingContacts)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else
+              ..._contacts.map((c) => _contactTile(c, isDark, card, text, sub)),
             const SizedBox(height: 20),
 
             // ── Personal Contacts ────────────────────────────────────
             _sectionTitle('Personal Contacts', text),
             const SizedBox(height: 8),
-            ..._personalContacts.map(
-              (c) => _contactTile(c, isDark, card, text, sub),
-            ),
+            if (_personalContacts.isEmpty && !_loadingContacts)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  'No personal contacts yet.',
+                  style: TextStyle(fontSize: 13, color: sub),
+                ),
+              )
+            else
+              ..._personalContacts.map(
+                (c) => _contactTile(c, isDark, card, text, sub),
+              ),
             const SizedBox(height: 8),
 
             // Add contact button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: () => _showAddContactDialog(),
                 icon: const Icon(LucideIcons.userPlus, size: 18),
                 label: const Text('Add Emergency Contact'),
                 style: OutlinedButton.styleFrom(
@@ -274,9 +404,76 @@ class _SafetyHubScreenState extends State<SafetyHubScreen>
               LucideIcons.shieldCheck,
               'Only book verified SmartExplorers service providers.',
             ),
+            if (_currencyCode.isNotEmpty)
+              _tipCard(
+                isDark,
+                card,
+                text,
+                sub,
+                LucideIcons.wallet,
+                'Local currency: $_currencyCode ($_currencySymbol). Use trusted exchange offices or ATMs.',
+              ),
           ],
         ),
       ),
+    );
+  }
+
+  // ── Add Contact Dialog ──────────────────────────────────────────────
+  void _showAddContactDialog() {
+    final nameController = TextEditingController();
+    final numberController = TextEditingController();
+    showDialog(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Add Emergency Contact'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Name',
+                    hintText: 'e.g. Mom',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: numberController,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number',
+                    hintText: '+1 555 0101',
+                  ),
+                  keyboardType: TextInputType.phone,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (nameController.text.isEmpty ||
+                      numberController.text.isEmpty)
+                    return;
+                  Navigator.pop(ctx);
+                  final userId = SessionStore.instance.userId;
+                  if (userId == null) return;
+                  try {
+                    await _safetyService.addEmergencyContact(userId, {
+                      'name': nameController.text,
+                      'phone_number': numberController.text,
+                    });
+                    _loadEmergencyData();
+                  } catch (_) {}
+                },
+                child: const Text('Add'),
+              ),
+            ],
+          ),
     );
   }
 
@@ -352,10 +549,75 @@ class _SafetyHubScreenState extends State<SafetyHubScreen>
         children: [
           Icon(LucideIcons.mapPin, size: 13, color: sub),
           const SizedBox(width: 4),
-          Text('Cairo', style: TextStyle(fontSize: 12, color: sub)),
+          Text(
+            _locationLabel.isNotEmpty ? _locationLabel : 'Loading...',
+            style: TextStyle(fontSize: 12, color: sub),
+          ),
+          if (_currencyCode.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color:
+                    isDark
+                        ? Colors.white.withOpacity(0.08)
+                        : Colors.black.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                _currencyCode,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: sub,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  /// Returns currency symbol and code based on country name.
+  static Map<String, String> _getCurrencyForCountry(String country) {
+    final c = country.toLowerCase();
+    const map = {
+      'egypt': {'symbol': 'E£', 'code': 'EGP'},
+      'united states': {'symbol': '\$', 'code': 'USD'},
+      'usa': {'symbol': '\$', 'code': 'USD'},
+      'united kingdom': {'symbol': '£', 'code': 'GBP'},
+      'uk': {'symbol': '£', 'code': 'GBP'},
+      'japan': {'symbol': '¥', 'code': 'JPY'},
+      'saudi arabia': {'symbol': '﷼', 'code': 'SAR'},
+      'uae': {'symbol': 'د.إ', 'code': 'AED'},
+      'united arab emirates': {'symbol': 'د.إ', 'code': 'AED'},
+      'turkey': {'symbol': '₺', 'code': 'TRY'},
+      'india': {'symbol': '₹', 'code': 'INR'},
+      'germany': {'symbol': '€', 'code': 'EUR'},
+      'france': {'symbol': '€', 'code': 'EUR'},
+      'italy': {'symbol': '€', 'code': 'EUR'},
+      'spain': {'symbol': '€', 'code': 'EUR'},
+      'morocco': {'symbol': 'MAD', 'code': 'MAD'},
+      'brazil': {'symbol': 'R\$', 'code': 'BRL'},
+      'australia': {'symbol': 'A\$', 'code': 'AUD'},
+      'canada': {'symbol': 'C\$', 'code': 'CAD'},
+      'china': {'symbol': '¥', 'code': 'CNY'},
+      'south korea': {'symbol': '₩', 'code': 'KRW'},
+      'mexico': {'symbol': '\$', 'code': 'MXN'},
+      'russia': {'symbol': '₽', 'code': 'RUB'},
+      'south africa': {'symbol': 'R', 'code': 'ZAR'},
+      'thailand': {'symbol': '฿', 'code': 'THB'},
+      'malaysia': {'symbol': 'RM', 'code': 'MYR'},
+      'indonesia': {'symbol': 'Rp', 'code': 'IDR'},
+      'jordan': {'symbol': 'JD', 'code': 'JOD'},
+      'lebanon': {'symbol': 'L£', 'code': 'LBP'},
+      'tunisia': {'symbol': 'DT', 'code': 'TND'},
+    };
+    for (final entry in map.entries) {
+      if (c.contains(entry.key)) return entry.value;
+    }
+    return {'symbol': '\$', 'code': 'USD'};
   }
 
   Widget _sectionTitle(String title, Color text) {
@@ -483,8 +745,10 @@ class _EmergencyContact {
     required this.number,
     required this.icon,
     required this.color,
+    this.dbId,
   });
   final String name, number;
   final IconData icon;
   final Color color;
+  final String? dbId;
 }

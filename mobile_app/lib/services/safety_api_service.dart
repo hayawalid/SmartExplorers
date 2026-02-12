@@ -98,4 +98,27 @@ class SafetyApiService {
   void dispose() {
     _client.close();
   }
+
+  /// Fetch emergency numbers + embassy info based on user's country.
+  Future<Map<String, dynamic>> getEmergencyNumbers(String country) async {
+    final encoded = Uri.encodeComponent(country);
+    final response = await _client.get(
+      Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.safetyEndpoint}/emergency-numbers/$encoded',
+      ),
+      headers: {'Accept': 'application/json'},
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    return {'emergency_numbers': []};
+  }
+
+  /// Alias for createEmergencyContact for clearer usage.
+  Future<void> addEmergencyContact(
+    String userId,
+    Map<String, dynamic> payload,
+  ) async {
+    await createEmergencyContact(userId, payload);
+  }
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
 import '../services/marketplace_api_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/smart_explorers_logo.dart';
 
 /// Service provider marketplace with WCAG accessibility support
 class MarketplaceScreen extends StatefulWidget {
@@ -15,6 +17,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
     with AutomaticKeepAliveClientMixin {
   final MarketplaceApiService _marketplaceService = MarketplaceApiService();
   late Future<List<ServiceProvider>> _providersFuture;
+  List<ServiceProvider> _providers = [];
 
   String _selectedCategory = 'All';
 
@@ -27,7 +30,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
     'Activities',
   ];
 
-  final List<ServiceProvider> _providers = [
+  static final _fallbackProviders = [
     ServiceProvider(
       id: '1',
       name: 'Ahmed Hassan',
@@ -39,9 +42,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
       emoji: '👨‍🏫',
       isVerified: true,
       isFeatured: true,
-      gradient: [Color(0xFF667eea), Color(0xFF764ba2)],
-      description:
-          'Certified Egyptologist with 15 years of experience. Fluent in English, French, and Arabic.',
+      gradient: [AppDesign.navExplore, AppDesign.navConcierge],
+      description: 'Certified Egyptologist with 15 years of experience.',
     ),
     ServiceProvider(
       id: '2',
@@ -54,9 +56,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
       emoji: '👩‍🎨',
       isVerified: true,
       isFeatured: false,
-      gradient: [Color(0xFFf093fb), Color(0xFFf5576c)],
-      description:
-          'Professional photographer offering photo tours at iconic Egyptian sites.',
+      gradient: [AppDesign.navConcierge, AppDesign.onboardingAccent],
+      description: 'Professional photographer offering photo tours.',
     ),
     ServiceProvider(
       id: '3',
@@ -69,9 +70,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
       emoji: '🏨',
       isVerified: true,
       isFeatured: true,
-      gradient: [Color(0xFF4facfe), Color(0xFF00f2fe)],
-      description:
-          '5-star hotel with stunning Nile views. Pool, spa, and rooftop restaurant.',
+      gradient: [AppDesign.navExplore, AppDesign.navSafety],
+      description: '5-star hotel with stunning Nile views.',
     ),
     ServiceProvider(
       id: '4',
@@ -84,9 +84,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
       emoji: '🚗',
       isVerified: true,
       isFeatured: false,
-      gradient: [Color(0xFFD4AF37), Color(0xFF0F4C75)],
-      description:
-          'Licensed driver with air-conditioned vehicle. English speaking.',
+      gradient: [AppDesign.navProfile, AppDesign.navExplore],
+      description: 'Licensed driver with air-conditioned vehicle.',
     ),
     ServiceProvider(
       id: '5',
@@ -99,9 +98,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
       emoji: '🍽️',
       isVerified: true,
       isFeatured: false,
-      gradient: [Color(0xFF11998e), Color(0xFF38ef7d)],
-      description:
-          'Authentic Egyptian cuisine in a historic setting near Khan el-Khalili.',
+      gradient: [AppDesign.navSafety, AppDesign.navExplore],
+      description: 'Authentic Egyptian cuisine near Khan el-Khalili.',
     ),
     ServiceProvider(
       id: '6',
@@ -114,9 +112,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
       emoji: '🤿',
       isVerified: true,
       isFeatured: true,
-      gradient: [Color(0xFF667eea), Color(0xFF00f2fe)],
-      description:
-          'PADI certified diving center. Beginner courses and advanced dives available.',
+      gradient: [AppDesign.navExplore, AppDesign.navSafety],
+      description: 'PADI certified diving center.',
     ),
   ];
 
@@ -135,15 +132,22 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
   @override
   void initState() {
     super.initState();
+    _providers = List.from(_fallbackProviders);
     _providersFuture = _loadProviders();
   }
 
   Future<List<ServiceProvider>> _loadProviders() async {
-    final data = await _marketplaceService.getListings(
-      category: _selectedCategory == 'All' ? null : _selectedCategory,
-    );
-    if (data.isEmpty) return _filteredProviders;
-    return data.map(ServiceProvider.fromJson).toList();
+    try {
+      final data = await _marketplaceService.getListings(
+        category: _selectedCategory == 'All' ? null : _selectedCategory,
+      );
+      if (data.isNotEmpty) {
+        final loaded = data.map(ServiceProvider.fromJson).toList();
+        setState(() => _providers = loaded);
+        return loaded;
+      }
+    } catch (_) {}
+    return _filteredProviders;
   }
 
   @override
@@ -157,12 +161,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
     super.build(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final backgroundColor =
-        isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
-    final cardColor = isDark ? const Color(0xFF2C2C2E) : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
-    final secondaryTextColor =
-        isDark ? Colors.white70 : const Color(0xFF8E8E93);
+    final backgroundColor = isDark ? AppDesign.eerieBlack : AppDesign.offWhite;
+    final cardColor = isDark ? AppDesign.cardDark : Colors.white;
+    final textColor = isDark ? Colors.white : AppDesign.eerieBlack;
+    final secondaryTextColor = isDark ? Colors.white54 : AppDesign.midGrey;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -248,15 +250,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
+          const SmartExplorersLogo(size: LogoSize.tiny, showText: false),
+          const SizedBox(width: 8),
           Semantics(
             header: true,
             child: Text(
               'Marketplace',
               style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
                 color: textColor,
-                fontFamily: 'SF Pro Display',
+                letterSpacing: -0.5,
               ),
             ),
           ),
@@ -326,10 +330,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
                   style: TextStyle(color: textColor),
                   decoration: InputDecoration(
                     hintText: 'Search guides, hotels, activities...',
-                    hintStyle: TextStyle(
-                      color: secondaryTextColor,
-                      fontFamily: 'SF Pro Text',
-                    ),
+                    hintStyle: TextStyle(color: secondaryTextColor),
                     border: InputBorder.none,
                   ),
                 ),
@@ -375,15 +376,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
                 decoration: BoxDecoration(
                   color:
                       isSelected
-                          ? const Color(0xFF667eea)
+                          ? AppDesign.navExplore
                           : (isDark
                               ? Colors.white.withOpacity(0.1)
-                              : const Color(0xFFE5E5EA)),
+                              : AppDesign.lightGrey),
                   borderRadius: BorderRadius.circular(25),
                   border: Border.all(
                     color:
                         isSelected
-                            ? const Color(0xFF667eea)
+                            ? AppDesign.navExplore
                             : (isDark
                                 ? Colors.white.withOpacity(0.2)
                                 : const Color(0xFFD1D1D6)),
@@ -401,7 +402,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
                                   : textColor),
                       fontWeight:
                           isSelected ? FontWeight.w600 : FontWeight.w400,
-                      fontFamily: 'SF Pro Text',
                     ),
                   ),
                 ),
@@ -434,7 +434,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: textColor,
-                fontFamily: 'SF Pro Display',
               ),
             ),
           ),
@@ -649,7 +648,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: textColor,
-                fontFamily: 'SF Pro Display',
               ),
             ),
           ),
@@ -739,10 +737,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
                           ),
                         ),
                         if (provider.isVerified)
-                          const Icon(
+                          Icon(
                             CupertinoIcons.checkmark_seal_fill,
                             size: 14,
-                            color: Color(0xFF4facfe),
+                            color: AppDesign.navExplore,
                           ),
                       ],
                     ),
@@ -773,10 +771,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
                         const Spacer(),
                         Text(
                           provider.price,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF4facfe),
+                            color: AppDesign.navExplore,
                           ),
                         ),
                       ],
@@ -841,7 +839,7 @@ class ServiceProvider {
       emoji: '⭐',
       isVerified: json['is_verified'] == true,
       isFeatured: json['featured_flag'] == true,
-      gradient: const [Color(0xFF667eea), Color(0xFF764ba2)],
+      gradient: const [Color(0xFF4A90D9), Color(0xFF9B59B6)],
       description: json['description']?.toString() ?? '',
     );
   }
@@ -858,12 +856,10 @@ class ProviderDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final backgroundColor =
-        isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
-    final cardColor = isDark ? const Color(0xFF2C2C2E) : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
-    final secondaryTextColor =
-        isDark ? Colors.white70 : const Color(0xFF8E8E93);
+    final backgroundColor = isDark ? AppDesign.eerieBlack : AppDesign.offWhite;
+    final cardColor = isDark ? AppDesign.cardDark : Colors.white;
+    final textColor = isDark ? Colors.white : AppDesign.eerieBlack;
+    final secondaryTextColor = isDark ? Colors.white54 : AppDesign.midGrey;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -999,10 +995,10 @@ class ProviderDetailScreen extends StatelessWidget {
                         const Spacer(),
                         Text(
                           provider.price,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF4facfe),
+                            color: AppDesign.navExplore,
                           ),
                         ),
                       ],

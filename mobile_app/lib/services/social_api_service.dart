@@ -8,16 +8,17 @@ class SocialApiService {
   SocialApiService({http.Client? client}) : _client = client ?? http.Client();
 
   Future<List<Map<String, dynamic>>> getPosts() async {
-    // if (ApiConfig.offlineMode) return []; // COMMENTED OUT
-    final response = await _client.get(
-      Uri.parse('${ApiConfig.baseUrl}${ApiConfig.socialEndpoint}/posts'),
-      headers: {'Accept': 'application/json'},
-    );
+    try {
+      final response = await _client.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.socialEndpoint}/posts'),
+        headers: {'Accept': 'application/json'},
+      );
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as List<dynamic>;
-      return data.cast<Map<String, dynamic>>();
-    }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List<dynamic>;
+        return data.cast<Map<String, dynamic>>();
+      }
+    } catch (_) {}
     return [];
   }
 
@@ -35,6 +36,41 @@ class SocialApiService {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
     throw Exception('Failed to create post: ${response.body}');
+  }
+
+  Future<List<Map<String, dynamic>>> getTravelSpaces() async {
+    try {
+      final response = await _client.get(
+        Uri.parse(
+          '${ApiConfig.baseUrl}${ApiConfig.socialEndpoint}/travel-spaces',
+        ),
+        headers: {'Accept': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List<dynamic>;
+        return data.cast<Map<String, dynamic>>();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> getReviews({String? authorId}) async {
+    try {
+      final query = authorId != null ? '?author_id=$authorId' : '';
+      final response = await _client.get(
+        Uri.parse(
+          '${ApiConfig.baseUrl}${ApiConfig.socialEndpoint}/reviews$query',
+        ),
+        headers: {'Accept': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List<dynamic>;
+        return data.cast<Map<String, dynamic>>();
+      }
+    } catch (_) {}
+    return [];
   }
 
   void dispose() {

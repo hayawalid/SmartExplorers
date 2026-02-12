@@ -4,8 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
 import '../theme/app_theme.dart';
+import '../widgets/smart_explorers_logo.dart';
 import '../services/session_store.dart';
 import '../services/profile_api_service.dart';
+import '../services/social_api_service.dart';
 import '../services/api_config.dart';
 
 /// Profile Screen with Posts & Reviews sections
@@ -19,84 +21,29 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
   final ProfileApiService _profileService = ProfileApiService();
+  final SocialApiService _socialService = SocialApiService();
   late TabController _tabController;
 
-  String _name = 'Sarah Johnson';
-  String _username = '@sarahtravels';
-  String _bio = 'Solo traveler | History enthusiast';
-  int _trips = 12;
-  int _reviewsCount = 24;
-  int _photos = 89;
+  String _name = 'User';
+  String _username = '@user';
+  String _bio = '';
+  int _trips = 0;
+  int _reviewsCount = 0;
+  int _photos = 0;
   bool _isEditing = false;
   late TextEditingController _nameController;
   late TextEditingController _bioController;
 
-  // Dummy posts for the profile
-  static final _myPosts = [
-    _ProfilePost(
-      image: 'lib/public/pexels-meryemmeva-34823948.jpg',
-      caption: 'Sunrise at the Pyramids of Giza',
-      likes: 142,
-      comments: 23,
-      timeAgo: '2h',
-    ),
-    _ProfilePost(
-      image: 'lib/public/pexels-zahide-tas-367420941-28406392.jpg',
-      caption: 'Cruising on the Nile at sunset',
-      likes: 89,
-      comments: 11,
-      timeAgo: '5h',
-    ),
-    _ProfilePost(
-      image: 'lib/public/smart_itineraries.jpg',
-      caption: 'Planning the perfect week in Egypt',
-      likes: 203,
-      comments: 34,
-      timeAgo: '2d',
-    ),
-    _ProfilePost(
-      image: 'lib/public/verified_guides.jpg',
-      caption: 'Met an incredible local guide in Luxor',
-      likes: 56,
-      comments: 8,
-      timeAgo: '1w',
-    ),
-  ];
+  List<_ProfilePost> _myPosts = [];
+  List<_ProfileReview> _myReviews = [];
+  bool _loadingPosts = true;
+  bool _loadingReviews = true;
 
-  // Dummy reviews
-  static const _myReviews = [
-    _ProfileReview(
-      providerName: 'Mohamed Ali',
-      rating: 5,
-      text:
-          'Absolutely phenomenal guide. Deep knowledge of ancient history and very patient with our group. Highly recommended!',
-      date: 'Jan 15, 2026',
-      location: 'Luxor Temple',
-    ),
-    _ProfileReview(
-      providerName: 'Fatima Hassan',
-      rating: 4,
-      text:
-          'Great desert safari experience. The sunset views were incredible. Would love to go again.',
-      date: 'Dec 28, 2025',
-      location: 'White Desert',
-    ),
-    _ProfileReview(
-      providerName: 'Youssef Kamel',
-      rating: 5,
-      text:
-          'The photography tour was amazing. Youssef knows all the best angles and times for perfect shots.',
-      date: 'Dec 10, 2025',
-      location: 'Islamic Cairo',
-    ),
-    _ProfileReview(
-      providerName: 'Nour Adel',
-      rating: 4,
-      text:
-          'Wonderful culinary tour through the old markets. The food was authentic and delicious.',
-      date: 'Nov 22, 2025',
-      location: 'Khan El Khalili',
-    ),
+  static const _defaultImages = [
+    'lib/public/pexels-meryemmeva-34823948.jpg',
+    'lib/public/pexels-zahide-tas-367420941-28406392.jpg',
+    'lib/public/smart_itineraries.jpg',
+    'lib/public/verified_guides.jpg',
   ];
 
   @override
@@ -106,6 +53,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     _nameController = TextEditingController(text: _name);
     _bioController = TextEditingController(text: _bio);
     _loadProfile();
+    _loadUserPosts();
+    _loadUserReviews();
   }
 
   Future<void> _loadProfile() async {
@@ -115,7 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       final user = await _profileService.getUserByUsername(username);
       setState(() {
         _name = user['full_name'] ?? _name;
-        _username = '@${user['username'] ?? 'sarahtravels'}';
+        _username = '@${user['username'] ?? 'user'}';
         _bio = user['bio'] ?? _bio;
         _trips = user['trips_count'] ?? _trips;
         _reviewsCount = user['reviews_count'] ?? _reviewsCount;
@@ -126,9 +75,84 @@ class _ProfileScreenState extends State<ProfileScreen>
     } catch (_) {}
   }
 
+  Future<void> _loadUserPosts() async {
+    try {
+      final userId = SessionStore.instance.userId;
+      if (userId != null) {
+        final photos = await _profileService.getUserPhotos(userId);
+        if (photos.isNotEmpty) {
+          setState(() {
+            _myPosts =
+                photos.asMap().entries.map((e) {
+                  final p = e.value;
+                  return _ProfilePost(
+                    image: _defaultImages[e.key % _defaultImages.length],
+                    caption: p['caption'] ?? p['title'] ?? 'Photo',
+                    likes: (p['likes'] as num?)?.toInt() ?? 0,
+                    comments: (p['comments_count'] as num?)?.toInt() ?? 0,
+                    timeAgo: p['time_ago'] ?? 'now',
+                  );
+                }).toList();
+            _loadingPosts = false;
+          });
+          return;
+        }
+      }
+      // Try loading from social posts instead
+      final posts = await _socialService.getPosts();
+      setState(() {
+        _myPosts =
+            posts.take(4).toList().asMap().entries.map((e) {
+              final p = e.value;
+              return _ProfilePost(
+                image: _defaultImages[e.key % _defaultImages.length],
+                caption: p['content'] ?? p['text'] ?? 'Post',
+                likes: (p['likes'] as num?)?.toInt() ?? 0,
+                comments: (p['comments_count'] as num?)?.toInt() ?? 0,
+                timeAgo: p['time_ago'] ?? 'now',
+              );
+            }).toList();
+        _loadingPosts = false;
+      });
+    } catch (_) {
+      setState(() => _loadingPosts = false);
+    }
+  }
+
+  Future<void> _loadUserReviews() async {
+    try {
+      final userId = SessionStore.instance.userId;
+      if (userId != null) {
+        final reviews = await _profileService.getUserReviews(userId);
+        if (reviews.isNotEmpty) {
+          setState(() {
+            _myReviews =
+                reviews.map((r) {
+                  return _ProfileReview(
+                    providerName:
+                        r['provider_name'] ?? r['target_name'] ?? 'Provider',
+                    rating: (r['rating'] as num?)?.toInt() ?? 5,
+                    text: r['text'] ?? r['content'] ?? '',
+                    date:
+                        r['date'] ??
+                        r['created_at']?.toString().substring(0, 10) ??
+                        '',
+                    location: r['location'] ?? r['service_name'] ?? '',
+                  );
+                }).toList();
+            _loadingReviews = false;
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+    setState(() => _loadingReviews = false);
+  }
+
   @override
   void dispose() {
     _profileService.dispose();
+    _socialService.dispose();
     _tabController.dispose();
     _nameController.dispose();
     _bioController.dispose();
@@ -246,8 +270,8 @@ class _ProfileScreenState extends State<ProfileScreen>
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
           child: Row(
             children: [
-              Icon(LucideIcons.user, color: text, size: 24),
-              const SizedBox(width: 10),
+              const SmartExplorersLogo(size: LogoSize.tiny, showText: false),
+              const SizedBox(width: 8),
               Text(
                 'Profile',
                 style: Theme.of(
@@ -441,6 +465,26 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildPostsGrid(bool isDark, Color text, Color sub) {
+    if (_loadingPosts) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_myPosts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(LucideIcons.camera, size: 48, color: sub),
+            const SizedBox(height: 12),
+            Text('No posts yet', style: TextStyle(color: sub, fontSize: 15)),
+            const SizedBox(height: 6),
+            Text(
+              'Your travel photos will appear here',
+              style: TextStyle(color: sub, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -637,6 +681,26 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildReviewsList(bool isDark, Color text, Color sub, Color card) {
+    if (_loadingReviews) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_myReviews.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(LucideIcons.star, size: 48, color: sub),
+            const SizedBox(height: 12),
+            Text('No reviews yet', style: TextStyle(color: sub, fontSize: 15)),
+            const SizedBox(height: 6),
+            Text(
+              'Reviews you leave will appear here',
+              style: TextStyle(color: sub, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
       itemCount: _myReviews.length,

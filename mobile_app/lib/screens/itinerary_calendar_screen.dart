@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_theme.dart';
+import '../widgets/smart_explorers_logo.dart';
 
 class ItineraryCalendarScreen extends StatefulWidget {
   /// Pass the full itinerary map from the planner to render dynamically.
@@ -180,6 +181,8 @@ class _ItineraryCalendarScreenState extends State<ItineraryCalendarScreen> {
               child: Icon(LucideIcons.chevronLeft, color: textColor, size: 24),
             ),
           ),
+          const SizedBox(width: 12),
+          const SmartExplorersLogo(size: LogoSize.tiny, showText: false),
           const SizedBox(width: 12),
           Expanded(
             child: Text(

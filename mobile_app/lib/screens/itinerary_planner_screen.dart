@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
 import 'dart:async';
 import '../theme/app_theme.dart';
+import '../widgets/smart_explorers_logo.dart';
 import '../services/planner_api_service.dart';
 import 'itinerary_calendar_screen.dart'; // Import the calendar screen
 
@@ -408,15 +409,7 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: AppDesign.electricCobalt.withOpacity(0.2),
-            child: Icon(
-              LucideIcons.sparkles,
-              color: AppDesign.electricCobalt,
-              size: 20,
-            ),
-          ),
+          const SmartExplorersLogo(size: LogoSize.tiny, showText: false),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -627,8 +620,8 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
   }
 }
 
-// Suggestion Card Widget
-class _SuggestionCardWidget extends StatelessWidget {
+// Suggestion Card Widget — now expandable with image background
+class _SuggestionCardWidget extends StatefulWidget {
   const _SuggestionCardWidget({
     required this.suggestion,
     required this.isDark,
@@ -642,368 +635,331 @@ class _SuggestionCardWidget extends StatelessWidget {
   final VoidCallback? onApply;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppDesign.darkGrey : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow:
-            isDark
-                ? []
-                : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Subtitle label
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Text(
-              suggestion.subtitle,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: isDark ? Colors.white70 : AppDesign.midGrey,
-              ),
-            ),
-          ),
+  State<_SuggestionCardWidget> createState() => _SuggestionCardWidgetState();
+}
 
-          // Image with overlay
-          Stack(
+class _SuggestionCardWidgetState extends State<_SuggestionCardWidget> {
+  bool _expanded = false;
+
+  static const _placeholderImages = [
+    'lib/public/pexels-meryemmeva-34823948.jpg',
+    'lib/public/pexels-zahide-tas-367420941-28406392.jpg',
+    'lib/public/smart_itineraries.jpg',
+    'lib/public/verified_guides.jpg',
+    'lib/public/pexels-ahmed-aziz-126288236-12607742.jpg',
+    'lib/public/pexels-axp-photography-500641970-18934599.jpg',
+    'lib/public/pexels-tima-miroshnichenko-5976728.jpg',
+  ];
+
+  String get _imageForCard {
+    final hash = widget.suggestion.title.hashCode.abs();
+    return _placeholderImages[hash % _placeholderImages.length];
+  }
+
+  void _toggleExpand() {
+    HapticFeedback.lightImpact();
+    setState(() => _expanded = !_expanded);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final suggestion = widget.suggestion;
+    final isDark = widget.isDark;
+
+    return GestureDetector(
+      onTap: _toggleExpand,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOutCubic,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow:
+              isDark
+                  ? []
+                  : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
             children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
+              // Background image
+              Positioned.fill(
+                child: Image.asset(_imageForCard, fit: BoxFit.cover),
+              ),
+              // Gradient overlay
+              Positioned.fill(
                 child: Container(
-                  height: 200,
-                  width: double.infinity,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
                       colors: [
-                        AppDesign.electricCobalt.withOpacity(0.3),
-                        AppDesign.electricCobalt.withOpacity(0.1),
+                        Colors.black.withOpacity(0.15),
+                        Colors.black.withOpacity(0.75),
                       ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
                     ),
                   ),
-                  child: Icon(
-                    _getIconForType(suggestion.type),
-                    size: 60,
-                    color: AppDesign.electricCobalt.withOpacity(0.3),
-                  ),
                 ),
               ),
-
-              // Bookmark button
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    suggestion.isSaved
-                        ? LucideIcons.bookmark
-                        : LucideIcons.bookmark,
-                    size: 18,
-                    color:
-                        suggestion.isSaved
-                            ? AppDesign.electricCobalt
-                            : AppDesign.midGrey,
-                  ),
-                ),
-              ),
-
-              // Rating badge
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        suggestion.rating.toString(),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppDesign.eerieBlack,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.star_rounded,
-                        size: 16,
-                        color: Colors.amber,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: Text(
-                        suggestion.title,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : AppDesign.eerieBlack,
-                        ),
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                    // Subtitle + rating row
+                    Row(
                       children: [
-                        Text(
-                          suggestion.price,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : AppDesign.eerieBlack,
-                          ),
-                        ),
-                        if (suggestion.priceUnit.isNotEmpty)
-                          Text(
-                            suggestion.priceUnit,
+                        Expanded(
+                          child: Text(
+                            suggestion.subtitle,
                             style: TextStyle(
-                              fontSize: 11,
-                              color:
-                                  isDark ? Colors.white54 : AppDesign.midGrey,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white.withOpacity(0.8),
                             ),
                           ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(
-                      LucideIcons.mapPin,
-                      size: 14,
-                      color: isDark ? Colors.white54 : AppDesign.midGrey,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        suggestion.location,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark ? Colors.white70 : AppDesign.midGrey,
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                // Date & Time row
-                if (suggestion.startTime.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Row(
-                      children: [
-                        Icon(
-                          LucideIcons.clock,
-                          size: 14,
-                          color: AppDesign.electricCobalt,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${suggestion.startTime} – ${suggestion.endTime}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : AppDesign.eerieBlack,
+                        // Rating badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                suggestion.rating.toString(),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              const Icon(
+                                Icons.star_rounded,
+                                size: 14,
+                                color: Colors.amber,
+                              ),
+                            ],
                           ),
                         ),
-                        if (suggestion.date.isNotEmpty) ...[
-                          const SizedBox(width: 12),
-                          Icon(
-                            LucideIcons.calendar,
-                            size: 14,
-                            color: AppDesign.electricCobalt,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            suggestion.date,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color:
-                                  isDark ? Colors.white : AppDesign.eerieBlack,
+                        const SizedBox(width: 8),
+                        // Expand indicator
+                        AnimatedRotation(
+                          turns: _expanded ? 0.5 : 0,
+                          duration: const Duration(milliseconds: 300),
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withOpacity(0.2),
+                            ),
+                            child: const Icon(
+                              LucideIcons.chevronDown,
+                              size: 16,
+                              color: Colors.white,
                             ),
                           ),
-                        ],
+                        ),
                       ],
                     ),
-                  ),
-                // Best-time reason tip
-                if (suggestion.bestTimeReason.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Row(
+                    const SizedBox(height: 10),
+                    // Title + price
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Expanded(
+                          child: Text(
+                            suggestion.title,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          suggestion.price,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    // Location
+                    Row(
+                      children: [
                         Icon(
-                          LucideIcons.lightbulb,
-                          size: 14,
-                          color: Colors.amber,
+                          LucideIcons.mapPin,
+                          size: 13,
+                          color: Colors.white.withOpacity(0.7),
                         ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            suggestion.bestTimeReason,
+                            suggestion.location,
                             style: TextStyle(
                               fontSize: 12,
-                              fontStyle: FontStyle.italic,
-                              color:
-                                  isDark ? Colors.white54 : AppDesign.midGrey,
+                              color: Colors.white.withOpacity(0.7),
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                const SizedBox(height: 16),
+                    // Expanded content
+                    AnimatedCrossFade(
+                      firstChild: const SizedBox.shrink(),
+                      secondChild: _buildExpandedContent(suggestion),
+                      crossFadeState:
+                          _expanded
+                              ? CrossFadeState.showSecond
+                              : CrossFadeState.showFirst,
+                      duration: const Duration(milliseconds: 350),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-                // Amenities
-                Row(
-                  children: [
-                    for (int i = 0; i < suggestion.amenities.length; i++) ...[
-                      if (i > 0)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Container(
-                            width: 1,
-                            height: 12,
-                            color:
-                                isDark ? Colors.white10 : AppDesign.lightGrey,
-                          ),
-                        ),
-                      Row(
+  Widget _buildExpandedContent(_SuggestionCard suggestion) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Time row
+          if (suggestion.startTime.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  const Icon(
+                    LucideIcons.clock,
+                    size: 13,
+                    color: Colors.white70,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${suggestion.startTime} – ${suggestion.endTime}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  if (suggestion.date.isNotEmpty) ...[
+                    const SizedBox(width: 12),
+                    const Icon(
+                      LucideIcons.calendar,
+                      size: 13,
+                      color: Colors.white70,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      suggestion.date,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          // Best time reason
+          if (suggestion.bestTimeReason.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    LucideIcons.lightbulb,
+                    size: 13,
+                    color: Colors.amber,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      suggestion.bestTimeReason,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.white.withOpacity(0.7),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Amenities
+          if (suggestion.amenities.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children:
+                  suggestion.amenities.map((a) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            _getAmenityIcon(suggestion.amenities[i]),
-                            size: 14,
-                            color: isDark ? Colors.white54 : AppDesign.midGrey,
+                            _getAmenityIcon(a),
+                            size: 12,
+                            color: Colors.white70,
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            suggestion.amenities[i],
-                            style: TextStyle(
+                            a,
+                            style: const TextStyle(
                               fontSize: 11,
-                              color:
-                                  isDark ? Colors.white70 : AppDesign.midGrey,
+                              color: Colors.white70,
                             ),
                           ),
                         ],
                       ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Action button (only show if enabled)
-                if (showButton)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: suggestion.isSaved ? null : onApply,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            suggestion.isSaved
-                                ? (isDark
-                                    ? AppDesign.darkGrey
-                                    : AppDesign.lightGrey)
-                                : const Color(0xFF1A1D3F),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        suggestion.isSaved
-                            ? 'Saved to itinerary'
-                            : 'Save to itinerary',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color:
-                              suggestion.isSaved
-                                  ? (isDark
-                                      ? Colors.white38
-                                      : AppDesign.midGrey)
-                                  : Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+                    );
+                  }).toList(),
             ),
-          ),
         ],
       ),
     );
   }
 
-  IconData _getIconForType(String type) {
-    switch (type) {
-      case 'hotel':
-        return LucideIcons.bed;
-      case 'restaurant':
-        return LucideIcons.utensils;
-      case 'attraction':
-        return LucideIcons.landmark;
-      default:
-        return LucideIcons.mapPin;
-    }
-  }
-
+  // Keep these methods here for the expanded card
   IconData _getAmenityIcon(String amenity) {
     if (amenity.contains('Bed')) return LucideIcons.bed;
     if (amenity.contains('Dinner') || amenity.contains('Sushi'))
