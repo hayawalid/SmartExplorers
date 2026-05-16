@@ -15,18 +15,14 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = "sqlite:///./smartexplorers.db"
-    MONGODB_URI: str = "mongodb://localhost:27017"
+    MONGODB_URI: str 
+    ##= "mongodb://localhost:27017"
     
     # AI Services
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     GROQ_API_KEY: str = ""
-    
-    # Map verification uses FREE APIs (Nominatim + Overpass) - no key needed
-    
-    # Social Media Verification (optional)
-    FACEBOOK_ACCESS_TOKEN: str = ""
     
     # AI Assistant settings
     AI_TEMPERATURE: float = 0.7

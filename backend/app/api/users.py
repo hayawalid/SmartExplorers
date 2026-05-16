@@ -43,10 +43,13 @@ async def get_user(user_id: str, request: Request):
 @router.get("/by-username/{username}")
 async def get_user_by_username(username: str, request: Request):
     db = get_database()
+    print(f"[by-username] Looking up username='{username}'")
     doc = await db[mongodb.USERS].find_one({"username": username})
     if not doc:
+        print(f"[by-username] NOT FOUND: '{username}'")
         raise HTTPException(status_code=404, detail="User not found")
 
+    print(f"[by-username] Found: email={doc.get('email')}")
     return _serialize_user(request, doc)
 
 

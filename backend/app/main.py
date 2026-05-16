@@ -20,11 +20,10 @@ from app.api.social import router as social_router
 from app.api.marketplace import router as marketplace_router
 from app.api.safety import router as safety_router
 from app.api.preferences import router as preferences_router
-from app.api.verification_v2 import router as verification_v2_router
-from app.api.admin import router as admin_router
 
 # ====== NEW: Import matching system ======
 # from matching_api import router as matching_router, initialize_matching_system  # COMMENTED OUT – module doesn't exist yet
+from app.api.matching import router as matching_router, initialize_matching_system
 # =========================================
 # from app.api.itineraries import router as itinerary_router  # Add when ready
 # from app.api.verification import router as verification_router  # COMMENTED OUT – uses SQLAlchemy, not MongoDB
@@ -42,15 +41,14 @@ async def lifespan(app: FastAPI):
     await connect_to_mongo()
     
     # ====== NEW: Initialize matching system on startup ======
-    # (commented out – matching_api module doesn't exist yet)
-    # try:
-    #     print("Initializing Smart Matching System...")
-    #     db = mongodb.client[mongodb.DATABASE_NAME]
-    #     await initialize_matching_system(db, n_clusters=5)
-    #     print("✅ Smart Matching System initialized")
-    # except Exception as e:
-    #     print(f"⚠️  Matching system initialization warning: {e}")
-    #     print("   You can manually train the model by calling POST /api/matching/train")
+    try:
+        print("Initializing Smart Matching System...")
+        db = mongodb.client[mongodb.DATABASE_NAME]
+        await initialize_matching_system(db, n_clusters=5)
+        print("✅ Smart Matching System initialized")
+    except Exception as e:
+        print(f"⚠️  Matching system initialization warning: {e}")
+        print("   You can manually train the model by calling POST /api/matching/train")
     # ========================================================
     
     print("✅ Application started successfully")
@@ -92,11 +90,9 @@ app.include_router(social_router)
 app.include_router(marketplace_router)
 app.include_router(safety_router)
 app.include_router(preferences_router)
-app.include_router(verification_v2_router)  # Verify-Verify-Verify system
-app.include_router(admin_router)  # Admin dashboard
 
 # ====== NEW: Include matching router ======
-# app.include_router(matching_router)  # COMMENTED OUT – module doesn't exist yet
+app.include_router(matching_router)
 # ==========================================
 # app.include_router(verification_router)  # COMMENTED OUT – uses SQLAlchemy
 # app.include_router(itinerary_router)  # Add when ready
@@ -118,6 +114,7 @@ async def root():
 async def health_check():
     """Detailed health check"""
     # from matching_api import _model_trained  # COMMENTED OUT
+    from app.api.matching import _model_trained  # NEW
     
     # Check MongoDB connection
     db_status = "connected" if mongodb.client else "disconnected"

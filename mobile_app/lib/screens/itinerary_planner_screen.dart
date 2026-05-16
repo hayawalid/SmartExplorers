@@ -97,16 +97,24 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
         // Travel preferences
         ctx['traveling_alone'] = profile['traveling_alone'] ?? false;
         ctx['first_time_egypt'] = profile['first_time_egypt'] ?? false;
-        ctx['dietary_restrictions_flag'] = profile['dietary_restrictions_flag'] ?? false;
+        ctx['dietary_restrictions_flag'] =
+            profile['dietary_restrictions_flag'] ?? false;
         ctx['dietary_restrictions'] = profile['dietary_restrictions'] ?? '';
-        ctx['travel_interests'] = profile['travel_interests'] ?? profile['setup_interests'] ?? [];
-        ctx['languages_spoken'] = profile['languages_spoken'] ?? profile['languages'] ?? [];
-        ctx['typical_budget_min'] = profile['typical_budget_min'] ?? profile['price_range_min'];
-        ctx['typical_budget_max'] = profile['typical_budget_max'] ?? profile['price_range_max'];
+        ctx['travel_interests'] =
+            profile['travel_interests'] ?? profile['setup_interests'] ?? [];
+        ctx['languages_spoken'] =
+            profile['languages_spoken'] ?? profile['languages'] ?? [];
+        ctx['typical_budget_min'] =
+            profile['typical_budget_min'] ?? profile['price_range_min'];
+        ctx['typical_budget_max'] =
+            profile['typical_budget_max'] ?? profile['price_range_max'];
       }
 
       // Remove null / empty values to keep context clean
-      ctx.removeWhere((_, v) => v == null || v == '' || v == false || (v is List && v.isEmpty));
+      ctx.removeWhere(
+        (_, v) =>
+            v == null || v == '' || v == false || (v is List && v.isEmpty),
+      );
 
       if (ctx.isNotEmpty) {
         setState(() => _userContext = ctx);
