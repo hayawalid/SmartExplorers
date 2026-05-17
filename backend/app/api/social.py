@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Body, Request
 from typing import Dict, Any, Optional, List
 from bson import ObjectId
+from datetime import datetime
 
 from app.mongodb import get_database, mongodb
 
@@ -60,6 +61,50 @@ async def create_post(payload: Dict[str, Any] = Body(...)):
     result = await db[mongodb.POSTS].insert_one(payload)
     doc = await db[mongodb.POSTS].find_one({"_id": result.inserted_id})
     return _serialize(doc)
+
+
+@router.post("/posts/{post_id}/comments")
+async def add_comment(post_id: str, payload: Dict[str, Any] = Body(...)):
+    db = get_database()
+    comment = {
+        "_id": ObjectId(),
+        "author_id": payload.get("author_id"),
+        "text": payload.get("text"),
+        "created_at": datetime.utcnow(),
+    }
+    await db[mongodb.POSTS].update_one({"_id": ObjectId(post_id)}, {"$push": {"comments": comment}})
+    doc = await db[mongodb.POSTS].find_one({"_id": ObjectId(post_id)})
+    post = _serialize(doc)
+    # Convert comments' ids to strings for JSON
+    if post.get("comments"):
+        for c in post["comments"]:
+            if isinstance(c.get("_id"), ObjectId):
+                c["_id"] = str(c["_id"])
+    return post
+
+
+@router.post("/posts/{post_id}/likes")
+async def add_like(post_id: str, payload: Dict[str, Any] = Body(...)):
+    db = get_database()
+    user_id = payload.get("user_id")
+    if not user_id:
+        return {"error": "user_id is required"}
+    # Use addToSet to avoid duplicate likes
+    await db[mongodb.POSTS].update_one({"_id": ObjectId(post_id)}, {"$addToSet": {"likes": user_id}})
+    doc = await db[mongodb.POSTS].find_one({"_id": ObjectId(post_id)})
+    post = _serialize(doc)
+    post["likes_count"] = len(post.get("likes", []))
+    return post
+
+
+@router.delete("/posts/{post_id}/likes")
+async def remove_like(post_id: str, user_id: str):
+    db = get_database()
+    await db[mongodb.POSTS].update_one({"_id": ObjectId(post_id)}, {"$pull": {"likes": user_id}})
+    doc = await db[mongodb.POSTS].find_one({"_id": ObjectId(post_id)})
+    post = _serialize(doc)
+    post["likes_count"] = len(post.get("likes", []))
+    return post
 
 
 @router.get("/stories")

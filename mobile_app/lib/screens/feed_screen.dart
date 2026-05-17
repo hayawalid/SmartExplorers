@@ -2057,6 +2057,7 @@ class _ProvidersTabState extends State<_ProvidersTab> {
     try {
       final data = await _marketplaceService.getListings();
       if (data.isNotEmpty) {
+        if (!mounted) return;
         setState(() {
           _providers =
               data.asMap().entries.map((e) {
@@ -2078,6 +2079,7 @@ class _ProvidersTabState extends State<_ProvidersTab> {
         return;
       }
     } catch (_) {}
+    if (!mounted) return;
     setState(() {
       _providers = _fallbackProviders;
       _loading = false;

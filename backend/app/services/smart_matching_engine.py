@@ -12,7 +12,19 @@ Test suite for Smart Matching System
 Tests all 5 core features with real database users
 """
 import nest_asyncio
-nest_asyncio.apply()
+import asyncio
+
+# Try to apply nest_asyncio, but skip if the running loop is uvloop (nest_asyncio cannot
+# patch uvloop.Loop and will raise ValueError). Fall back gracefully if patching fails.
+try:
+    loop = asyncio.get_event_loop()
+    loop_type = type(loop)
+    if loop_type.__name__ == 'Loop' and 'uvloop' in loop_type.__module__:
+        print("⚠️ nest_asyncio: skipping patch for uvloop loop type")
+    else:
+        nest_asyncio.apply()
+except Exception as _exc:
+    print(f"⚠️ nest_asyncio: patch skipped ({_exc})")
 
 
 # CRITICAL FIX: Load environment variables FIRST

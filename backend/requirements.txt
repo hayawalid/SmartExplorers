@@ -32,4 +32,4 @@ sentence-transformers
 chromadb
 email-validator
 geopy
-groq
+groqnest_asyncio>=1.5.6

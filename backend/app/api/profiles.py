@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Request
 from typing import Dict, Any, List
 from bson import ObjectId
+from typing import Optional
 
 from app.mongodb import get_database, mongodb
 
@@ -15,12 +16,31 @@ def _serialize(doc: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @router.get("/travelers/{user_id}")
-async def get_traveler_profile(user_id: str):
+async def get_traveler_profile(request: Request, user_id: str, include_posts: Optional[bool] = False, posts_limit: int = 50):
     db = get_database()
     doc = await db[mongodb.TRAVELER_PROFILES].find_one({"user_id": user_id})
     if not doc:
         raise HTTPException(status_code=404, detail="Traveler profile not found")
-    return _serialize(doc)
+    profile = _serialize(doc)
+
+    if include_posts:
+        # fetch posts authored by this user
+        cursor = db[mongodb.POSTS].find({"author_id": user_id}).sort("created_at", -1).limit(posts_limit)
+        posts = []
+        base_url = str(request.base_url).rstrip("/")
+        async for p in cursor:
+            p["_id"] = str(p["_id"])
+            if not p.get("media_url") and p.get("media_urls"):
+                p["media_url"] = p["media_urls"][0]
+            if p.get("media_url"):
+                if p["media_url"].startswith("/"):
+                    p["media_url"] = base_url + p["media_url"]
+            if p.get("media_urls"):
+                p["media_urls"] = [base_url + url if url.startswith("/") else url for url in p["media_urls"]]
+            posts.append(p)
+        profile["posts"] = posts
+
+    return profile
 
 
 @router.put("/travelers/{user_id}")

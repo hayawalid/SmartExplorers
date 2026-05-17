@@ -4,6 +4,7 @@ UPDATED main.py - WITH SMART MATCHING SYSTEM INTEGRATED
 This shows how to integrate the matching system into your existing main.py
 Copy the relevant sections to your actual /mnt/project/main.py
 """
+import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -69,7 +70,11 @@ app = FastAPI(
 )
 
 # Static files (avatars, post images)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+else:
+    print(f"Warning: Static directory not found at {static_dir}")
 
 # CORS middleware
 app.add_middleware(
