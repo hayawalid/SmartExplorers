@@ -131,9 +131,10 @@ class _FeedScreenState extends State<FeedScreen>
                   style: TextStyle(
                     fontSize: isLandscape ? 13 : 12,
                     height: 1.2,
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.68)
-                        : AppDesign.midGrey,
+                    color:
+                        isDark
+                            ? Colors.white.withValues(alpha: 0.68)
+                            : AppDesign.midGrey,
                   ),
                 ),
               ],
@@ -748,8 +749,8 @@ class _PostCardState extends State<_PostCard> {
 
   @override
   Widget build(BuildContext context) {
-    final useSplitLayout = widget.isLandscape ||
-        MediaQuery.of(context).size.width >= 640;
+    final useSplitLayout =
+        widget.isLandscape || MediaQuery.of(context).size.width >= 640;
 
     return GestureDetector(
       onTap: _openPostDetail,
@@ -759,9 +760,10 @@ class _PostCardState extends State<_PostCard> {
           borderRadius: BorderRadius.circular(28),
           color: widget.isDark ? AppDesign.cardDark : Colors.white,
           border: Border.all(
-            color: widget.isDark
-                ? Colors.white.withValues(alpha: 0.05)
-                : AppDesign.lightGrey.withValues(alpha: 0.8),
+            color:
+                widget.isDark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : AppDesign.lightGrey.withValues(alpha: 0.8),
           ),
           boxShadow:
               widget.isDark
@@ -775,7 +777,7 @@ class _PostCardState extends State<_PostCard> {
                   ],
         ),
         child: Column(
-        mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (useSplitLayout)
@@ -816,9 +818,10 @@ class _PostCardState extends State<_PostCard> {
                               style: TextStyle(
                                 fontSize: 15,
                                 height: 1.55,
-                                color: widget.isDark
-                                    ? Colors.white.withValues(alpha: 0.9)
-                                    : AppDesign.eerieBlack,
+                                color:
+                                    widget.isDark
+                                        ? Colors.white.withValues(alpha: 0.9)
+                                        : AppDesign.eerieBlack,
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -864,9 +867,10 @@ class _PostCardState extends State<_PostCard> {
                       style: TextStyle(
                         fontSize: 14,
                         height: 1.5,
-                        color: widget.isDark
-                            ? Colors.white.withValues(alpha: 0.9)
-                            : AppDesign.eerieBlack,
+                        color:
+                            widget.isDark
+                                ? Colors.white.withValues(alpha: 0.9)
+                                : AppDesign.eerieBlack,
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -1333,7 +1337,10 @@ class _ProvidersTabState extends State<_ProvidersTab> {
                 padding: EdgeInsets.symmetric(
                   horizontal: widget.isLandscape ? 24 : 20,
                 ),
-                child: _ProviderCard(provider: _providers[i], isDark: widget.isDark),
+                child: _ProviderCard(
+                  provider: _providers[i],
+                  isDark: widget.isDark,
+                ),
               ),
             ),
           ),
@@ -1676,16 +1683,16 @@ class _ThemeModeMenuButton extends StatelessWidget {
   final bool isDark;
 
   IconData get _icon => switch (currentThemeMode) {
-        ThemeMode.system => LucideIcons.monitor,
-      ThemeMode.dark => LucideIcons.moon,
-        ThemeMode.light => LucideIcons.sunMedium,
-      };
+    ThemeMode.system => LucideIcons.monitor,
+    ThemeMode.dark => LucideIcons.moon,
+    ThemeMode.light => LucideIcons.sunMedium,
+  };
 
   String get _label => switch (currentThemeMode) {
-        ThemeMode.system => 'System',
-        ThemeMode.dark => 'Dark',
-        ThemeMode.light => 'Light',
-      };
+    ThemeMode.system => 'System',
+    ThemeMode.dark => 'Dark',
+    ThemeMode.light => 'Light',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -1753,13 +1760,15 @@ class _ThemeModeMenuButton extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.black.withValues(alpha: 0.05),
+              color:
+                  isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : Colors.black.withValues(alpha: 0.05),
               border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.black.withValues(alpha: 0.06),
+                color:
+                    isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.black.withValues(alpha: 0.06),
               ),
             ),
             child: Icon(
@@ -1832,7 +1841,10 @@ class _PostHeader extends StatelessWidget {
                 ),
                 Text(
                   '${post.handle} · ${post.timeAgo}',
-                  style: const TextStyle(fontSize: 12, color: AppDesign.midGrey),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppDesign.midGrey,
+                  ),
                 ),
               ],
             ),
@@ -1959,7 +1971,8 @@ class _ActionPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? activeColor ?? AppDesign.electricCobalt : AppDesign.midGrey;
+    final color =
+        active ? activeColor ?? AppDesign.electricCobalt : AppDesign.midGrey;
 
     return GestureDetector(
       onTap: onTap,
@@ -1967,13 +1980,15 @@ class _ActionPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
-          color: active
-              ? color.withValues(alpha: 0.12)
-              : Colors.black.withValues(alpha: 0.03),
+          color:
+              active
+                  ? color.withValues(alpha: 0.12)
+                  : Colors.black.withValues(alpha: 0.03),
           border: Border.all(
-            color: active
-                ? color.withValues(alpha: 0.22)
-                : AppDesign.lightGrey.withValues(alpha: 0.6),
+            color:
+                active
+                    ? color.withValues(alpha: 0.22)
+                    : AppDesign.lightGrey.withValues(alpha: 0.6),
           ),
         ),
         child: Row(

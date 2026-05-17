@@ -24,9 +24,10 @@ class ThemeManager extends ChangeNotifier {
 
     final nextHighContrast = isHighContrast;
     final nextReduceMotion = shouldReduceMotion;
-    final nextFontScale = isHighContrast || hasAccessibleNavigation
-        ? (boldText ? 1.2 : 1.1)
-        : 1.0;
+    final nextFontScale =
+        isHighContrast || hasAccessibleNavigation
+            ? (boldText ? 1.2 : 1.1)
+            : 1.0;
 
     final shouldNotify =
         _highContrastEnabled != nextHighContrast ||

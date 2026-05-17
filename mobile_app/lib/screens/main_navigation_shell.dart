@@ -18,7 +18,8 @@ class MainNavigationShell extends ConsumerStatefulWidget {
   const MainNavigationShell({super.key});
 
   @override
-  ConsumerState<MainNavigationShell> createState() => _MainNavigationShellState();
+  ConsumerState<MainNavigationShell> createState() =>
+      _MainNavigationShellState();
 }
 
 class _MainNavigationShellState extends ConsumerState<MainNavigationShell>
