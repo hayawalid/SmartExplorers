@@ -7,7 +7,7 @@ import '../widgets/smart_explorers_logo.dart';
 
 /// Service provider marketplace with WCAG accessibility support
 class MarketplaceScreen extends StatefulWidget {
-  const MarketplaceScreen({Key? key}) : super(key: key);
+  const MarketplaceScreen({super.key});
 
   @override
   State<MarketplaceScreen> createState() => _MarketplaceScreenState();
@@ -849,8 +849,7 @@ class ServiceProvider {
 class ProviderDetailScreen extends StatelessWidget {
   final ServiceProvider provider;
 
-  const ProviderDetailScreen({Key? key, required this.provider})
-    : super(key: key);
+  const ProviderDetailScreen({super.key, required this.provider});
 
   @override
   Widget build(BuildContext context) {

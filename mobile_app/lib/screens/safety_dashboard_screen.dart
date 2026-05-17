@@ -11,7 +11,7 @@ import '../services/session_store.dart';
 /// Safety Dashboard with WCAG 2.1 AA accessibility compliance
 /// Features: Emergency SOS with liveRegion, Semantics for screen readers
 class SafetyDashboardScreen extends StatefulWidget {
-  const SafetyDashboardScreen({Key? key}) : super(key: key);
+  const SafetyDashboardScreen({super.key});
 
   @override
   State<SafetyDashboardScreen> createState() => _SafetyDashboardScreenState();
@@ -334,7 +334,7 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
                     });
                   }
                 },
-                activeColor: const Color(0xFF4CAF50),
+                activeTrackColor: const Color(0xFF4CAF50),
               ),
             ],
           ),
@@ -587,7 +587,7 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
                 secondaryTextColor,
               ),
             );
-          }).toList(),
+          }),
         ],
         _buildAddContactButton(isDark, textColor, secondaryTextColor),
       ],

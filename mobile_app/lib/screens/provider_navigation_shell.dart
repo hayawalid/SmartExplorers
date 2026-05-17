@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui';
 import '../theme/app_theme.dart';
 import 'feed_screen.dart';
 import 'safety_dashboard_screen.dart';
@@ -85,11 +84,11 @@ class _ProviderNavigationShellState extends State<ProviderNavigationShell>
             controller: _pageController,
             physics: const NeverScrollableScrollPhysics(),
             onPageChanged: (index) => setState(() => _currentIndex = index),
-            children: const [
-              MatchRequestsScreen(), // Tab 0: Match Requests
-              FeedScreen(), // Tab 1: Social Feed
-              SafetyDashboardScreen(), // Tab 2: Emergency/Safety
-              ProviderProfileScreen(), // Tab 3: Provider Profile
+            children: [
+              const MatchRequestsScreen(), // Tab 0: Match Requests
+              FeedScreen(currentThemeMode: ThemeMode.system, onThemeModeSelected: (ThemeMode value) {  },), // Tab 1: Social Feed
+              const SafetyDashboardScreen(), // Tab 2: Emergency/Safety
+              const ProviderProfileScreen(), // Tab 3: Provider Profile
             ],
           ),
 

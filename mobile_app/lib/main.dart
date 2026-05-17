@@ -12,9 +12,6 @@ void main() {
   runApp(const ProviderScope(child: SmartExplorersApp()));
 }
 
-/// Global ThemeManager provider
-final themeManagerProvider = ChangeNotifierProvider((ref) => ThemeManager());
-
 class SmartExplorersApp extends ConsumerStatefulWidget {
   const SmartExplorersApp({super.key});
 
@@ -39,6 +36,8 @@ class _SmartExplorersAppState extends ConsumerState<SmartExplorersApp> {
 
       // Theme mode controlled by ThemeManager
       themeMode: themeManager.currentMode,
+      themeAnimationDuration: const Duration(milliseconds: 280),
+      themeAnimationCurve: Curves.easeInOutCubic,
 
       // Accessibility text scaling
       builder: (context, child) {

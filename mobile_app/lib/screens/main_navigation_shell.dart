@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
 import '../theme/app_theme.dart';
+import '../theme/theme_manager.dart';
 import '../widgets/smart_explorers_logo.dart';
 import 'itinerary_planner_screen.dart';
 import 'feed_screen.dart';
@@ -12,14 +14,14 @@ import 'safety_hub_screen.dart';
 
 /// Main navigation shell – 5-tab floating bottom bar
 /// Each tab has a unique accent color
-class MainNavigationShell extends StatefulWidget {
-  const MainNavigationShell({Key? key}) : super(key: key);
+class MainNavigationShell extends ConsumerStatefulWidget {
+  const MainNavigationShell({super.key});
 
   @override
-  State<MainNavigationShell> createState() => _MainNavigationShellState();
+  ConsumerState<MainNavigationShell> createState() => _MainNavigationShellState();
 }
 
-class _MainNavigationShellState extends State<MainNavigationShell>
+class _MainNavigationShellState extends ConsumerState<MainNavigationShell>
     with TickerProviderStateMixin {
   int _currentIndex = 0;
   late final PageController _pageController;
@@ -82,6 +84,7 @@ class _MainNavigationShellState extends State<MainNavigationShell>
 
   @override
   Widget build(BuildContext context) {
+    final themeManager = ref.watch(themeManagerProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -93,8 +96,11 @@ class _MainNavigationShellState extends State<MainNavigationShell>
             PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
-              children: const [
-                FeedScreen(),
+              children: [
+                FeedScreen(
+                  currentThemeMode: themeManager.currentMode,
+                  onThemeModeSelected: themeManager.setThemeMode,
+                ),
                 SmartMatchScreen(),
                 ItineraryPlannerScreen(),
                 SafetyHubScreen(),

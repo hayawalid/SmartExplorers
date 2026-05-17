@@ -6,7 +6,7 @@ import '../services/chat_api_service.dart';
 import '../models/chat_models.dart' as models;
 
 class AIAssistantScreen extends StatefulWidget {
-  const AIAssistantScreen({Key? key}) : super(key: key);
+  const AIAssistantScreen({super.key});
 
   @override
   State<AIAssistantScreen> createState() => _AIAssistantScreenState();

@@ -9,7 +9,7 @@ import 'itinerary_planner_screen.dart';
 class ItineraryDetailScreen extends StatefulWidget {
   final ItineraryItem item;
 
-  const ItineraryDetailScreen({Key? key, required this.item}) : super(key: key);
+  const ItineraryDetailScreen({super.key, required this.item});
 
   @override
   State<ItineraryDetailScreen> createState() => _ItineraryDetailScreenState();

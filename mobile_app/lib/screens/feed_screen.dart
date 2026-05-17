@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
@@ -7,13 +6,19 @@ import '../theme/app_theme.dart';
 import '../widgets/smart_explorers_logo.dart';
 import '../services/social_api_service.dart';
 import '../services/marketplace_api_service.dart';
-import '../services/profile_api_service.dart';
 import 'travel_space_detail_screen.dart';
 
 /// Social feed with 3 tabs – Posts, Spaces, Providers.
 /// Cinematic image cards with glassmorphism overlays.
 class FeedScreen extends StatefulWidget {
-  const FeedScreen({super.key});
+  const FeedScreen({
+    super.key,
+    required this.currentThemeMode,
+    required this.onThemeModeSelected,
+  });
+
+  final ThemeMode currentThemeMode;
+  final ValueChanged<ThemeMode> onThemeModeSelected;
 
   @override
   State<FeedScreen> createState() => _FeedScreenState();
@@ -37,52 +42,110 @@ class _FeedScreenState extends State<FeedScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppDesign.eerieBlack : AppDesign.offWhite;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final isLandscape =
+            MediaQuery.of(context).orientation == Orientation.landscape;
+        final bg = isDark ? AppDesign.eerieBlack : AppDesign.offWhite;
+        final horizontalPadding = constraints.maxWidth >= 840 ? 32.0 : 20.0;
+        final contentMaxWidth =
+            constraints.maxWidth >= 840 ? 760.0 : constraints.maxWidth;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
-      child: Scaffold(
-        backgroundColor: bg,
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(isDark),
-              _buildTabBar(isDark),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _PostsTab(isDark: isDark),
-                    _SpacesTab(isDark: isDark),
-                    _ProvidersTab(isDark: isDark),
-                  ],
-                ),
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value:
+              isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+          child: Scaffold(
+            backgroundColor: bg,
+            body: SafeArea(
+              child: Column(
+                children: [
+                  _buildHeader(
+                    isDark: isDark,
+                    isLandscape: isLandscape,
+                    horizontalPadding: horizontalPadding,
+                  ),
+                  _buildTabBar(
+                    isDark: isDark,
+                    isLandscape: isLandscape,
+                    horizontalPadding: horizontalPadding,
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _PostsTab(
+                          isDark: isDark,
+                          isLandscape: isLandscape,
+                          maxContentWidth: contentMaxWidth,
+                        ),
+                        _SpacesTab(
+                          isDark: isDark,
+                          isLandscape: isLandscape,
+                          maxContentWidth: contentMaxWidth,
+                        ),
+                        _ProvidersTab(
+                          isDark: isDark,
+                          isLandscape: isLandscape,
+                          maxContentWidth: contentMaxWidth,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader(bool isDark) {
+  Widget _buildHeader({
+    required bool isDark,
+    required bool isLandscape,
+    required double horizontalPadding,
+  }) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+      padding: EdgeInsets.fromLTRB(
+        horizontalPadding,
+        isLandscape ? 12 : 16,
+        horizontalPadding,
+        6,
+      ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SmartExplorersLogo(size: LogoSize.tiny, showText: false),
-          const SizedBox(width: 8),
-          Text(
-            'Explore',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white : AppDesign.eerieBlack,
-              letterSpacing: -0.5,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SmartExplorersLogo(size: LogoSize.small),
+                const SizedBox(height: 4),
+                Text(
+                  isLandscape
+                      ? 'Curated travel stories, spaces, and trusted guides'
+                      : 'Travel stories and trusted experiences',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: isLandscape ? 13 : 12,
+                    height: 1.2,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.68)
+                        : AppDesign.midGrey,
+                  ),
+                ),
+              ],
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 12),
+          _ThemeModeMenuButton(
+            currentThemeMode: widget.currentThemeMode,
+            onSelected: widget.onThemeModeSelected,
+            isDark: isDark,
+          ),
+          const SizedBox(width: 10),
           _GlassIconButton(
             icon: LucideIcons.search,
             isDark: isDark,
@@ -121,9 +184,13 @@ class _FeedScreenState extends State<FeedScreen>
     );
   }
 
-  Widget _buildTabBar(bool isDark) {
+  Widget _buildTabBar({
+    required bool isDark,
+    required bool isLandscape,
+    required double horizontalPadding,
+  }) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: EdgeInsets.fromLTRB(horizontalPadding, 8, horizontalPadding, 0),
       child: TabBar(
         controller: _tabController,
         labelColor: isDark ? Colors.white : AppDesign.eerieBlack,
@@ -131,6 +198,7 @@ class _FeedScreenState extends State<FeedScreen>
         indicatorColor: isDark ? Colors.white : AppDesign.eerieBlack,
         indicatorWeight: 2.5,
         indicatorSize: TabBarIndicatorSize.label,
+        isScrollable: isLandscape,
         dividerColor:
             isDark ? Colors.white.withValues(alpha: 0.06) : AppDesign.lightGrey,
         dividerHeight: 0.5,
@@ -206,8 +274,14 @@ class _GlassIconButton extends StatelessWidget {
 
 // ── Posts Tab ────────────────────────────────────────────────────────────
 class _PostsTab extends StatefulWidget {
-  const _PostsTab({required this.isDark});
+  const _PostsTab({
+    required this.isDark,
+    required this.isLandscape,
+    required this.maxContentWidth,
+  });
   final bool isDark;
+  final bool isLandscape;
+  final double maxContentWidth;
 
   @override
   State<_PostsTab> createState() => _PostsTabState();
@@ -321,18 +395,42 @@ class _PostsTabState extends State<_PostsTab> {
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+      padding: EdgeInsets.fromLTRB(
+        0,
+        8,
+        0,
+        MediaQuery.of(context).padding.bottom + 100,
+      ),
       itemCount: _posts.length,
       itemBuilder:
-          (context, i) => _PostCard(post: _posts[i], isDark: widget.isDark),
+          (context, i) => Center(
+            child: SizedBox(
+              width: widget.maxContentWidth,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.isLandscape ? 24 : 20,
+                ),
+                child: _PostCard(
+                  post: _posts[i],
+                  isDark: widget.isDark,
+                  isLandscape: widget.isLandscape,
+                ),
+              ),
+            ),
+          ),
     );
   }
 }
 
 class _PostCard extends StatefulWidget {
-  const _PostCard({required this.post, required this.isDark});
+  const _PostCard({
+    required this.post,
+    required this.isDark,
+    required this.isLandscape,
+  });
   final _PostData post;
   final bool isDark;
+  final bool isLandscape;
 
   @override
   State<_PostCard> createState() => _PostCardState();
@@ -537,8 +635,9 @@ class _PostCardState extends State<_PostCard> {
                         ),
                       ),
                       ClipRRect(
-                        child: Image.asset(
-                          widget.post.image,
+                        child: _LoadingBlurImage(
+                          key: ValueKey(widget.post.image),
+                          image: widget.post.image,
                           width: double.infinity,
                           height: 320,
                           fit: BoxFit.cover,
@@ -649,13 +748,21 @@ class _PostCardState extends State<_PostCard> {
 
   @override
   Widget build(BuildContext context) {
+    final useSplitLayout = widget.isLandscape ||
+        MediaQuery.of(context).size.width >= 640;
+
     return GestureDetector(
       onTap: _openPostDetail,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 20),
+        margin: const EdgeInsets.only(bottom: 18),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(28),
           color: widget.isDark ? AppDesign.cardDark : Colors.white,
+          border: Border.all(
+            color: widget.isDark
+                ? Colors.white.withValues(alpha: 0.05)
+                : AppDesign.lightGrey.withValues(alpha: 0.8),
+          ),
           boxShadow:
               widget.isDark
                   ? []
@@ -668,212 +775,113 @@ class _PostCardState extends State<_PostCard> {
                   ],
         ),
         child: Column(
+        mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Author row
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [
-                          AppDesign.electricCobalt,
-                          AppDesign.electricCobalt.withValues(alpha: 0.4),
-                        ],
-                      ),
-                    ),
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor:
-                          widget.isDark ? AppDesign.cardDark : Colors.white,
-                      child: Text(
-                        widget.post.author[0],
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          color: AppDesign.electricCobalt,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.post.author,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color:
-                                widget.isDark
-                                    ? Colors.white
-                                    : AppDesign.eerieBlack,
-                          ),
-                        ),
-                        Text(
-                          '${widget.post.handle} · ${widget.post.timeAgo}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppDesign.midGrey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _toggleBookmark,
-                    child: Icon(
-                      _bookmarked ? LucideIcons.bookmark : LucideIcons.bookmark,
-                      size: 18,
-                      color:
-                          _bookmarked
-                              ? AppDesign.electricCobalt
-                              : AppDesign.midGrey,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Image — portrait aspect
-            GestureDetector(
-              onDoubleTap: () {
-                if (!_liked) _toggleLike();
-              },
-              child: ClipRRect(
-                child: Stack(
+            if (useSplitLayout)
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Image.asset(
-                      widget.post.image,
-                      width: double.infinity,
-                      height: 340,
-                      fit: BoxFit.cover,
+                    Expanded(
+                      flex: 5,
+                      child: GestureDetector(
+                        onDoubleTap: () {
+                          if (!_liked) _toggleLike();
+                        },
+                        child: _PostMedia(
+                          image: widget.post.image,
+                          isDark: widget.isDark,
+                          height: 320,
+                        ),
+                      ),
                     ),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      height: 80,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: 0.3),
-                            ],
-                          ),
+                    Expanded(
+                      flex: 6,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _PostHeader(
+                              post: widget.post,
+                              isDark: widget.isDark,
+                              bookmarked: _bookmarked,
+                              onBookmarkTap: _toggleBookmark,
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              widget.post.text,
+                              style: TextStyle(
+                                fontSize: 15,
+                                height: 1.55,
+                                color: widget.isDark
+                                    ? Colors.white.withValues(alpha: 0.9)
+                                    : AppDesign.eerieBlack,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _PostActions(
+                              likes: _likes,
+                              comments: widget.post.comments,
+                              liked: _liked,
+                              onLikeTap: _toggleLike,
+                              onCommentsTap: _showComments,
+                              onShareTap: _sharePost,
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ],
                 ),
+              )
+            else ...[
+              _PostHeader(
+                post: widget.post,
+                isDark: widget.isDark,
+                bookmarked: _bookmarked,
+                onBookmarkTap: _toggleBookmark,
               ),
-            ),
-
-            // Text + actions
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.post.text,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.5,
-                      color:
-                          widget.isDark
-                              ? Colors.white.withValues(alpha: 0.9)
-                              : AppDesign.eerieBlack,
+              GestureDetector(
+                onDoubleTap: () {
+                  if (!_liked) _toggleLike();
+                },
+                child: _PostMedia(
+                  image: widget.post.image,
+                  isDark: widget.isDark,
+                  height: 300,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.post.text,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: widget.isDark
+                            ? Colors.white.withValues(alpha: 0.9)
+                            : AppDesign.eerieBlack,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: _toggleLike,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _liked ? LucideIcons.heartOff : LucideIcons.heart,
-                              size: 18,
-                              color:
-                                  _liked ? AppDesign.danger : AppDesign.midGrey,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              '$_likes',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight:
-                                    _liked ? FontWeight.w600 : FontWeight.w400,
-                                color:
-                                    _liked
-                                        ? AppDesign.danger
-                                        : AppDesign.midGrey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 18),
-                      GestureDetector(
-                        onTap: _showComments,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              LucideIcons.messageCircle,
-                              size: 18,
-                              color: AppDesign.midGrey,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              '${widget.post.comments}',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppDesign.midGrey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: _sharePost,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              LucideIcons.share2,
-                              size: 16,
-                              color: AppDesign.midGrey,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              'Share',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppDesign.midGrey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                    const SizedBox(height: 14),
+                    _PostActions(
+                      likes: _likes,
+                      comments: widget.post.comments,
+                      liked: _liked,
+                      onLikeTap: _toggleLike,
+                      onCommentsTap: _showComments,
+                      onShareTap: _sharePost,
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -883,8 +891,14 @@ class _PostCardState extends State<_PostCard> {
 
 // ── Spaces Tab ──────────────────────────────────────────────────────────
 class _SpacesTab extends StatefulWidget {
-  const _SpacesTab({required this.isDark});
+  const _SpacesTab({
+    required this.isDark,
+    required this.isLandscape,
+    required this.maxContentWidth,
+  });
   final bool isDark;
+  final bool isLandscape;
+  final double maxContentWidth;
 
   @override
   State<_SpacesTab> createState() => _SpacesTabState();
@@ -991,10 +1005,25 @@ class _SpacesTabState extends State<_SpacesTab> {
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+      padding: EdgeInsets.fromLTRB(
+        0,
+        8,
+        0,
+        MediaQuery.of(context).padding.bottom + 100,
+      ),
       itemCount: _spaces.length,
       itemBuilder:
-          (context, i) => _SpaceCard(space: _spaces[i], isDark: widget.isDark),
+          (context, i) => Center(
+            child: SizedBox(
+              width: widget.maxContentWidth,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.isLandscape ? 24 : 20,
+                ),
+                child: _SpaceCard(space: _spaces[i], isDark: widget.isDark),
+              ),
+            ),
+          ),
     );
   }
 }
@@ -1067,7 +1096,11 @@ class _SpaceCardState extends State<_SpaceCard> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.asset(widget.space.image, fit: BoxFit.cover),
+              _LoadingBlurImage(
+                key: ValueKey(widget.space.image),
+                image: widget.space.image,
+                fit: BoxFit.cover,
+              ),
               Container(color: Colors.black.withValues(alpha: 0.45)),
               Positioned(
                 left: 0,
@@ -1161,8 +1194,14 @@ class _SpaceCardState extends State<_SpaceCard> {
 
 // ── Providers Tab ───────────────────────────────────────────────────────
 class _ProvidersTab extends StatefulWidget {
-  const _ProvidersTab({required this.isDark});
+  const _ProvidersTab({
+    required this.isDark,
+    required this.isLandscape,
+    required this.maxContentWidth,
+  });
   final bool isDark;
+  final bool isLandscape;
+  final double maxContentWidth;
 
   @override
   State<_ProvidersTab> createState() => _ProvidersTabState();
@@ -1279,11 +1318,25 @@ class _ProvidersTabState extends State<_ProvidersTab> {
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+      padding: EdgeInsets.fromLTRB(
+        0,
+        8,
+        0,
+        MediaQuery.of(context).padding.bottom + 100,
+      ),
       itemCount: _providers.length,
       itemBuilder:
-          (context, i) =>
-              _ProviderCard(provider: _providers[i], isDark: widget.isDark),
+          (context, i) => Center(
+            child: SizedBox(
+              width: widget.maxContentWidth,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.isLandscape ? 24 : 20,
+                ),
+                child: _ProviderCard(provider: _providers[i], isDark: widget.isDark),
+              ),
+            ),
+          ),
     );
   }
 }
@@ -1328,8 +1381,9 @@ class _ProviderCard extends StatelessWidget {
                         ),
                       ),
                       ClipRRect(
-                        child: Image.asset(
-                          provider.image,
+                        child: _LoadingBlurImage(
+                          key: ValueKey(provider.image),
+                          image: provider.image,
                           width: double.infinity,
                           height: 260,
                           fit: BoxFit.cover,
@@ -1500,8 +1554,9 @@ class _ProviderCard extends StatelessWidget {
                 topLeft: Radius.circular(20),
                 bottomLeft: Radius.circular(20),
               ),
-              child: Image.asset(
-                provider.image,
+              child: _LoadingBlurImage(
+                key: ValueKey(provider.image),
+                image: provider.image,
                 width: 110,
                 height: 130,
                 fit: BoxFit.cover,
@@ -1605,6 +1660,399 @@ class _ProviderCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ThemeModeMenuButton extends StatelessWidget {
+  const _ThemeModeMenuButton({
+    required this.currentThemeMode,
+    required this.onSelected,
+    required this.isDark,
+  });
+
+  final ThemeMode currentThemeMode;
+  final ValueChanged<ThemeMode> onSelected;
+  final bool isDark;
+
+  IconData get _icon => switch (currentThemeMode) {
+        ThemeMode.system => LucideIcons.monitor,
+      ThemeMode.dark => LucideIcons.moon,
+        ThemeMode.light => LucideIcons.sunMedium,
+      };
+
+  String get _label => switch (currentThemeMode) {
+        ThemeMode.system => 'System',
+        ThemeMode.dark => 'Dark',
+        ThemeMode.light => 'Light',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<ThemeMode>(
+      tooltip: 'Theme: $_label',
+      onSelected: onSelected,
+      position: PopupMenuPosition.under,
+      color: isDark ? AppDesign.cardDark : Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      itemBuilder:
+          (context) => [
+            PopupMenuItem(
+              value: ThemeMode.system,
+              child: Row(
+                children: [
+                  const Icon(LucideIcons.monitor, size: 18),
+                  const SizedBox(width: 10),
+                  Text(
+                    'System',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : AppDesign.eerieBlack,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: ThemeMode.light,
+              child: Row(
+                children: [
+                  const Icon(LucideIcons.sunMedium, size: 18),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Light',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : AppDesign.eerieBlack,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: ThemeMode.dark,
+              child: Row(
+                children: [
+                  const Icon(LucideIcons.moonStar, size: 18),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Dark',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : AppDesign.eerieBlack,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.05),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.06),
+              ),
+            ),
+            child: Icon(
+              _icon,
+              size: 18,
+              color: isDark ? Colors.white70 : AppDesign.eerieBlack,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PostHeader extends StatelessWidget {
+  const _PostHeader({
+    required this.post,
+    required this.isDark,
+    required this.bookmarked,
+    required this.onBookmarkTap,
+  });
+
+  final _PostData post;
+  final bool isDark;
+  final bool bookmarked;
+  final VoidCallback onBookmarkTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  AppDesign.electricCobalt,
+                  AppDesign.electricCobalt.withValues(alpha: 0.38),
+                ],
+              ),
+            ),
+            child: CircleAvatar(
+              radius: 18,
+              backgroundColor: isDark ? AppDesign.cardDark : Colors.white,
+              child: Text(
+                post.author[0],
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: AppDesign.electricCobalt,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  post.author,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: isDark ? Colors.white : AppDesign.eerieBlack,
+                  ),
+                ),
+                Text(
+                  '${post.handle} · ${post.timeAgo}',
+                  style: const TextStyle(fontSize: 12, color: AppDesign.midGrey),
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: onBookmarkTap,
+            child: Icon(
+              LucideIcons.bookmark,
+              size: 18,
+              color: bookmarked ? AppDesign.electricCobalt : AppDesign.midGrey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PostMedia extends StatelessWidget {
+  const _PostMedia({
+    required this.image,
+    required this.isDark,
+    required this.height,
+  });
+
+  final String image;
+  final bool isDark;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      child: Stack(
+        children: [
+          _LoadingBlurImage(
+            key: ValueKey(image),
+            image: image,
+            width: double.infinity,
+            height: height,
+            fit: BoxFit.cover,
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: isDark ? 0.08 : 0.18),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PostActions extends StatelessWidget {
+  const _PostActions({
+    required this.likes,
+    required this.comments,
+    required this.liked,
+    required this.onLikeTap,
+    required this.onCommentsTap,
+    required this.onShareTap,
+  });
+
+  final int likes;
+  final int comments;
+  final bool liked;
+  final VoidCallback onLikeTap;
+  final VoidCallback onCommentsTap;
+  final VoidCallback onShareTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        _ActionPill(
+          icon: liked ? LucideIcons.heartOff : LucideIcons.heart,
+          label: '$likes',
+          active: liked,
+          activeColor: AppDesign.danger,
+          onTap: onLikeTap,
+        ),
+        _ActionPill(
+          icon: LucideIcons.messageCircle,
+          label: '$comments',
+          onTap: onCommentsTap,
+        ),
+        _ActionPill(
+          icon: LucideIcons.share2,
+          label: 'Share',
+          onTap: onShareTap,
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionPill extends StatelessWidget {
+  const _ActionPill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.active = false,
+    this.activeColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool active;
+  final Color? activeColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? activeColor ?? AppDesign.electricCobalt : AppDesign.midGrey;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: active
+              ? color.withValues(alpha: 0.12)
+              : Colors.black.withValues(alpha: 0.03),
+          border: Border.all(
+            color: active
+                ? color.withValues(alpha: 0.22)
+                : AppDesign.lightGrey.withValues(alpha: 0.6),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingBlurImage extends StatefulWidget {
+  const _LoadingBlurImage({
+    super.key,
+    required this.image,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+  });
+
+  final String image;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+
+  @override
+  State<_LoadingBlurImage> createState() => _LoadingBlurImageState();
+}
+
+class _LoadingBlurImageState extends State<_LoadingBlurImage> {
+  bool _revealed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      widget.image,
+      width: widget.width,
+      height: widget.height,
+      fit: widget.fit,
+      filterQuality: FilterQuality.high,
+      gaplessPlayback: true,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (frame != null || wasSynchronouslyLoaded) {
+          if (!_revealed) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() => _revealed = true);
+              }
+            });
+          }
+        }
+
+        return TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 18.0, end: _revealed ? 0.0 : 18.0),
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, _) {
+            return ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: value, sigmaY: value),
+              child: AnimatedOpacity(
+                opacity: _revealed ? 1.0 : 0.88,
+                duration: const Duration(milliseconds: 180),
+                child: child,
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

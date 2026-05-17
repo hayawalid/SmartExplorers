@@ -9,7 +9,7 @@ import '../../services/session_store.dart';
 /// Login Screen – Same cinematic photo as auth choice, with frosted-glass
 /// form that slides up when the screen opens.
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();

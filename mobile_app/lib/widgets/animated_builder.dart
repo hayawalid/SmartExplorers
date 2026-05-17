@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 /// Useful for inline animation transforms without creating a full subclass.
 class PulseAnimatedBuilder extends AnimatedWidget {
   const PulseAnimatedBuilder({
-    Key? key,
+    super.key,
     required Animation<double> animation,
     required this.builder,
     this.child,
-  }) : super(key: key, listenable: animation);
+  }) : super(listenable: animation);
 
   final Widget Function(BuildContext context, Widget? child) builder;
   final Widget? child;

@@ -8,7 +8,7 @@ import '../widgets/smart_explorers_logo.dart';
 /// Egypt-Themed Itinerary Planner combining AI chat and destination cards
 /// Color Palette: Desert Sand, Nile Blue, Ancient Gold, Warm Terracotta
 class ItineraryPlannerScreen extends StatefulWidget {
-  const ItineraryPlannerScreen({Key? key}) : super(key: key);
+  const ItineraryPlannerScreen({super.key});
 
   @override
   State<ItineraryPlannerScreen> createState() => _ItineraryPlannerScreenState();

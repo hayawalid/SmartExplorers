@@ -13,7 +13,7 @@ import 'itinerary_calendar_screen.dart'; // Import the calendar screen
 /// Agentic AI Itinerary Planner
 /// Starts as chat-only, shows suggestion cards when AI creates itineraries
 class ItineraryPlannerScreen extends StatefulWidget {
-  const ItineraryPlannerScreen({Key? key}) : super(key: key);
+  const ItineraryPlannerScreen({super.key});
 
   @override
   State<ItineraryPlannerScreen> createState() => _ItineraryPlannerScreenState();
@@ -189,7 +189,7 @@ class _ItineraryPlannerScreenState extends State<ItineraryPlannerScreen>
               final costMax = activity['estimated_cost_max'];
               final priceStr =
                   costMin != null
-                      ? '\$${costMin}${costMax != null ? ' - \$$costMax' : ''}'
+                      ? '\$$costMin${costMax != null ? ' - \$$costMax' : ''}'
                       : 'Free';
               final tags =
                   (activity['tags'] as List<dynamic>?)
@@ -700,8 +700,7 @@ class _SuggestionCardWidget extends StatefulWidget {
   const _SuggestionCardWidget({
     required this.suggestion,
     required this.isDark,
-    this.showButton = true,
-    this.onApply,
+    this.showButton = true, this.onApply,
   });
 
   final _SuggestionCard suggestion;
@@ -1037,8 +1036,9 @@ class _SuggestionCardWidgetState extends State<_SuggestionCardWidget> {
   // Keep these methods here for the expanded card
   IconData _getAmenityIcon(String amenity) {
     if (amenity.contains('Bed')) return LucideIcons.bed;
-    if (amenity.contains('Dinner') || amenity.contains('Sushi'))
+    if (amenity.contains('Dinner') || amenity.contains('Sushi')) {
       return LucideIcons.utensils;
+    }
     if (amenity.contains('Guest')) return LucideIcons.users;
     if (amenity.contains('Historic')) return LucideIcons.landmark;
     if (amenity.contains('Photo')) return LucideIcons.camera;

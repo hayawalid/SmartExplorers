@@ -12,11 +12,11 @@ class UserProfileViewScreen extends StatefulWidget {
   final String? accountType; // 'traveler' | 'service_provider'
 
   const UserProfileViewScreen({
-    Key? key,
+    super.key,
     required this.userId,
     this.displayName,
     this.accountType,
-  }) : super(key: key);
+  });
 
   @override
   State<UserProfileViewScreen> createState() => _UserProfileViewScreenState();

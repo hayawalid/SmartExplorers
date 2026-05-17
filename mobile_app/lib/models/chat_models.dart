@@ -1,4 +1,5 @@
 /// Chat models matching the backend API schemas
+library;
 
 class ChatMessage {
   final String role; // 'user' or 'assistant'

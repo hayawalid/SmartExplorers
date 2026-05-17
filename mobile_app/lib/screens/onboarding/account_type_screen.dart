@@ -9,7 +9,7 @@ import 'provider_profile_setup_screen.dart';
 
 /// Account Type Selection – Cinematic glass design matching login theme
 class AccountTypeScreen extends StatefulWidget {
-  const AccountTypeScreen({Key? key}) : super(key: key);
+  const AccountTypeScreen({super.key});
 
   @override
   State<AccountTypeScreen> createState() => _AccountTypeScreenState();

@@ -13,12 +13,12 @@ class TravelSpaceDetailScreen extends StatefulWidget {
   final String tag;
 
   const TravelSpaceDetailScreen({
-    Key? key,
+    super.key,
     required this.spaceName,
     required this.memberCount,
     required this.image,
     required this.tag,
-  }) : super(key: key);
+  });
 
   @override
   State<TravelSpaceDetailScreen> createState() =>

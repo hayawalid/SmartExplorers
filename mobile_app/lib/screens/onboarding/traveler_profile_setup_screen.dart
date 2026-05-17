@@ -171,8 +171,7 @@ class _TravelerProfileSetupScreenState extends State<TravelerProfileSetupScreen>
               onPrimary: Colors.white,
               surface: Color(0xFF2A2A2A),
               onSurface: Colors.white,
-            ),
-            dialogBackgroundColor: const Color(0xFF1A1A1A),
+            ), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF1A1A1A)),
           ),
           child: child!,
         );

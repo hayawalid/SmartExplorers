@@ -16,7 +16,7 @@ import 'user_profile_view_screen.dart';
 /// Tab 4: Smart Match & Concierge
 /// Updated: View Itinerary button + Orbital circles interface
 class SmartMatchScreen extends StatefulWidget {
-  const SmartMatchScreen({Key? key}) : super(key: key);
+  const SmartMatchScreen({super.key});
 
   @override
   State<SmartMatchScreen> createState() => _SmartMatchScreenState();
@@ -671,7 +671,7 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
       // 1. Get current user email from profile
       final username = SessionStore.instance.username ?? '';
       final profileRes = await _profileService.getUserByUsername(username);
-      final userEmail = profileRes?['email'] as String? ?? '';
+      final userEmail = profileRes['email'] as String? ?? '';
       if (userEmail.isEmpty) {
         throw Exception('Could not resolve user email');
       }

@@ -12,7 +12,7 @@ import '../services/profile_api_service.dart';
 /// High-visibility layout with large SOS button
 /// Emergency contacts list based on current itinerary location
 class SafetyHubScreen extends StatefulWidget {
-  const SafetyHubScreen({Key? key}) : super(key: key);
+  const SafetyHubScreen({super.key});
 
   @override
   State<SafetyHubScreen> createState() => _SafetyHubScreenState();
@@ -457,8 +457,9 @@ class _SafetyHubScreenState extends State<SafetyHubScreen>
               ElevatedButton(
                 onPressed: () async {
                   if (nameController.text.isEmpty ||
-                      numberController.text.isEmpty)
+                      numberController.text.isEmpty) {
                     return;
+                  }
                   Navigator.pop(ctx);
                   final userId = SessionStore.instance.userId;
                   if (userId == null) return;

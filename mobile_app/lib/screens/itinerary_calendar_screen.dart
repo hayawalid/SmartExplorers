@@ -7,7 +7,7 @@ class ItineraryCalendarScreen extends StatefulWidget {
   /// Pass the full itinerary map from the planner to render dynamically.
   final Map<String, dynamic>? itinerary;
 
-  const ItineraryCalendarScreen({Key? key, this.itinerary}) : super(key: key);
+  const ItineraryCalendarScreen({super.key, this.itinerary});
 
   @override
   State<ItineraryCalendarScreen> createState() =>
@@ -69,7 +69,9 @@ class _ItineraryCalendarScreenState extends State<ItineraryCalendarScreen> {
 
   int get _totalPlaces {
     int c = 0;
-    for (final d in _days) c += d.events.length;
+    for (final d in _days) {
+      c += d.events.length;
+    }
     return c;
   }
 
@@ -84,8 +86,9 @@ class _ItineraryCalendarScreenState extends State<ItineraryCalendarScreen> {
           'food',
           'restaurant',
           'cafe',
-        ].contains(e.category.toLowerCase()))
+        ].contains(e.category.toLowerCase())) {
           c++;
+        }
       }
     }
     return c;

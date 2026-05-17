@@ -9,7 +9,7 @@ import 'login_screen.dart';
 
 /// Auth Choice Screen – Cinematic full-bleed photo with glassmorphism overlay
 class AuthChoiceScreen extends StatefulWidget {
-  const AuthChoiceScreen({Key? key}) : super(key: key);
+  const AuthChoiceScreen({super.key});
 
   @override
   State<AuthChoiceScreen> createState() => _AuthChoiceScreenState();

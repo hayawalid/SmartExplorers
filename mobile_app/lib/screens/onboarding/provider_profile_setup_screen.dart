@@ -4,7 +4,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
 import '../../theme/app_theme.dart';
 import '../../services/auth_api_service.dart';
-import '../../widgets/smart_explorers_logo.dart';
 
 /// Provider signup – 4-step cinematic glass flow
 /// Step 1: Basic info  Step 2: Service type  Step 3: Verification  Step 4: Review

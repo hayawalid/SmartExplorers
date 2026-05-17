@@ -946,7 +946,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
               ),
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -1155,7 +1155,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
               ),
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }

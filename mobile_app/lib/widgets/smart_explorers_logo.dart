@@ -6,12 +6,12 @@ import '../theme/app_theme.dart';
 /// Use across all pages for consistent identity.
 class SmartExplorersLogo extends StatelessWidget {
   const SmartExplorersLogo({
-    Key? key,
+    super.key,
     this.size = LogoSize.small,
     this.showText = true,
     this.color,
     this.lightMode = true,
-  }) : super(key: key);
+  });
 
   final LogoSize size;
   final bool showText;

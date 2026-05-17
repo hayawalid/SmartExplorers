@@ -7,7 +7,7 @@ import 'traveler_profile_setup_screen.dart';
 /// Interest Selection Screen - Smart Monochrome design system
 /// Grid of selectable interest cards with Electric Cobalt accent
 class InteractiveSetupScreen extends StatefulWidget {
-  const InteractiveSetupScreen({Key? key}) : super(key: key);
+  const InteractiveSetupScreen({super.key});
 
   @override
   State<InteractiveSetupScreen> createState() => _InteractiveSetupScreenState();

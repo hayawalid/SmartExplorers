@@ -7,7 +7,7 @@ import '../services/admin_api_service.dart';
 
 /// Admin Dashboard – View insights, provider requests, user reports.
 class AdminDashboardScreen extends StatefulWidget {
-  const AdminDashboardScreen({Key? key}) : super(key: key);
+  const AdminDashboardScreen({super.key});
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -48,11 +48,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Future<void> _loadStats() async {
     try {
       final stats = await _adminService.getDashboardStats();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _stats = stats;
           _loadingStats = false;
         });
+      }
     } catch (_) {
       if (mounted) setState(() => _loadingStats = false);
     }
@@ -61,11 +62,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Future<void> _loadProviderRequests() async {
     try {
       final requests = await _adminService.getProviderRequests();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _providerRequests = requests;
           _loadingRequests = false;
         });
+      }
     } catch (_) {
       if (mounted) setState(() => _loadingRequests = false);
     }
@@ -74,11 +76,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Future<void> _loadReports() async {
     try {
       final reports = await _adminService.getReports();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _reports = reports;
           _loadingReports = false;
         });
+      }
     } catch (_) {
       if (mounted) setState(() => _loadingReports = false);
     }
