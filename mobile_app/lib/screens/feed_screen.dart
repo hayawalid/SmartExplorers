@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'dart:ui';
 import '../theme/app_theme.dart';
 import '../widgets/smart_explorers_logo.dart';
 import '../services/social_api_service.dart';
 import '../services/marketplace_api_service.dart';
+import 'create_post_screen.dart';
+import 'write_review_screen.dart';
 import 'travel_space_detail_screen.dart';
 
 /// Social feed with 3 tabs – Posts, Spaces, Providers.
@@ -38,6 +40,28 @@ class _FeedScreenState extends State<FeedScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _openSearchSheet() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _SearchBottomSheet(),
+    );
+  }
+
+  void _openNotificationsSheet() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _NotificationsBottomSheet(),
+    );
   }
 
   @override
@@ -106,12 +130,18 @@ class _FeedScreenState extends State<FeedScreen>
     required bool isLandscape,
     required double horizontalPadding,
   }) {
+    final logoSize = isLandscape ? LogoSize.tiny : LogoSize.small;
+    final headerTop = isLandscape ? 8.0 : 16.0;
+    final headerBottom = isLandscape ? 2.0 : 6.0;
+    final controlSize = isLandscape ? 36.0 : 40.0;
+    final controlGap = isLandscape ? 8.0 : 10.0;
+
     return Padding(
       padding: EdgeInsets.fromLTRB(
         horizontalPadding,
-        isLandscape ? 12 : 16,
+        headerTop,
         horizontalPadding,
-        6,
+        headerBottom,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,16 +150,16 @@ class _FeedScreenState extends State<FeedScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SmartExplorersLogo(size: LogoSize.small),
-                const SizedBox(height: 4),
+                SmartExplorersLogo(size: logoSize),
+                const SizedBox(height: 2),
                 Text(
                   isLandscape
-                      ? 'Curated travel stories, spaces, and trusted guides'
+                      ? 'Curated travel stories, spaces, guides'
                       : 'Travel stories and trusted experiences',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: isLandscape ? 13 : 12,
+                    fontSize: isLandscape ? 11.5 : 12,
                     height: 1.2,
                     color:
                         isDark
@@ -140,45 +170,33 @@ class _FeedScreenState extends State<FeedScreen>
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          _ThemeModeMenuButton(
+          SizedBox(width: controlGap),
+          _ThemeModeToggleButton(
             currentThemeMode: widget.currentThemeMode,
-            onSelected: widget.onThemeModeSelected,
+            onToggled:
+                () => widget.onThemeModeSelected(
+                  widget.currentThemeMode == ThemeMode.dark
+                      ? ThemeMode.light
+                      : ThemeMode.dark,
+                ),
             isDark: isDark,
+            compact: isLandscape,
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: controlGap),
           _GlassIconButton(
             icon: LucideIcons.search,
             isDark: isDark,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Search coming soon'),
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 1),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              );
-            },
+            size: controlSize,
+            iconColor: isDark ? Colors.white : AppDesign.eerieBlack,
+            onTap: _openSearchSheet,
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: controlGap),
           _GlassIconButton(
             icon: LucideIcons.bell,
             isDark: isDark,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('No new notifications'),
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 1),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              );
-            },
+            size: controlSize,
+            iconColor: isDark ? Colors.white : AppDesign.eerieBlack,
+            onTap: _openNotificationsSheet,
           ),
         ],
       ),
@@ -230,11 +248,15 @@ class _GlassIconButton extends StatelessWidget {
   const _GlassIconButton({
     required this.icon,
     required this.isDark,
+    required this.size,
+    required this.iconColor,
     required this.onTap,
   });
 
   final IconData icon;
   final bool isDark;
+  final double size;
+  final Color iconColor;
   final VoidCallback onTap;
 
   @override
@@ -242,14 +264,14 @@ class _GlassIconButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(size * 0.3),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
-            width: 40,
-            height: 40,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(size * 0.3),
               color:
                   isDark
                       ? Colors.white.withValues(alpha: 0.08)
@@ -261,16 +283,727 @@ class _GlassIconButton extends StatelessWidget {
                         : Colors.black.withValues(alpha: 0.06),
               ),
             ),
-            child: Icon(
-              icon,
-              size: 18,
-              color: isDark ? Colors.white70 : AppDesign.eerieBlack,
+            child: Icon(icon, size: 18, color: iconColor),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Theme Toggle Button ────────────────────────────────────────────────
+class _ThemeModeToggleButton extends StatelessWidget {
+  const _ThemeModeToggleButton({
+    required this.currentThemeMode,
+    required this.onToggled,
+    required this.isDark,
+    required this.compact,
+  });
+
+  final ThemeMode currentThemeMode;
+  final VoidCallback onToggled;
+  final bool isDark;
+  final bool compact;
+
+  bool get _isDark => currentThemeMode == ThemeMode.dark;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = compact ? 54.0 : 58.0;
+    final height = compact ? 30.0 : 32.0;
+
+    return Semantics(
+      button: true,
+      toggled: _isDark,
+      label: _isDark ? 'Dark mode on' : 'Light mode on',
+      child: GestureDetector(
+        onTap: onToggled,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(height / 2),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              width: width,
+              height: height,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(height / 2),
+                color:
+                    isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.black.withValues(alpha: 0.05),
+                border: Border.all(
+                  color:
+                      isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.black.withValues(alpha: 0.06),
+                ),
+              ),
+              child: Stack(
+                children: [
+                  AnimatedAlign(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    alignment:
+                        _isDark ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      width: height - 4,
+                      height: height - 4,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isDark ? Colors.white : AppDesign.eerieBlack,
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 7),
+                      child: Icon(
+                        LucideIcons.sun_medium,
+                        size: compact ? 12 : 13,
+                        color: _isDark ? Colors.black : Colors.white,
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 7),
+                      child: Icon(
+                        LucideIcons.moon,
+                        size: compact ? 12 : 13,
+                        color: _isDark ? Colors.black : Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _SearchBottomSheet extends StatefulWidget {
+  const _SearchBottomSheet();
+
+  @override
+  State<_SearchBottomSheet> createState() => _SearchBottomSheetState();
+}
+
+class _SearchBottomSheetState extends State<_SearchBottomSheet> {
+  final TextEditingController _searchController = TextEditingController();
+
+  static final List<_SearchResultData> _results = [
+    const _SearchResultData(
+      title: 'Cairo Weekend Explorers',
+      subtitle: 'Travel space • 1,243 members',
+      type: 'Space',
+      icon: LucideIcons.users,
+      accent: AppDesign.navExplore,
+    ),
+    _SearchResultData(
+      title: 'Mohamed Ali',
+      subtitle: 'Certified Egyptologist & Guide',
+      type: 'Provider',
+      icon: LucideIcons.search,
+      accent: AppDesign.navProfile,
+    ),
+    const _SearchResultData(
+      title: 'Sunrise at the Pyramids',
+      subtitle: 'Popular post • 182 likes',
+      type: 'Post',
+      icon: LucideIcons.newspaper,
+      accent: AppDesign.onboardingAccent,
+    ),
+    const _SearchResultData(
+      title: 'Red Sea Divers',
+      subtitle: 'Travel space • Trending now',
+      type: 'Space',
+      icon: LucideIcons.waves,
+      accent: AppDesign.navSafety,
+    ),
+    const _SearchResultData(
+      title: 'Verified guides in Luxor',
+      subtitle: 'Provider match • 4.9 rating',
+      type: 'Provider',
+      icon: LucideIcons.badge_check,
+      accent: AppDesign.navItinerary,
+    ),
+  ];
+
+  final List<String> _quickFilters = const [
+    'Spaces',
+    'Providers',
+    'Posts',
+    'Verified',
+  ];
+
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _query = _searchController.text;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final filteredResults =
+        _results.where((result) {
+          final query = _query.trim().toLowerCase();
+          if (query.isEmpty) {
+            return true;
+          }
+          return result.title.toLowerCase().contains(query) ||
+              result.subtitle.toLowerCase().contains(query) ||
+              result.type.toLowerCase().contains(query);
+        }).toList();
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.86,
+      minChildSize: 0.55,
+      maxChildSize: 0.96,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppDesign.cardDark : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              _SheetHandle(isDark: isDark),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Search',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : AppDesign.eerieBlack,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${filteredResults.length} results',
+                      style: TextStyle(fontSize: 13, color: AppDesign.midGrey),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  textInputAction: TextInputAction.search,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppDesign.eerieBlack,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Search posts, spaces, providers...',
+                    prefixIcon: Icon(
+                      LucideIcons.search,
+                      color: AppDesign.midGrey,
+                    ),
+                    suffixIcon:
+                        _query.isEmpty
+                            ? null
+                            : IconButton(
+                              onPressed: () => _searchController.clear(),
+                              icon: Icon(
+                                LucideIcons.x,
+                                color: AppDesign.midGrey,
+                              ),
+                            ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 44,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  scrollDirection: Axis.horizontal,
+                  itemBuilder: (context, index) {
+                    final label = _quickFilters[index];
+                    return ActionChip(
+                      label: Text(label),
+                      onPressed: () {
+                        _searchController.text = label;
+                        _searchController
+                            .selection = TextSelection.fromPosition(
+                          TextPosition(offset: label.length),
+                        );
+                      },
+                    );
+                  },
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemCount: _quickFilters.length,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child:
+                    filteredResults.isEmpty
+                        ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                LucideIcons.search_x,
+                                size: 44,
+                                color: AppDesign.midGrey,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No results found',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color:
+                                      isDark
+                                          ? Colors.white
+                                          : AppDesign.eerieBlack,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Try a different keyword or filter.',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppDesign.midGrey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        : ListView.separated(
+                          controller: scrollController,
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                          itemBuilder: (context, index) {
+                            final result = filteredResults[index];
+                            return _SearchResultTile(
+                              data: result,
+                              isDark: isDark,
+                              onTap: () {
+                                _searchController.text = result.title;
+                                _searchController
+                                    .selection = TextSelection.fromPosition(
+                                  TextPosition(offset: result.title.length),
+                                );
+                              },
+                            );
+                          },
+                          separatorBuilder:
+                              (_, __) => const SizedBox(height: 12),
+                          itemCount: filteredResults.length,
+                        ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _NotificationsBottomSheet extends StatefulWidget {
+  const _NotificationsBottomSheet();
+
+  @override
+  State<_NotificationsBottomSheet> createState() =>
+      _NotificationsBottomSheetState();
+}
+
+class _NotificationsBottomSheetState extends State<_NotificationsBottomSheet> {
+  final List<_NotificationData> _notifications = [
+    _NotificationData(
+      title: 'New match request',
+      subtitle: 'A provider accepted your travel request for Luxor.',
+      timeLabel: '2m',
+      icon: LucideIcons.badge_check,
+      accent: AppDesign.navSafety,
+      unread: true,
+    ),
+    _NotificationData(
+      title: 'Travel space update',
+      subtitle: 'Cairo Weekend Explorers posted 3 new trip ideas.',
+      timeLabel: '18m',
+      icon: LucideIcons.users,
+      accent: AppDesign.navExplore,
+      unread: true,
+    ),
+    _NotificationData(
+      title: 'Saved itinerary reminder',
+      subtitle: 'Your Red Sea itinerary starts tomorrow morning.',
+      timeLabel: '1h',
+      icon: LucideIcons.calendar_clock,
+      accent: AppDesign.navItinerary,
+      unread: false,
+    ),
+    _NotificationData(
+      title: 'Provider reply',
+      subtitle: 'Mohamed Ali replied to your guide booking message.',
+      timeLabel: '3h',
+      icon: LucideIcons.message_circle,
+      accent: AppDesign.navProfile,
+      unread: false,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unreadCount = _notifications.where((item) => item.unread).length;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.78,
+      minChildSize: 0.5,
+      maxChildSize: 0.94,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppDesign.cardDark : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              _SheetHandle(isDark: isDark),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Notifications',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color:
+                                  isDark ? Colors.white : AppDesign.eerieBlack,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            unreadCount == 0
+                                ? 'You are all caught up'
+                                : '$unreadCount unread updates',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppDesign.midGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          for (final notification in _notifications) {
+                            notification.unread = false;
+                          }
+                        });
+                      },
+                      child: const Text('Mark all read'),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.separated(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  itemCount: _notifications.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final notification = _notifications[index];
+                    return _NotificationTile(
+                      data: notification,
+                      isDark: isDark,
+                      onTap: () {
+                        setState(() {
+                          notification.unread = false;
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle({required this.isDark});
+
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.only(top: 12, bottom: 10),
+        width: 42,
+        height: 4,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(2),
+          color: isDark ? Colors.white24 : AppDesign.lightGrey,
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchResultTile extends StatelessWidget {
+  const _SearchResultTile({
+    required this.data,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  final _SearchResultData data;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color:
+              isDark
+                  ? Colors.white.withValues(alpha: 0.04)
+                  : AppDesign.offWhite,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color:
+                isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : AppDesign.lightGrey,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: data.accent.withValues(alpha: isDark ? 0.22 : 0.12),
+              ),
+              child: Icon(data.icon, color: data.accent, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          data.title,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : AppDesign.eerieBlack,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        data.type,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                          color: data.accent,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    data.subtitle,
+                    style: TextStyle(fontSize: 13, color: AppDesign.midGrey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile({
+    required this.data,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  final _NotificationData data;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(22),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color:
+              data.unread
+                  ? (isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : AppDesign.offWhite)
+                  : (isDark
+                      ? Colors.white.withValues(alpha: 0.03)
+                      : Colors.white),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color:
+                data.unread
+                    ? data.accent.withValues(alpha: isDark ? 0.22 : 0.16)
+                    : (isDark
+                        ? Colors.white.withValues(alpha: 0.05)
+                        : AppDesign.lightGrey),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: data.accent.withValues(alpha: isDark ? 0.22 : 0.12),
+              ),
+              child: Icon(data.icon, color: data.accent, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          data.title,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight:
+                                data.unread ? FontWeight.w700 : FontWeight.w600,
+                            color: isDark ? Colors.white : AppDesign.eerieBlack,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        data.timeLabel,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppDesign.midGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    data.subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.35,
+                      color: AppDesign.midGrey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (data.unread) ...[
+              const SizedBox(width: 10),
+              Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: AppDesign.onboardingAccent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchResultData {
+  const _SearchResultData({
+    required this.title,
+    required this.subtitle,
+    required this.type,
+    required this.icon,
+    required this.accent,
+  });
+
+  final String title;
+  final String subtitle;
+  final String type;
+  final IconData icon;
+  final Color accent;
+}
+
+class _NotificationData {
+  _NotificationData({
+    required this.title,
+    required this.subtitle,
+    required this.timeLabel,
+    required this.icon,
+    required this.accent,
+    required this.unread,
+  });
+
+  final String title;
+  final String subtitle;
+  final String timeLabel;
+  final IconData icon;
+  final Color accent;
+  bool unread;
 }
 
 // ── Posts Tab ────────────────────────────────────────────────────────────
@@ -280,6 +1013,7 @@ class _PostsTab extends StatefulWidget {
     required this.isLandscape,
     required this.maxContentWidth,
   });
+
   final bool isDark;
   final bool isLandscape;
   final double maxContentWidth;
@@ -295,31 +1029,51 @@ class _PostsTabState extends State<_PostsTab> {
 
   static const _defaultImages = [
     'lib/public/pexels-meryemmeva-34823948.jpg',
+    'lib/public/smart_itineraries.jpg',
     'lib/public/pexels-zahide-tas-367420941-28406392.jpg',
     'lib/public/verified_guides.jpg',
-    'lib/public/smart_itineraries.jpg',
   ];
 
   static final _fallbackPosts = [
     _PostData(
-      author: 'Jana Ghoniem',
-      handle: '@jana_explorer',
+      author: 'Ahmed Hassan',
+      handle: '@ahmedh',
       text:
-          'Sunrise at the Pyramids of Giza – nothing compares to seeing these wonders in person.',
+          'Sunrise at the Pyramids never gets old. Best time to go is before 7 AM.',
       image: 'lib/public/pexels-meryemmeva-34823948.jpg',
-      likes: 142,
-      comments: 23,
+      likes: 182,
+      comments: 24,
       timeAgo: '2h',
     ),
     _PostData(
-      author: 'Sarah Ahmed',
-      handle: '@sarah_explorer',
+      author: 'Sara Johnson',
+      handle: '@saraj',
       text:
-          'Cruising on the Nile at sunset. Egypt truly is the gift of the river. 🌅',
+          'Loved the guided walk through Old Cairo. So much history packed into one afternoon.',
+      image: 'lib/public/smart_itineraries.jpg',
+      likes: 139,
+      comments: 19,
+      timeAgo: '4h',
+    ),
+    _PostData(
+      author: 'Mohamed Ali',
+      handle: '@mohamedali',
+      text:
+          'The Red Sea reef trip today was incredible. Clear water, calm weather, and a great crew.',
       image: 'lib/public/pexels-zahide-tas-367420941-28406392.jpg',
-      likes: 89,
+      likes: 210,
+      comments: 33,
+      timeAgo: '6h',
+    ),
+    _PostData(
+      author: 'Nour Adel',
+      handle: '@nouradel',
+      text:
+          'Verified guides really make a difference when exploring with family.',
+      image: 'lib/public/verified_guides.jpg',
+      likes: 97,
       comments: 11,
-      timeAgo: '5h',
+      timeAgo: '9h',
     ),
   ];
 
@@ -338,13 +1092,13 @@ class _PostsTabState extends State<_PostsTab> {
               data.asMap().entries.map((e) {
                 final p = e.value;
                 return _PostData(
-                  author: p['author_name'] ?? p['full_name'] ?? 'Traveler',
-                  handle: '@${p['username'] ?? 'user'}',
-                  text: p['content'] ?? p['text'] ?? '',
+                  author: p['author']?.toString() ?? 'Traveler',
+                  handle: p['handle']?.toString() ?? '@traveler',
+                  text: p['caption']?.toString() ?? p['text']?.toString() ?? '',
                   image: _defaultImages[e.key % _defaultImages.length],
-                  likes: (p['likes'] as num?)?.toInt() ?? 0,
-                  comments: (p['comments_count'] as num?)?.toInt() ?? 0,
-                  timeAgo: p['time_ago'] ?? _timeAgo(p['created_at']),
+                  likes: (p['like_count'] as num?)?.toInt() ?? 0,
+                  comments: (p['comment_count'] as num?)?.toInt() ?? 0,
+                  timeAgo: p['time_ago']?.toString() ?? 'Just now',
                 );
               }).toList();
           _loading = false;
@@ -358,17 +1112,12 @@ class _PostsTabState extends State<_PostsTab> {
     });
   }
 
-  String _timeAgo(dynamic dateStr) {
-    if (dateStr == null) return 'now';
-    try {
-      final date = DateTime.parse(dateStr.toString());
-      final diff = DateTime.now().difference(date);
-      if (diff.inDays > 0) return '${diff.inDays}d';
-      if (diff.inHours > 0) return '${diff.inHours}h';
-      if (diff.inMinutes > 0) return '${diff.inMinutes}m';
-      return 'now';
-    } catch (_) {
-      return 'now';
+  Future<void> _openCreatePostPage() async {
+    final created = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const CreatePostScreen()));
+    if (created == true && mounted) {
+      _loadPosts();
     }
   }
 
@@ -380,45 +1129,84 @@ class _PostsTabState extends State<_PostsTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_posts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(LucideIcons.newspaper, size: 48, color: AppDesign.midGrey),
-            const SizedBox(height: 12),
-            Text('No posts yet', style: TextStyle(color: AppDesign.midGrey)),
-          ],
-        ),
-      );
-    }
-    return ListView.builder(
-      padding: EdgeInsets.fromLTRB(
-        0,
-        8,
-        0,
-        MediaQuery.of(context).padding.bottom + 100,
-      ),
-      itemCount: _posts.length,
-      itemBuilder:
-          (context, i) => Center(
-            child: SizedBox(
-              width: widget.maxContentWidth,
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: widget.isLandscape ? 24 : 20,
-                ),
-                child: _PostCard(
-                  post: _posts[i],
-                  isDark: widget.isDark,
-                  isLandscape: widget.isLandscape,
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            widget.isLandscape ? 24 : 20,
+            10,
+            widget.isLandscape ? 24 : 20,
+            8,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Posts',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: widget.isDark ? Colors.white : AppDesign.eerieBlack,
+                  ),
                 ),
               ),
-            ),
+              TextButton.icon(
+                onPressed: _openCreatePostPage,
+                icon: const Icon(LucideIcons.plus, size: 16),
+                label: const Text('Add Post'),
+              ),
+            ],
           ),
+        ),
+        Expanded(
+          child:
+              _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _posts.isEmpty
+                  ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          LucideIcons.newspaper,
+                          size: 48,
+                          color: AppDesign.midGrey,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No posts yet',
+                          style: TextStyle(color: AppDesign.midGrey),
+                        ),
+                      ],
+                    ),
+                  )
+                  : ListView.builder(
+                    padding: EdgeInsets.fromLTRB(
+                      0,
+                      0,
+                      0,
+                      MediaQuery.of(context).padding.bottom + 100,
+                    ),
+                    itemCount: _posts.length,
+                    itemBuilder:
+                        (context, i) => Center(
+                          child: SizedBox(
+                            width: widget.maxContentWidth,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: widget.isLandscape ? 24 : 20,
+                              ),
+                              child: _PostCard(
+                                post: _posts[i],
+                                isDark: widget.isDark,
+                                isLandscape: widget.isLandscape,
+                              ),
+                            ),
+                          ),
+                        ),
+                  ),
+        ),
+      ],
     );
   }
 }
@@ -723,7 +1511,7 @@ class _PostCardState extends State<_PostCard> {
                                 ),
                                 const SizedBox(width: 20),
                                 Icon(
-                                  LucideIcons.messageCircle,
+                                  LucideIcons.message_circle,
                                   size: 18,
                                   color: AppDesign.midGrey,
                                 ),
@@ -1213,6 +2001,7 @@ class _ProvidersTab extends StatefulWidget {
 
 class _ProvidersTabState extends State<_ProvidersTab> {
   final MarketplaceApiService _marketplaceService = MarketplaceApiService();
+  final SocialApiService _socialService = SocialApiService();
   List<_ProviderData> _providers = [];
   bool _loading = true;
 
@@ -1295,55 +2084,101 @@ class _ProvidersTabState extends State<_ProvidersTab> {
     });
   }
 
+  Future<void> _openWriteReviewPage() async {
+    final created = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const WriteReviewScreen()));
+    if (created == true && mounted) {
+      _loadProviders();
+    }
+  }
+
   @override
   void dispose() {
     _marketplaceService.dispose();
+    _socialService.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_providers.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(LucideIcons.briefcase, size: 48, color: AppDesign.midGrey),
-            const SizedBox(height: 12),
-            Text(
-              'No providers yet',
-              style: TextStyle(color: AppDesign.midGrey),
-            ),
-          ],
-        ),
-      );
-    }
-    return ListView.builder(
-      padding: EdgeInsets.fromLTRB(
-        0,
-        8,
-        0,
-        MediaQuery.of(context).padding.bottom + 100,
-      ),
-      itemCount: _providers.length,
-      itemBuilder:
-          (context, i) => Center(
-            child: SizedBox(
-              width: widget.maxContentWidth,
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: widget.isLandscape ? 24 : 20,
-                ),
-                child: _ProviderCard(
-                  provider: _providers[i],
-                  isDark: widget.isDark,
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            widget.isLandscape ? 24 : 20,
+            10,
+            widget.isLandscape ? 24 : 20,
+            8,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Providers',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: widget.isDark ? Colors.white : AppDesign.eerieBlack,
+                  ),
                 ),
               ),
-            ),
+              TextButton.icon(
+                onPressed: _openWriteReviewPage,
+                icon: const Icon(LucideIcons.pen_line, size: 16),
+                label: const Text('Add Review'),
+              ),
+            ],
           ),
+        ),
+        Expanded(
+          child:
+              _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _providers.isEmpty
+                  ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          LucideIcons.briefcase,
+                          size: 48,
+                          color: AppDesign.midGrey,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No providers yet',
+                          style: TextStyle(color: AppDesign.midGrey),
+                        ),
+                      ],
+                    ),
+                  )
+                  : ListView.builder(
+                    padding: EdgeInsets.fromLTRB(
+                      0,
+                      0,
+                      0,
+                      MediaQuery.of(context).padding.bottom + 100,
+                    ),
+                    itemCount: _providers.length,
+                    itemBuilder:
+                        (context, i) => Center(
+                          child: SizedBox(
+                            width: widget.maxContentWidth,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: widget.isLandscape ? 24 : 20,
+                              ),
+                              child: _ProviderCard(
+                                provider: _providers[i],
+                                isDark: widget.isDark,
+                              ),
+                            ),
+                          ),
+                        ),
+                  ),
+        ),
+      ],
     );
   }
 }
@@ -1432,7 +2267,7 @@ class _ProviderCard extends StatelessWidget {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(
-                                          LucideIcons.badgeCheck,
+                                          LucideIcons.badge_check,
                                           size: 14,
                                           color: AppDesign.success,
                                         ),
@@ -1489,39 +2324,72 @@ class _ProviderCard extends StatelessWidget {
                               ],
                             ),
                             const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Booking request sent to ${provider.name}',
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.pop(ctx);
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Booking request sent to ${provider.name}',
+                                          ),
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 16,
                                       ),
-                                      behavior: SnackBarBehavior.floating,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(14),
                                       ),
                                     ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Book This Guide',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
+                                    child: const Text(
+                                      'Book This Guide',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      Navigator.pop(ctx);
+                                      await Navigator.of(context).push<bool>(
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => WriteReviewScreen(
+                                                providerName: provider.name,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(LucideIcons.pen_line),
+                                    label: const Text('Write Review'),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -1597,7 +2465,7 @@ class _ProviderCard extends StatelessWidget {
                               color: AppDesign.success.withValues(alpha: 0.15),
                             ),
                             child: Icon(
-                              LucideIcons.badgeCheck,
+                              LucideIcons.badge_check,
                               size: 14,
                               color: AppDesign.success,
                             ),
@@ -1665,118 +2533,6 @@ class _ProviderCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ThemeModeMenuButton extends StatelessWidget {
-  const _ThemeModeMenuButton({
-    required this.currentThemeMode,
-    required this.onSelected,
-    required this.isDark,
-  });
-
-  final ThemeMode currentThemeMode;
-  final ValueChanged<ThemeMode> onSelected;
-  final bool isDark;
-
-  IconData get _icon => switch (currentThemeMode) {
-    ThemeMode.system => LucideIcons.monitor,
-    ThemeMode.dark => LucideIcons.moon,
-    ThemeMode.light => LucideIcons.sunMedium,
-  };
-
-  String get _label => switch (currentThemeMode) {
-    ThemeMode.system => 'System',
-    ThemeMode.dark => 'Dark',
-    ThemeMode.light => 'Light',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<ThemeMode>(
-      tooltip: 'Theme: $_label',
-      onSelected: onSelected,
-      position: PopupMenuPosition.under,
-      color: isDark ? AppDesign.cardDark : Colors.white,
-      surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      itemBuilder:
-          (context) => [
-            PopupMenuItem(
-              value: ThemeMode.system,
-              child: Row(
-                children: [
-                  const Icon(LucideIcons.monitor, size: 18),
-                  const SizedBox(width: 10),
-                  Text(
-                    'System',
-                    style: TextStyle(
-                      color: isDark ? Colors.white : AppDesign.eerieBlack,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuItem(
-              value: ThemeMode.light,
-              child: Row(
-                children: [
-                  const Icon(LucideIcons.sunMedium, size: 18),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Light',
-                    style: TextStyle(
-                      color: isDark ? Colors.white : AppDesign.eerieBlack,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuItem(
-              value: ThemeMode.dark,
-              child: Row(
-                children: [
-                  const Icon(LucideIcons.moonStar, size: 18),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Dark',
-                    style: TextStyle(
-                      color: isDark ? Colors.white : AppDesign.eerieBlack,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color:
-                  isDark
-                      ? Colors.white.withValues(alpha: 0.08)
-                      : Colors.black.withValues(alpha: 0.05),
-              border: Border.all(
-                color:
-                    isDark
-                        ? Colors.white.withValues(alpha: 0.08)
-                        : Colors.black.withValues(alpha: 0.06),
-              ),
-            ),
-            child: Icon(
-              _icon,
-              size: 18,
-              color: isDark ? Colors.white70 : AppDesign.eerieBlack,
-            ),
-          ),
         ),
       ),
     );
@@ -1933,22 +2689,18 @@ class _PostActions extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         _ActionPill(
-          icon: liked ? LucideIcons.heartOff : LucideIcons.heart,
+          icon: liked ? LucideIcons.heart_off : LucideIcons.heart,
           label: '$likes',
           active: liked,
           activeColor: AppDesign.danger,
           onTap: onLikeTap,
         ),
         _ActionPill(
-          icon: LucideIcons.messageCircle,
+          icon: LucideIcons.message_circle,
           label: '$comments',
           onTap: onCommentsTap,
         ),
-        _ActionPill(
-          icon: LucideIcons.share2,
-          label: 'Share',
-          onTap: onShareTap,
-        ),
+        _ActionPill(icon: LucideIcons.share, label: 'Share', onTap: onShareTap),
       ],
     );
   }

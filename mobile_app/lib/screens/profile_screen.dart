@@ -307,7 +307,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 child: Icon(
                   LucideIcons.user,
                   size: 36,
-                  color: AppDesign.electricCobalt,
+                  color: isDark ? Colors.white : AppDesign.electricCobalt,
                 ),
               ),
               const SizedBox(height: 14),

@@ -53,4 +53,7 @@ if __name__ == "__main__":
         reload=True,
         log_level="info",
         access_log=True,
+        # Increase keep-alive so long-lived connections (e.g. websockets)
+        # don't drop during slow client operations like signup/login.
+        timeout_keep_alive=30,
     )

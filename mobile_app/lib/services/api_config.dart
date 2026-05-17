@@ -1,11 +1,35 @@
-/// API Configuration
-/// Update the baseUrl with your actual backend server URL
-class ApiConfig {
-  // For iOS Simulator: Use http://localhost:8000
-  // For Android Emulator: Use http://10.0.2.2:8000
-  // For Physical Device: Use your computer's IP (e.g., http://192.168.1.100:8000)
-  static const String baseUrl = 'http://10.91.47.27:8000';
+import 'package:flutter/foundation.dart';
 
+/// API Configuration
+/// Resolve the backend URL based on the current platform.
+class ApiConfig {
+  static const String _webBaseUrl = 'http://localhost:8000';
+  static const String _androidEmulatorBaseUrl = 'http://10.0.2.2:8000';
+  static const String _desktopBaseUrl = 'http://localhost:8000';
+
+  /// Override the backend URL at build time if needed.
+  /// Example: --dart-define=SMART_EXPLORERS_API_BASE_URL=http://192.168.1.50:8000
+  static String get baseUrl {
+    const overrideUrl = String.fromEnvironment('SMART_EXPLORERS_API_BASE_URL');
+    if (overrideUrl.isNotEmpty) {
+      return overrideUrl;
+    }
+
+    if (kIsWeb) {
+      return _webBaseUrl;
+    }
+
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return _androidEmulatorBaseUrl;
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+      case TargetPlatform.windows:
+      case TargetPlatform.linux:
+      case TargetPlatform.fuchsia:
+        return _desktopBaseUrl;
+    }
+  }
 
   // ── OFFLINE / MOCK MODE ──────────────────────────────────────────────
   // Set to true to bypass all network calls and use hardcoded dummy data.

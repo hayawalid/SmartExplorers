@@ -38,6 +38,24 @@ class SocialApiService {
     throw Exception('Failed to create post: ${response.body}');
   }
 
+  Future<Map<String, dynamic>> createReview(
+    Map<String, dynamic> payload,
+  ) async {
+    final response = await _client.post(
+      Uri.parse('${ApiConfig.baseUrl}${ApiConfig.socialEndpoint}/reviews'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to create review: ${response.body}');
+  }
+
   Future<List<Map<String, dynamic>>> getTravelSpaces() async {
     try {
       final response = await _client.get(

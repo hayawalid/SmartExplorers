@@ -502,7 +502,7 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
                           ? null
                           : [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.white.withOpacity(0.05),
                               blurRadius: 10,
                               offset: const Offset(0, 2),
                             ),
@@ -618,7 +618,7 @@ class _SafetyDashboardScreenState extends State<SafetyDashboardScreen>
                 ? null
                 : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.white.withOpacity(0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),

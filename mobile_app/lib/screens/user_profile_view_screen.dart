@@ -162,7 +162,12 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
             child: Icon(
               _isProvider ? LucideIcons.briefcase : LucideIcons.user,
               size: 38,
-              color: _isProvider ? AppDesign.navProfile : AppDesign.navExplore,
+              color:
+                  isDark
+                      ? Colors.white
+                      : (_isProvider
+                          ? AppDesign.navProfile
+                          : AppDesign.navExplore),
             ),
           ),
           const SizedBox(height: 14),

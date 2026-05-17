@@ -5,7 +5,7 @@ final themeManagerProvider = ChangeNotifierProvider((ref) => ThemeManager());
 
 /// ThemeManager with WCAG 2.1 AA compliant accessibility features
 class ThemeManager extends ChangeNotifier {
-  ThemeMode _currentMode = ThemeMode.system;
+  ThemeMode _currentMode = ThemeMode.light;
   bool _highContrastEnabled = false;
   double _fontScale = 1.0;
   bool _reduceMotion = false;
@@ -43,16 +43,13 @@ class ThemeManager extends ChangeNotifier {
   }
 
   void setThemeMode(ThemeMode mode) {
-    _currentMode = mode;
+    _currentMode = mode == ThemeMode.system ? ThemeMode.light : mode;
     notifyListeners();
   }
 
   void toggleDarkMode() {
-    _currentMode = switch (_currentMode) {
-      ThemeMode.system => ThemeMode.dark,
-      ThemeMode.dark => ThemeMode.light,
-      ThemeMode.light => ThemeMode.system,
-    };
+    _currentMode =
+        _currentMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     notifyListeners();
   }
 
