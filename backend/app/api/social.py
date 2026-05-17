@@ -17,8 +17,19 @@ def _prefix_static(request: Request, url: str) -> str:
 def _serialize(doc: Dict[str, Any]) -> Dict[str, Any]:
     if not doc:
         return doc
-    doc["_id"] = str(doc["_id"])
-    return doc
+    return _json_safe(doc)
+
+
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, ObjectId):
+        return str(value)
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [_json_safe(item) for item in value]
+    return value
 
 
 @router.get("/posts")
@@ -74,13 +85,7 @@ async def add_comment(post_id: str, payload: Dict[str, Any] = Body(...)):
     }
     await db[mongodb.POSTS].update_one({"_id": ObjectId(post_id)}, {"$push": {"comments": comment}})
     doc = await db[mongodb.POSTS].find_one({"_id": ObjectId(post_id)})
-    post = _serialize(doc)
-    # Convert comments' ids to strings for JSON
-    if post.get("comments"):
-        for c in post["comments"]:
-            if isinstance(c.get("_id"), ObjectId):
-                c["_id"] = str(c["_id"])
-    return post
+    return _serialize(doc)
 
 
 @router.post("/posts/{post_id}/likes")

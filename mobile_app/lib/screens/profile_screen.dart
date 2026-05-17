@@ -79,18 +79,30 @@ class _ProfileScreenState extends State<ProfileScreen>
     try {
       final userId = SessionStore.instance.userId;
       if (userId != null) {
-        final photos = await _profileService.getUserPhotos(userId);
-        if (photos.isNotEmpty) {
+        // Fetch traveler profile including posts (backend returns `posts` when include_posts=true)
+        final profile = await _profileService.getTravelerProfile(userId);
+        if (profile != null &&
+            profile['posts'] is List &&
+            (profile['posts'] as List).isNotEmpty) {
+          final posts = profile['posts'] as List;
           setState(() {
             _myPosts =
-                photos.asMap().entries.map((e) {
-                  final p = e.value;
+                posts.take(4).toList().asMap().entries.map((e) {
+                  final p = e.value as Map<String, dynamic>;
                   return _ProfilePost(
-                    image: _defaultImages[e.key % _defaultImages.length],
-                    caption: p['caption'] ?? p['title'] ?? 'Photo',
-                    likes: (p['likes'] as num?)?.toInt() ?? 0,
-                    comments: (p['comments_count'] as num?)?.toInt() ?? 0,
-                    timeAgo: p['time_ago'] ?? 'now',
+                    image:
+                        p['media_url']?.toString() ??
+                        _defaultImages[e.key % _defaultImages.length],
+                    caption: p['caption'] ?? p['text'] ?? 'Post',
+                    likes:
+                        (p['likes'] is List)
+                            ? (p['likes'] as List).length
+                            : (p['like_count'] as num?)?.toInt() ?? 0,
+                    comments:
+                        (p['comments'] is List)
+                            ? (p['comments'] as List).length
+                            : (p['comment_count'] as num?)?.toInt() ?? 0,
+                    timeAgo: p['created_at']?.toString() ?? 'now',
                   );
                 }).toList();
             _loadingPosts = false;
@@ -98,18 +110,26 @@ class _ProfileScreenState extends State<ProfileScreen>
           return;
         }
       }
-      // Try loading from social posts instead
+      // Fallback: try loading from social posts
       final posts = await _socialService.getPosts();
       setState(() {
         _myPosts =
             posts.take(4).toList().asMap().entries.map((e) {
               final p = e.value;
               return _ProfilePost(
-                image: _defaultImages[e.key % _defaultImages.length],
+                image:
+                    p['media_url']?.toString() ??
+                    _defaultImages[e.key % _defaultImages.length],
                 caption: p['content'] ?? p['text'] ?? 'Post',
-                likes: (p['likes'] as num?)?.toInt() ?? 0,
-                comments: (p['comments_count'] as num?)?.toInt() ?? 0,
-                timeAgo: p['time_ago'] ?? 'now',
+                likes:
+                    (p['likes'] is List)
+                        ? (p['likes'] as List).length
+                        : (p['likes_count'] as num?)?.toInt() ?? 0,
+                comments:
+                    (p['comments'] is List)
+                        ? (p['comments'] as List).length
+                        : (p['comments_count'] as num?)?.toInt() ?? 0,
+                timeAgo: p['created_at']?.toString() ?? 'now',
               );
             }).toList();
         _loadingPosts = false;
