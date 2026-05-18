@@ -24,7 +24,7 @@ from app.api.marketplace import router as marketplace_router
 from app.api.safety import router as safety_router
 from app.api.preferences import router as preferences_router
 from app.api.services import router as services_router
-from app.api.verification_v2 import router as verification_router
+# from app.api.verification_v2 import router as verification_router  # COMMENTED OUT - TensorFlow/DeepFace dependency issue
 
 # ====== NEW: Import matching system ======
 # from matching_api import router as matching_router, initialize_matching_system  # COMMENTED OUT – module doesn't exist yet
@@ -146,7 +146,7 @@ app.include_router(marketplace_router)
 app.include_router(services_router)
 app.include_router(safety_router)
 app.include_router(preferences_router)
-app.include_router(verification_router)
+# app.include_router(verification_router)  # COMMENTED OUT - TensorFlow/DeepFace dependency issue
 
 # ====== NEW: Include matching router ======
 app.include_router(matching_router)

@@ -77,4 +77,24 @@ async def list_bookings(user_id: Optional[str] = None, provider_id: Optional[str
         query["provider_id"] = provider_id
 
     cursor = db[mongodb.BOOKINGS].find(query).sort("created_at", -1)
-    return [_serialize(doc) async for doc in cursor]
+    bookings = [_serialize(doc) async for doc in cursor]
+    
+    # Enrich bookings with traveler username and service details
+    enriched_bookings = []
+    for booking in bookings:
+        # Fetch traveler username
+        if booking.get("user_id"):
+            user = await db[mongodb.USERS].find_one({"_id": ObjectId(booking["user_id"])})
+            if user:
+                booking["traveler_username"] = user.get("username", "Unknown Traveler")
+                booking["traveler_full_name"] = user.get("full_name", "")
+        
+        # Fetch service name
+        if booking.get("service_id"):
+            service = await db[mongodb.SERVICES].find_one({"_id": ObjectId(booking["service_id"])})
+            if service:
+                booking["service_name"] = service.get("service_name", "Service")
+        
+        enriched_bookings.append(booking)
+    
+    return enriched_bookings
