@@ -223,6 +223,44 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  void _showSettingsMenu() {
+    showCupertinoModalPopup(
+      context: context,
+      builder:
+          (ctx) => CupertinoActionSheet(
+            title: const Text('Settings'),
+            actions: [
+              CupertinoActionSheetAction(
+                child: const Text('About'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _showSnack('About coming soon');
+                },
+              ),
+              CupertinoActionSheetAction(
+                child: const Text('Privacy Policy'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _showSnack('Privacy Policy coming soon');
+                },
+              ),
+              CupertinoActionSheetAction(
+                isDestructiveAction: true,
+                child: const Text('Sign Out'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _showSignOutDialog();
+                },
+              ),
+            ],
+            cancelButton: CupertinoActionSheetAction(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -281,7 +319,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               const Spacer(),
               IconButton(
                 icon: Icon(LucideIcons.settings, color: sub, size: 22),
-                onPressed: () => _showSnack('Settings coming soon'),
+                onPressed: _showSettingsMenu,
               ),
             ],
           ),

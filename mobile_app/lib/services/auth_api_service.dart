@@ -38,9 +38,16 @@ class AuthApiService {
     }
 
     final body = jsonDecode(response.body);
-    final detail =
-        body is Map ? body['detail'] ?? 'Login failed' : 'Login failed';
-    throw Exception(detail);
+    final detail = body['detail'] ?? 'Login failed';
+    final errors = body['errors'] as List<dynamic>?;
+    
+    // Format error message for user
+    String errorMessage = detail is String ? detail : 'Login failed';
+    if (errors != null && errors.isNotEmpty) {
+      errorMessage = errors.join('\n');
+    }
+    
+    throw Exception(errorMessage);
   }
 
   // ── SIGNUP ───────────────────────────────────────────────────────────
@@ -120,9 +127,16 @@ class AuthApiService {
     }
 
     final body = jsonDecode(response.body);
-    final detail =
-        body is Map ? body['detail'] ?? 'Signup failed' : 'Signup failed';
-    throw Exception(detail);
+    final detail = body['detail'] ?? 'Signup failed';
+    final errors = body['errors'] as List<dynamic>?;
+
+    // Format error message for user
+    String errorMessage = detail is String ? detail : 'Signup failed';
+    if (errors != null && errors.isNotEmpty) {
+      errorMessage = errors.join('\n');
+    }
+
+    throw Exception(errorMessage);
   }
 
   void dispose() => _client.close();

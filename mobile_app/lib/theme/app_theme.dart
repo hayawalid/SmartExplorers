@@ -33,6 +33,17 @@ class AppDesign {
   static const Color navSafety = Color(0xFF00C566); // green
   static const Color navProfile = Color(0xFFD4AF37); // gold
 
+  // Semantic aliases for UI
+  static const Color accentColor =
+      navConcierge; // Use concierge purple as accent
+  static const Color surfaceColor = pureWhite;
+  static const Color cardColor = offWhite;
+  static const Color textColor = eerieBlack;
+  static const Color textColorLight = pureWhite;
+  static const Color textColorMuted = midGrey;
+  static const Color borderColor = lightGrey;
+  static const Color errorColor = danger;
+
   // ── Radius ────────────────────────────────────────────────────────────
   static const double radius = 24.0;
   static final BorderRadius borderRadius = BorderRadius.circular(radius);

@@ -11,6 +11,7 @@ import 'feed_screen.dart';
 import 'profile_screen.dart';
 import 'smart_match_screen.dart';
 import 'safety_hub_screen.dart';
+import 'service_discovery_screen.dart';
 
 /// Main navigation shell – 5-tab floating bottom bar
 /// Each tab has a unique accent color
@@ -38,8 +39,8 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell>
     _NavTab(
       icon: LucideIcons.briefcase,
       activeIcon: LucideIcons.briefcase,
-      label: 'Concierge',
-      semanticLabel: 'Accepted trips and matching',
+      label: 'Services',
+      semanticLabel: 'Service Discovery',
       activeColor: AppDesign.navConcierge,
     ),
     _NavTab(
@@ -102,7 +103,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell>
                   currentThemeMode: themeManager.currentMode,
                   onThemeModeSelected: themeManager.setThemeMode,
                 ),
-                SmartMatchScreen(),
+                ServiceDiscoveryScreen(),
                 ItineraryPlannerScreen(),
                 SafetyHubScreen(),
                 ProfileScreen(),

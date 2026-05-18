@@ -35,7 +35,7 @@ class DestinationRAG:
         self.collection = None
         
         if not CHROMADB_AVAILABLE:
-            print("⚠️  ChromaDB unavailable (SQLite too old). Using keyword fallback.")
+            print("ChromaDB unavailable (SQLite too old). Using keyword fallback.")
             self._load_fallback_destinations()
             return
         
@@ -61,18 +61,18 @@ class DestinationRAG:
                     name=self.collection_name,
                     embedding_function=self.embedding_function
                 )
-                print(f"\u2713 Loaded existing ChromaDB collection: {self.collection_name}")
+                print(f"Loaded existing ChromaDB collection: {self.collection_name}")
             except:
                 self.collection = self.client.create_collection(
                     name=self.collection_name,
                     embedding_function=self.embedding_function,
                     metadata={"description": "Egypt tourism destinations with semantic search"}
                 )
-                print(f"\u2713 Created new ChromaDB collection: {self.collection_name}")
+                print("Success: Created new ChromaDB collection: " + self.collection_name)
                 # Load and index destinations
                 self._load_and_index_destinations()
         except Exception as e:
-            print(f"\u26a0\ufe0f  ChromaDB init failed ({e}). Using keyword fallback.")
+            print(f"ChromaDB init failed ({e}). Using keyword fallback.")
             self.collection = None
             self._load_fallback_destinations()
     
@@ -85,9 +85,9 @@ class DestinationRAG:
                 with open(json_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 self._fallback_destinations = data.get("destinations", [])
-                print(f"\u2713 Loaded {len(self._fallback_destinations)} destinations (keyword mode)")
+                print(f"Loaded {len(self._fallback_destinations)} destinations (keyword mode)")
         except Exception as e:
-            print(f"\u26a0\ufe0f  Could not load destinations: {e}")
+            print(f"Could not load destinations: {e}")
     
     def _load_and_index_destinations(self):
         """Load destinations from JSON and index in ChromaDB"""
@@ -98,7 +98,7 @@ class DestinationRAG:
             json_path = current_dir / "data" / "egypt_destinations.json"
             
             if not json_path.exists():
-                print(f"⚠️  Warning: {json_path} not found")
+                print(f"Warning: {json_path} not found")
                 return
             
             with open(json_path, 'r', encoding='utf-8') as f:
@@ -107,7 +107,7 @@ class DestinationRAG:
             destinations = data.get("destinations", [])
             
             if not destinations:
-                print("⚠️  No destinations found in JSON")
+                print("No destinations found in JSON")
                 return
             
             # Prepare data for ChromaDB
@@ -142,10 +142,10 @@ class DestinationRAG:
                 ids=ids
             )
             
-            print(f"✓ Indexed {len(destinations)} destinations in ChromaDB")
+            print(f"Indexed {len(destinations)} destinations in ChromaDB")
             
         except Exception as e:
-            print(f"⚠️  Error indexing destinations: {e}")
+            print(f"Error indexing destinations: {e}")
     
     def _create_destination_text(self, dest: Dict[str, Any]) -> str:
         """Create rich text representation for semantic search"""
@@ -333,7 +333,7 @@ class DestinationRAG:
             return
         try:
             self.client.delete_collection(name=self.collection_name)
-            print(f"✓ Deleted collection: {self.collection_name}")
+            print(f"Deleted collection: {self.collection_name}")
             self.__init__()  # Reinitialize
         except:
             pass

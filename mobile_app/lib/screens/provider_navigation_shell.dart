@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
+import '../services/session_store.dart';
+import '../services/services_api_service.dart';
 import 'feed_screen.dart';
 import 'safety_dashboard_screen.dart';
 import 'provider_profile_screen.dart';
+import 'provider_services_screen.dart';
 
-/// Provider Navigation Shell with 4 tabs (no marketplace)
-/// Match Requests, Feed, Emergency/Safety, Profile
+/// Provider Navigation Shell with 5 tabs
+/// Requests, Services, Feed, Emergency/Safety, Profile
 class ProviderNavigationShell extends StatefulWidget {
   const ProviderNavigationShell({super.key});
 
@@ -29,9 +32,15 @@ class _ProviderNavigationShellState extends State<ProviderNavigationShell>
       semanticLabel: 'Match requests from travelers',
     ),
     ProviderNavItem(
+      icon: CupertinoIcons.briefcase_fill,
+      label: 'Services',
+      activeColor: AppDesign.navConcierge,
+      semanticLabel: 'Your service offerings',
+    ),
+    ProviderNavItem(
       icon: CupertinoIcons.photo_fill_on_rectangle_fill,
       label: 'Feed',
-      activeColor: AppDesign.navConcierge,
+      activeColor: AppDesign.navItinerary,
       semanticLabel: 'Social feed and promotions',
     ),
     ProviderNavItem(
@@ -86,9 +95,13 @@ class _ProviderNavigationShellState extends State<ProviderNavigationShell>
             onPageChanged: (index) => setState(() => _currentIndex = index),
             children: [
               const MatchRequestsScreen(), // Tab 0: Match Requests
-              FeedScreen(currentThemeMode: ThemeMode.system, onThemeModeSelected: (ThemeMode value) {  },), // Tab 1: Social Feed
-              const SafetyDashboardScreen(), // Tab 2: Emergency/Safety
-              const ProviderProfileScreen(), // Tab 3: Provider Profile
+              const ProviderServicesScreen(), // Tab 1: Services Management
+              FeedScreen(
+                currentThemeMode: ThemeMode.system,
+                onThemeModeSelected: (ThemeMode value) {},
+              ), // Tab 2: Social Feed
+              const SafetyDashboardScreen(), // Tab 3: Emergency/Safety
+              const ProviderProfileScreen(), // Tab 4: Provider Profile
             ],
           ),
 
@@ -232,72 +245,87 @@ class MatchRequestsScreen extends StatefulWidget {
 class _MatchRequestsScreenState extends State<MatchRequestsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final ServicesApiService _servicesService = ServicesApiService();
 
-  final List<MatchRequest> _pendingRequests = [
-    MatchRequest(
-      id: '1',
-      travelerName: 'Sarah Johnson',
-      service: 'Pyramids Tour',
-      date: 'Feb 15, 2026',
-      time: '9:00 AM',
-      duration: '4 hours',
-      price: '\$120',
-      message: 'Looking for an English-speaking guide for my family of 4.',
-      rating: 4.8,
-      isNew: true,
-    ),
-    MatchRequest(
-      id: '2',
-      travelerName: 'James Wilson',
-      service: 'Luxor Day Trip',
-      date: 'Feb 18, 2026',
-      time: '6:00 AM',
-      duration: 'Full day',
-      price: '\$280',
-      message:
-          'Interested in ancient history and would love detailed explanations.',
-      rating: 4.9,
-      isNew: true,
-    ),
-    MatchRequest(
-      id: '3',
-      travelerName: 'Emma Chen',
-      service: 'Photography Tour',
-      date: 'Feb 20, 2026',
-      time: '5:00 PM',
-      duration: '3 hours',
-      price: '\$95',
-      message: 'Sunset photos at the pyramids. I have my own camera.',
-      rating: 5.0,
-      isNew: false,
-    ),
-  ];
-
-  final List<MatchRequest> _confirmedRequests = [
-    MatchRequest(
-      id: '4',
-      travelerName: 'Michael Brown',
-      service: 'Cairo City Tour',
-      date: 'Feb 12, 2026',
-      time: '10:00 AM',
-      duration: '6 hours',
-      price: '\$150',
-      message: 'Excited for the tour!',
-      rating: 4.7,
-      isNew: false,
-      isConfirmed: true,
-    ),
-  ];
+  List<MatchRequest> _pendingRequests = [];
+  List<MatchRequest> _confirmedRequests = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadBookings();
+  }
+
+  Future<void> _loadBookings() async {
+    final providerId = SessionStore.instance.userId;
+    if (providerId == null) {
+      setState(() {
+        _isLoading = false;
+        _error = 'Provider ID not found';
+      });
+      return;
+    }
+
+    try {
+      final bookings = await _servicesService.getBookings(
+        providerId: providerId,
+      );
+
+      setState(() {
+        _pendingRequests =
+            bookings.where((b) => (b['status'] ?? 'pending') == 'pending').map((
+              booking,
+            ) {
+              return MatchRequest(
+                id: booking['_id'] ?? '',
+                travelerName: booking['traveler_username'] ?? booking['user_id'] ?? 'Unknown Traveler',
+                service: booking['service_name'] ?? booking['service_id'] ?? 'Service',
+                date: booking['booking_date'] ?? 'TBD',
+                time: booking['booking_time'] ?? 'TBD',
+                duration: 'TBD',
+                price: 'Price on request',
+                message: booking['special_requests'] ?? '',
+                rating: 4.5,
+                isNew: true,
+              );
+            }).toList();
+
+        _confirmedRequests =
+            bookings.where((b) => (b['status'] ?? 'pending') != 'pending').map((
+              booking,
+            ) {
+              return MatchRequest(
+                id: booking['_id'] ?? '',
+                travelerName: booking['traveler_username'] ?? booking['user_id'] ?? 'Unknown Traveler',
+                service: booking['service_name'] ?? booking['service_id'] ?? 'Service',
+                date: booking['booking_date'] ?? 'TBD',
+                time: booking['booking_time'] ?? 'TBD',
+                duration: 'TBD',
+                price: 'Price on request',
+                message: booking['special_requests'] ?? '',
+                rating: 4.5,
+                isNew: false,
+                isConfirmed: true,
+              );
+            }).toList();
+
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _error = 'Failed to load bookings: ${e.toString()}';
+      });
+    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _servicesService.dispose();
     super.dispose();
   }
 
@@ -350,170 +378,241 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                           ),
                         ),
                         Text(
-                          '${_pendingRequests.length} new requests waiting',
+                          _isLoading
+                              ? 'Loading...'
+                              : '${_pendingRequests.length} new requests waiting',
                           style: TextStyle(fontSize: 14, color: subtitleColor),
                         ),
                       ],
                     ),
                   ),
-                  // Notification badge
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: cardColor,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(
-                            alpha: isDark ? 0.2 : 0.06,
+                  // Refresh & Notification
+                  Row(
+                    children: [
+                      if (!_isLoading)
+                        IconButton(
+                          icon: Icon(
+                            CupertinoIcons.arrow_clockwise,
+                            color: textColor,
                           ),
-                          blurRadius: 8,
+                          onPressed: _loadBookings,
+                          tooltip: 'Refresh',
                         ),
-                      ],
-                    ),
-                    child: Stack(
-                      children: [
-                        Icon(
-                          CupertinoIcons.bell_fill,
-                          color: textColor,
-                          size: 22,
-                        ),
-                        Positioned(
-                          top: 0,
-                          right: 0,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppDesign.onboardingAccent,
-                              shape: BoxShape.circle,
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(
+                                alpha: isDark ? 0.2 : 0.06,
+                              ),
+                              blurRadius: 8,
                             ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
+                        child: Stack(
+                          children: [
+                            Icon(
+                              CupertinoIcons.bell_fill,
+                              color: textColor,
+                              size: 22,
+                            ),
+                            if (_pendingRequests.isNotEmpty)
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: AppDesign.onboardingAccent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
 
-            // Tab bar
-            Container(
-              margin: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color:
-                    isDark
-                        ? Colors.white.withValues(alpha: 0.08)
-                        : Colors.black.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  color: cardColor,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: isDark ? 0.2 : 0.08,
+            // Error state
+            if (_error != null && !_isLoading)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppDesign.danger.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppDesign.danger.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        CupertinoIcons.exclamationmark_circle,
+                        color: AppDesign.danger,
                       ),
-                      blurRadius: 8,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            color: AppDesign.danger,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(CupertinoIcons.arrow_clockwise),
+                        color: AppDesign.danger,
+                        onPressed: _loadBookings,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // Loading state
+            if (_isLoading)
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Loading bookings...',
+                        style: TextStyle(color: subtitleColor),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else ...[
+              // Tab bar
+              Container(
+                margin: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color:
+                      isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.black.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  indicator: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: cardColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(
+                          alpha: isDark ? 0.2 : 0.08,
+                        ),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  labelColor: textColor,
+                  unselectedLabelColor: subtitleColor,
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                  tabs: [
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('Pending'),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppDesign.onboardingAccent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${_pendingRequests.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('Confirmed'),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppDesign.navSafety,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${_confirmedRequests.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-                labelColor: textColor,
-                unselectedLabelColor: subtitleColor,
-                labelStyle: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
+              ),
+
+              // Tab content
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildRequestsList(
+                      _pendingRequests,
+                      false,
+                      isDark,
+                      cardColor,
+                      textColor,
+                      subtitleColor,
+                    ),
+                    _buildRequestsList(
+                      _confirmedRequests,
+                      true,
+                      isDark,
+                      cardColor,
+                      textColor,
+                      subtitleColor,
+                    ),
+                  ],
                 ),
-                tabs: [
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Pending'),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppDesign.onboardingAccent,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${_pendingRequests.length}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Confirmed'),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppDesign.navSafety,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${_confirmedRequests.length}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
               ),
-            ),
-
-            // Tab content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildRequestsList(
-                    _pendingRequests,
-                    false,
-                    isDark,
-                    cardColor,
-                    textColor,
-                    subtitleColor,
-                  ),
-                  _buildRequestsList(
-                    _confirmedRequests,
-                    true,
-                    isDark,
-                    cardColor,
-                    textColor,
-                    subtitleColor,
-                  ),
-                ],
-              ),
-            ),
-
-            // Bottom padding for nav bar
-            const SizedBox(height: 100),
+            ],
           ],
         ),
       ),

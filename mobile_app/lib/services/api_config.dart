@@ -47,6 +47,7 @@ class ApiConfig {
   static const String profilesEndpoint = '/api/v1/profiles';
   static const String socialEndpoint = '/api/v1/social';
   static const String marketplaceEndpoint = '/api/v1/marketplace';
+  static const String servicesEndpoint = '/api/v1/services';
   static const String safetyEndpoint = '/api/v1/safety';
   static const String preferencesEndpoint = '/api/v1/preferences';
   static const String adminEndpoint = '/api/v1/admin';

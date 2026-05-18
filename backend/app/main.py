@@ -7,6 +7,8 @@ Copy the relevant sections to your actual /mnt/project/main.py
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 from app.config import settings
@@ -20,6 +22,7 @@ from app.api.social import router as social_router
 from app.api.marketplace import router as marketplace_router
 from app.api.safety import router as safety_router
 from app.api.preferences import router as preferences_router
+from app.api.services import router as services_router
 
 # ====== NEW: Import matching system ======
 # from matching_api import router as matching_router, initialize_matching_system  # COMMENTED OUT – module doesn't exist yet
@@ -68,6 +71,52 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Custom exception handler for validation errors
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    """Convert Pydantic validation errors to user-friendly messages"""
+    errors = []
+    for error in exc.errors():
+        field = error['loc'][-1] if error['loc'] else 'unknown'
+        msg = error['msg']
+        
+        # Map field names to user-friendly names
+        field_names = {
+            'email': 'Email address',
+            'username': 'Username',
+            'password': 'Password',
+            'full_name': 'Full name',
+        }
+        field_display = field_names.get(str(field), str(field).replace('_', ' ').title())
+        
+        # Provide better error messages
+        if 'value is not a valid email address' in msg:
+            errors.append(f'{field_display}: Please enter a valid email address (e.g., user@example.com)')
+        elif 'Field required' in msg:
+            errors.append(f'{field_display}: This field is required')
+        elif 'Username must be at least' in msg:
+            errors.append(f'{field_display}: Must be at least 3 characters long and contain only letters, numbers, and underscores')
+        elif 'Username must not exceed' in msg:
+            errors.append(f'{field_display}: Must not exceed 20 characters')
+        elif 'Username can only contain' in msg:
+            errors.append(f'{field_display}: Can only contain letters, numbers, and underscores')
+        elif 'Password must be at least' in msg:
+            errors.append(f'{field_display}: Must be at least 8 characters long')
+        elif 'Full name must be at least' in msg:
+            errors.append(f'{field_display}: Must be at least 2 characters long')
+        elif 'Full name must not exceed' in msg:
+            errors.append(f'{field_display}: Must not exceed 100 characters')
+        else:
+            errors.append(f'{field_display}: {msg}')
+    
+    return JSONResponse(
+        status_code=422,
+        content={
+            'detail': 'Validation error',
+            'errors': errors,
+        }
+    )
+
 # Static files (avatars, post images)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -88,6 +137,7 @@ app.include_router(users_router)
 app.include_router(profiles_router)
 app.include_router(social_router)
 app.include_router(marketplace_router)
+app.include_router(services_router)
 app.include_router(safety_router)
 app.include_router(preferences_router)
 
@@ -106,7 +156,7 @@ async def root():
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
         "database": "MongoDB",
-        "features": ["AI Chat", "Social Feed", "Marketplace", "Safety", "Smart Matching"]  # NEW
+        "features": ["AI Chat", "Social Feed", "Marketplace", "Services Discovery", "Safety", "Smart Matching"]  # NEW
     }
 
 

@@ -3,7 +3,8 @@ MongoDB Models using Pydantic
 These are document schemas for MongoDB collections
 """
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List, Dict, Any
+from pydantic_core import core_schema
+from typing import Optional, List, Dict, Any, Annotated
 from datetime import datetime
 from enum import Enum
 from bson import ObjectId
@@ -12,20 +13,28 @@ from bson import ObjectId
 # ==================== Custom Types ====================
 
 class PyObjectId(ObjectId):
-    """Custom ObjectId type for Pydantic"""
+    """Custom ObjectId type for Pydantic v2"""
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: Any) -> core_schema.CoreSchema:
+        return core_schema.no_info_after_validator_function(
+            cls.validate,
+            core_schema.union_schema([
+                core_schema.is_instance_schema(ObjectId),
+                core_schema.chain_schema([
+                    core_schema.str_schema(),
+                    core_schema.no_info_plain_validator_function(cls.validate),
+                ]),
+            ]),
+        )
 
     @classmethod
     def validate(cls, v):
-        if not ObjectId.is_valid(v):
-            raise ValueError("Invalid ObjectId")
-        return ObjectId(v)
-
-    @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema.update(type="string")
+        if isinstance(v, ObjectId):
+            return v
+        if isinstance(v, str):
+            if ObjectId.is_valid(v):
+                return ObjectId(v)
+        raise ValueError(f"Invalid ObjectId: {v}")
 
 
 # ==================== Enums ====================
@@ -219,6 +228,8 @@ class ServiceProviderProfileModel(BaseModel):
     
     # Services
     services_offered: List[str] = []
+    active_services: List[str] = []  # List of active service IDs from services collection
+    services_count: int = 0  # Number of active services
     languages: List[str] = []
     
     # Pricing
@@ -246,6 +257,76 @@ class ServiceProviderProfileModel(BaseModel):
     class Config:
         populate_by_name = True
         json_encoders = {ObjectId: str}
+
+
+# ==================== Service Offering ====================
+
+class ServiceAvailabilityModel(BaseModel):
+    """Service availability details"""
+    days: List[str] = []  # ["Monday", "Tuesday", "Wednesday"]
+    hours_start: Optional[str] = None  # "09:00"
+    hours_end: Optional[str] = None  # "17:00"
+
+
+class ServiceModel(BaseModel):
+    """
+    Service offering document
+    Created dynamically by service providers
+    """
+    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    
+    # Reference
+    provider_id: str  # Reference to User._id (service provider)
+    
+    # Service Details
+    service_type: ServiceType  # tour_guide, driver, photographer, etc.
+    service_name: str  # "Guided Nile Cruise", "Airport Transfer", etc.
+    description: Optional[str] = None
+    
+    # Tags for discovery
+    tags: List[str] = []  # ["history", "photography", "adventure"]
+    cluster_keywords: List[str] = []  # Keywords for matching with traveler interests
+    
+    # Pricing
+    price_min: Optional[float] = None
+    price_max: Optional[float] = None
+    currency: str = "EGP"
+    
+    # Availability
+    availability: ServiceAvailabilityModel = Field(default_factory=ServiceAvailabilityModel)
+    
+    # Stats
+    rating: float = 0.0
+    reviews_count: int = 0
+    bookings_count: int = 0
+    
+    # Status
+    is_active: bool = True
+    
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        populate_by_name = True
+        json_encoders = {ObjectId: str}
+        json_schema_extra = {
+            "example": {
+                "provider_id": "507f1f77bcf86cd799439011",
+                "service_type": "tour_guide",
+                "service_name": "Guided Nile Cruise",
+                "description": "Scenic evening cruise on the Nile",
+                "tags": ["history", "sightseeing", "photography"],
+                "cluster_keywords": ["ancient_history", "photography", "culture"],
+                "price_min": 50.0,
+                "price_max": 150.0,
+                "availability": {
+                    "days": ["Monday", "Wednesday", "Friday"],
+                    "hours_start": "18:00",
+                    "hours_end": "22:00"
+                }
+            }
+        }
 
 
 # ==================== Conversation (Short-Term Memory) ====================

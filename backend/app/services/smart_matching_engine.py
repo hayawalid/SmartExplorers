@@ -24,8 +24,8 @@ load_dotenv()  # Looks for .env in current directory
 load_dotenv(os.path.join(os.path.dirname(__file__), 'backend', '.env'))  # backend subfolder
 
 # Print to verify it loaded (remove after testing)
-print(f"✓ GROQ_API_KEY loaded: {'✓ Present' if os.getenv('GROQ_API_KEY') else '✗ MISSING'}")
-print(f"✓ MongoDB URI loaded: {'✓ Present' if os.getenv('MONGODB_URI') else '✗ MISSING'}")
+print(f"[OK] GROQ_API_KEY loaded: {'[OK] Present' if os.getenv('GROQ_API_KEY') else '[ERROR] MISSING'}")
+print(f"[OK] MongoDB URI loaded: {'[OK] Present' if os.getenv('MONGODB_URI') else '[ERROR] MISSING'}")
 
 import numpy as np
 from sklearn.cluster import KMeans
@@ -112,7 +112,7 @@ class SmartMatchingEngine:
             "Russian", "Chinese", "Japanese", "Korean", "Portuguese"
         ]
         
-        print("✓ Matching engine initialized (keyword-based)")
+        print("[OK] Matching engine initialized (keyword-based)")
         
         # Initialize MongoDB connection
         self._init_mongodb()
@@ -132,7 +132,7 @@ class SmartMatchingEngine:
                 
                 # Test connection
                 self.mongo_client.admin.command('ping')
-                print(f"✓ MongoDB connected successfully to {self.db_name}")
+                print(f"[OK] MongoDB connected successfully to {self.db_name}")
                 
                 # Debug: List collections
                 collections = self.db.list_collection_names()
@@ -191,7 +191,7 @@ class SmartMatchingEngine:
                     if profile:
                         profile = self._convert_objectid(profile)
                         user['profile'] = profile
-                        print(f"  ✓ Loaded traveler: {user.get('full_name', user.get('username'))}")
+                        print(f"  [OK] Loaded traveler: {user.get('full_name', user.get('username'))}")
                     else:
                         print(f"  ⚠️  No profile found for traveler: {user.get('email')}")
                         user['profile'] = {}
@@ -202,7 +202,7 @@ class SmartMatchingEngine:
                     if profile:
                         profile = self._convert_objectid(profile)
                         user['provider_profile'] = profile
-                        print(f"  ✓ Loaded service provider: {user.get('full_name', user.get('username'))}")
+                        print(f"  [OK] Loaded service provider: {user.get('full_name', user.get('username'))}")
                     else:
                         print(f"  ⚠️  No profile found for service provider: {user.get('email')}")
                         user['provider_profile'] = {}
@@ -213,7 +213,7 @@ class SmartMatchingEngine:
                 
                 all_users.append(user)
             
-            print(f"\n✓ Total {len(all_users)} users loaded from database")
+            print(f"\n[OK] Total {len(all_users)} users loaded from database")
             
         except Exception as e:
             print(f"⚠️  Error fetching from database: {e}")
@@ -265,7 +265,7 @@ class SmartMatchingEngine:
                 
                 users.append(user)
             
-            print(f"✓ Fetched {len(users)} {account_type}s from database")
+            print(f"[OK] Fetched {len(users)} {account_type}s from database")
             
         except Exception as e:
             print(f"⚠️  Error fetching {account_type}s: {e}")
@@ -494,14 +494,14 @@ class SmartMatchingEngine:
             }
         ]
         
-        print(f"✓ Generated {len(mock_users)} mock users")
+        print(f"[OK] Generated {len(mock_users)} mock users")
         return mock_users
     
     def close(self):
         """Close MongoDB connection"""
         if self.mongo_client:
             self.mongo_client.close()
-            print("✓ MongoDB connection closed")
+            print("[OK] MongoDB connection closed")
     
     # ==================== POINT 1: VERIFICATION FILTERING ====================
     
@@ -645,7 +645,7 @@ class SmartMatchingEngine:
         self.kmeans_model = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
         self.kmeans_model.fit(X_scaled)
         
-        print(f"✓ Trained {n_clusters} clusters on {len(verified_users)} verified users")
+        print(f"[OK] Trained {n_clusters} clusters on {len(verified_users)} verified users")
         return self.kmeans_model.labels_
     
     def _get_cluster(self, user: Dict[str, Any]) -> int:
@@ -1066,6 +1066,95 @@ Be honest and critical. A poor match is better than a forced match."""
             "top_languages": [[str(k), int(v)] for k, v in Counter(all_languages).most_common(5)],
             "cluster_distribution": {str(k): int(v) for k, v in Counter(all_clusters).items()},
         }
+    
+    # ==================== SERVICE-BASED MATCHING ====================
+    
+    @staticmethod
+    def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """
+        Calculate distance between two coordinates in kilometers
+        Using Haversine formula
+        """
+        from math import radians, sin, cos, sqrt, atan2
+        
+        R = 6371  # Earth's radius in kilometers
+        
+        lat1_rad = radians(lat1)
+        lon1_rad = radians(lon1)
+        lat2_rad = radians(lat2)
+        lon2_rad = radians(lon2)
+        
+        dlat = lat2_rad - lat1_rad
+        dlon = lon2_rad - lon1_rad
+        
+        a = sin(dlat/2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon/2)**2
+        c = 2 * atan2(sqrt(a), sqrt(1-a))
+        
+        return R * c
+    
+    def match_service_with_traveler(
+        self,
+        traveler_profile: Dict[str, Any],
+        service: Dict[str, Any]
+    ) -> float:
+        """
+        Calculate match score between a traveler and a service
+        Based on:
+        - Service cluster keywords vs traveler interests
+        - Tags compatibility
+        - Budget overlap
+        - Distance (if location available)
+        """
+        score = 0.5  # Base score
+        
+        # 1. Interest/keyword matching (40% weight)
+        traveler_interests = set(
+            (traveler_profile.get("travel_interests") or []) + 
+            (traveler_profile.get("setup_interests") or [])
+        )
+        service_keywords = set(service.get("cluster_keywords", []))
+        
+        if traveler_interests and service_keywords:
+            common_keywords = traveler_interests & service_keywords
+            keyword_score = len(common_keywords) / max(len(traveler_interests), len(service_keywords))
+            score += keyword_score * 0.4
+        
+        # 2. Tags compatibility (20% weight)
+        service_tags = set(service.get("tags", []))
+        if traveler_interests and service_tags:
+            common_tags = traveler_interests & service_tags
+            tag_score = len(common_tags) / max(len(traveler_interests), len(service_tags))
+            score += tag_score * 0.2
+        
+        # 3. Budget compatibility (20% weight)
+        traveler_min = traveler_profile.get("typical_budget_min", 0)
+        traveler_max = traveler_profile.get("typical_budget_max", 1000)
+        service_min = service.get("price_min", 0)
+        service_max = service.get("price_max", 1000)
+        
+        budget_compatible, budget_score = self._check_budget_compatibility(
+            (traveler_min, traveler_max),
+            (service_min, service_max)
+        )
+        if budget_compatible:
+            score += budget_score * 0.2
+        
+        # 4. Service rating bonus (10% weight)
+        service_rating = service.get("rating", 0) / 5.0
+        score += service_rating * 0.1
+        
+        # 5. Language compatibility (10% weight)
+        traveler_languages = traveler_profile.get("languages_spoken", [])
+        service_languages = service.get("languages", [])  # From provider profile
+        if traveler_languages and service_languages:
+            lang_compatible, common_langs = self._check_language_compatibility(
+                traveler_languages, 
+                service_languages
+            )
+            if lang_compatible:
+                score += 0.1
+        
+        return min(score, 1.0)
 
 
 # ==================== USAGE EXAMPLE ====================
