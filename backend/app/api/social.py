@@ -32,12 +32,40 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
+def _to_post_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "post_id": payload.get("post_id"),
+        "user_id": payload.get("user_id"),
+        "author_id": payload.get("author_id"),
+        "author_name": payload.get("author_name"),
+        "author_username": payload.get("author_username"),
+        "author_avatar": payload.get("author_avatar"),
+        "text": payload.get("text"),
+        "media_url": payload.get("media_url"),
+        "created_at": payload.get("created_at"),
+        "saved_at": payload.get("saved_at"),
+    }
+
+
 @router.get("/posts")
-async def list_posts(request: Request, author_id: Optional[str] = None, limit: int = 50):
+async def list_posts(
+    request: Request,
+    author_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    limit: int = 50,
+):
     db = get_database()
     query: Dict[str, Any] = {}
     if author_id:
         query["author_id"] = author_id
+
+    saved_post_ids = set()
+    if user_id:
+        cursor = db[mongodb.SAVED_POSTS].find({"user_id": user_id}, {"post_id": 1})
+        async for doc in cursor:
+            post_id = doc.get("post_id")
+            if post_id:
+                saved_post_ids.add(str(post_id))
 
     cursor = db[mongodb.POSTS].find(query).sort("created_at", -1).limit(limit)
     results = []
@@ -62,6 +90,9 @@ async def list_posts(request: Request, author_id: Optional[str] = None, limit: i
             else:
                 post["author_avatar"] = None
             post["author_verified"] = author.get("verified_flag", False)
+        post_id = str(post.get("_id", ""))
+        if post_id:
+            post["bookmarked"] = post_id in saved_post_ids
         results.append(post)
     return results
 
@@ -72,6 +103,19 @@ async def create_post(payload: Dict[str, Any] = Body(...)):
     result = await db[mongodb.POSTS].insert_one(payload)
     doc = await db[mongodb.POSTS].find_one({"_id": result.inserted_id})
     return _serialize(doc)
+
+
+@router.delete("/posts/{post_id}")
+async def delete_post(post_id: str, author_id: str):
+    db = get_database()
+    result = await db[mongodb.POSTS].delete_one(
+        {"_id": ObjectId(post_id), "author_id": author_id}
+    )
+    if result.deleted_count == 0:
+        return {"deleted": False, "detail": "Post not found"}
+
+    await db[mongodb.SAVED_POSTS].delete_many({"post_id": post_id})
+    return {"deleted": True, "post_id": post_id}
 
 
 @router.post("/posts/{post_id}/comments")
@@ -100,6 +144,39 @@ async def add_like(post_id: str, payload: Dict[str, Any] = Body(...)):
     post = _serialize(doc)
     post["likes_count"] = len(post.get("likes", []))
     return post
+
+
+@router.get("/favorites")
+async def list_favorites(user_id: str):
+    db = get_database()
+    cursor = db[mongodb.SAVED_POSTS].find({"user_id": user_id}).sort("saved_at", -1)
+    return [_serialize(doc) async for doc in cursor]
+
+
+@router.post("/favorites")
+async def save_favorite(payload: Dict[str, Any] = Body(...)):
+    db = get_database()
+    user_id = payload.get("user_id")
+    post_id = payload.get("post_id")
+    if not user_id or not post_id:
+        return {"detail": "user_id and post_id are required"}
+
+    favorite = _to_post_snapshot(payload)
+    favorite["saved_at"] = favorite.get("saved_at") or datetime.utcnow()
+    await db[mongodb.SAVED_POSTS].update_one(
+        {"user_id": user_id, "post_id": post_id},
+        {"$set": favorite},
+        upsert=True,
+    )
+    doc = await db[mongodb.SAVED_POSTS].find_one({"user_id": user_id, "post_id": post_id})
+    return _serialize(doc)
+
+
+@router.delete("/favorites")
+async def remove_favorite(user_id: str, post_id: str):
+    db = get_database()
+    result = await db[mongodb.SAVED_POSTS].delete_one({"user_id": user_id, "post_id": post_id})
+    return {"deleted": result.deleted_count == 1}
 
 
 @router.delete("/posts/{post_id}/likes")

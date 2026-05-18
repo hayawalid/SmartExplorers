@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'dart:ui';
 import '../theme/app_theme.dart';
 import '../widgets/smart_explorers_logo.dart';
 import '../services/session_store.dart';
@@ -23,6 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   final ProfileApiService _profileService = ProfileApiService();
   final SocialApiService _socialService = SocialApiService();
   late TabController _tabController;
+  late final VoidCallback _favoritesTabListener;
 
   String _name = 'User';
   String _username = '@user';
@@ -36,8 +36,10 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   List<_ProfilePost> _myPosts = [];
   List<_ProfileReview> _myReviews = [];
+  List<_ProfileFavorite> _myFavorites = [];
   bool _loadingPosts = true;
   bool _loadingReviews = true;
+  bool _loadingFavorites = true;
 
   static const _defaultImages = [
     'lib/public/pexels-meryemmeva-34823948.jpg',
@@ -49,12 +51,19 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
+    _favoritesTabListener = () {
+      if (_tabController.index == 2 && !_tabController.indexIsChanging) {
+        _loadUserFavorites();
+      }
+    };
+    _tabController.addListener(_favoritesTabListener);
     _nameController = TextEditingController(text: _name);
     _bioController = TextEditingController(text: _bio);
     _loadProfile();
     _loadUserPosts();
     _loadUserReviews();
+    _loadUserFavorites();
   }
 
   Future<void> _loadProfile() async {
@@ -90,6 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 posts.take(4).toList().asMap().entries.map((e) {
                   final p = e.value as Map<String, dynamic>;
                   return _ProfilePost(
+                    id: p['_id']?.toString() ?? '${e.key}',
                     image:
                         p['media_url']?.toString() ??
                         _defaultImages[e.key % _defaultImages.length],
@@ -105,18 +115,20 @@ class _ProfileScreenState extends State<ProfileScreen>
                     timeAgo: p['created_at']?.toString() ?? 'now',
                   );
                 }).toList();
+            _photos = _myPosts.length;
             _loadingPosts = false;
           });
           return;
         }
       }
       // Fallback: try loading from social posts
-      final posts = await _socialService.getPosts();
+      final posts = await _socialService.getPosts(authorId: userId);
       setState(() {
         _myPosts =
             posts.take(4).toList().asMap().entries.map((e) {
               final p = e.value;
               return _ProfilePost(
+                id: p['_id']?.toString() ?? '${e.key}',
                 image:
                     p['media_url']?.toString() ??
                     _defaultImages[e.key % _defaultImages.length],
@@ -132,11 +144,65 @@ class _ProfileScreenState extends State<ProfileScreen>
                 timeAgo: p['created_at']?.toString() ?? 'now',
               );
             }).toList();
+        _photos = _myPosts.length;
         _loadingPosts = false;
       });
     } catch (_) {
       setState(() => _loadingPosts = false);
     }
+  }
+
+  Future<void> _loadUserFavorites() async {
+    try {
+      final userId = SessionStore.instance.userId;
+      if (userId != null) {
+        final favorites = await _socialService.getFavorites(userId);
+        if (!mounted) return;
+        setState(() {
+          final defaultImageCount = _defaultImages.length;
+          _myFavorites =
+              favorites.asMap().entries.map((entry) {
+                final index = entry.key;
+                final favorite = entry.value;
+                return _ProfileFavorite(
+                  id:
+                      favorite['_id']?.toString() ??
+                      favorite['post_id']?.toString() ??
+                      '',
+                  postId: favorite['post_id']?.toString() ?? '',
+                  image:
+                      favorite['media_url']?.toString() ??
+                      _defaultImages[index % defaultImageCount],
+                  caption:
+                      favorite['text']?.toString() ??
+                      favorite['caption']?.toString() ??
+                      'Saved post',
+                  savedAt: favorite['saved_at']?.toString() ?? 'now',
+                );
+              }).toList();
+          _loadingFavorites = false;
+        });
+        return;
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _loadingFavorites = false);
+  }
+
+  Widget _buildImage(String source, {BoxFit fit = BoxFit.cover}) {
+    if (source.startsWith('http://') || source.startsWith('https://')) {
+      return Image.network(
+        source,
+        fit: fit,
+        errorBuilder:
+            (_, __, ___) => Container(
+              color: AppDesign.lightGrey.withValues(alpha: 0.15),
+              alignment: Alignment.center,
+              child: const Icon(LucideIcons.imageOff),
+            ),
+      );
+    }
+    return Image.asset(source, fit: fit);
   }
 
   Future<void> _loadUserReviews() async {
@@ -173,6 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   void dispose() {
     _profileService.dispose();
     _socialService.dispose();
+    _tabController.removeListener(_favoritesTabListener);
     _tabController.dispose();
     _nameController.dispose();
     _bioController.dispose();
@@ -243,6 +310,96 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  Future<void> _removeFavorite(_ProfileFavorite favorite) async {
+    final shouldRemove = await showCupertinoDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => CupertinoAlertDialog(
+            title: const Text('Remove from favorites?'),
+            content: const Text(
+              'This will remove the saved post from your favorites only.',
+            ),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.pop(ctx, false),
+              ),
+              CupertinoDialogAction(
+                isDestructiveAction: true,
+                child: const Text('Remove'),
+                onPressed: () => Navigator.pop(ctx, true),
+              ),
+            ],
+          ),
+    );
+
+    if (shouldRemove != true) return;
+
+    final userId = SessionStore.instance.userId;
+    if (userId == null) return;
+
+    try {
+      final removed = await _socialService.removeFavorite(
+        userId,
+        favorite.postId,
+      );
+      if (!mounted) return;
+      if (removed) {
+        setState(() {
+          _myFavorites.removeWhere((item) => item.postId == favorite.postId);
+        });
+        _showSnack('Removed from favorites');
+      } else {
+        _showSnack('Could not remove favorite');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      _showSnack('Could not remove favorite');
+    }
+  }
+
+  Future<void> _confirmDeletePost(_ProfilePost post) async {
+    final shouldDelete = await showCupertinoDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => CupertinoAlertDialog(
+            title: const Text('Delete post?'),
+            content: const Text(
+              'This will permanently delete the post from your profile and the database.',
+            ),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.pop(ctx, false),
+              ),
+              CupertinoDialogAction(
+                isDestructiveAction: true,
+                child: const Text('Delete'),
+                onPressed: () => Navigator.pop(ctx, true),
+              ),
+            ],
+          ),
+    );
+
+    if (shouldDelete != true) return;
+
+    final userId = SessionStore.instance.userId;
+    if (userId == null) return;
+
+    try {
+      await _socialService.deletePost(post.id, userId);
+      if (!mounted) return;
+      setState(() {
+        _myPosts.removeWhere((item) => item.id == post.id);
+        _photos = _myPosts.length;
+      });
+      _showSnack('Post deleted');
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Failed to delete post');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -275,6 +432,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             children: [
               _buildPostsGrid(isDark, text, sub),
               _buildReviewsList(isDark, text, sub, card),
+              _buildFavoritesGrid(isDark, text, sub, card),
             ],
           ),
         ),
@@ -523,7 +681,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.asset(post.image, fit: BoxFit.cover),
+                _buildImage(post.image),
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -535,6 +693,35 @@ class _ProfileScreenState extends State<ProfileScreen>
                         Colors.black.withValues(alpha: 0.7),
                       ],
                     ),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.more_vert,
+                      color: Colors.white.withValues(alpha: 0.95),
+                    ),
+                    color: isDark ? AppDesign.cardDark : Colors.white,
+                    onSelected: (value) {
+                      if (value == 'delete') {
+                        _confirmDeletePost(post);
+                      }
+                    },
+                    itemBuilder:
+                        (ctx) => const [
+                          PopupMenuItem<String>(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(LucideIcons.trash2, size: 16),
+                                SizedBox(width: 8),
+                                Text('Delete post'),
+                              ],
+                            ),
+                          ),
+                        ],
                   ),
                 ),
                 Positioned(
@@ -643,11 +830,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(16),
                         ),
-                        child: Image.asset(
-                          post.image,
+                        child: SizedBox(
                           width: double.infinity,
                           height: 380,
-                          fit: BoxFit.cover,
+                          child: _buildImage(post.image),
                         ),
                       ),
                       Padding(
@@ -823,6 +1009,137 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  Widget _buildFavoritesGrid(bool isDark, Color text, Color sub, Color card) {
+    if (_loadingFavorites) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_myFavorites.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(LucideIcons.bookmark, size: 48, color: sub),
+            const SizedBox(height: 12),
+            Text(
+              'No saved posts yet',
+              style: TextStyle(color: sub, fontSize: 15),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Posts you save from Explore will appear here',
+              style: TextStyle(color: sub, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.75,
+      ),
+      itemCount: _myFavorites.length,
+      itemBuilder: (context, i) {
+        final favorite = _myFavorites[i];
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _buildImage(favorite.image),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.5, 1.0],
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.72),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 6,
+                right: 6,
+                child: PopupMenuButton<String>(
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  color: isDark ? AppDesign.cardDark : Colors.white,
+                  onSelected: (value) {
+                    if (value == 'remove_favorite') {
+                      _removeFavorite(favorite);
+                    }
+                  },
+                  itemBuilder:
+                      (ctx) => const [
+                        PopupMenuItem<String>(
+                          value: 'remove_favorite',
+                          child: Row(
+                            children: [
+                              Icon(LucideIcons.trash2, size: 16),
+                              SizedBox(width: 8),
+                              Text('Remove from favorites'),
+                            ],
+                          ),
+                        ),
+                      ],
+                ),
+              ),
+              Positioned(
+                left: 10,
+                right: 10,
+                bottom: 10,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      favorite.caption,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          LucideIcons.bookmark,
+                          size: 12,
+                          color: Colors.white70,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Saved',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _stat(String label, String value, Color text, Color sub) {
     return Column(
       children: [
@@ -886,7 +1203,11 @@ class _StickyTabDelegate extends SliverPersistentHeaderDelegate {
           fontSize: 14,
           fontWeight: FontWeight.w400,
         ),
-        tabs: const [Tab(text: 'Posts'), Tab(text: 'Reviews')],
+        tabs: const [
+          Tab(text: 'Posts'),
+          Tab(text: 'Reviews'),
+          Tab(text: 'Favorites'),
+        ],
       ),
     );
   }
@@ -899,14 +1220,31 @@ class _StickyTabDelegate extends SliverPersistentHeaderDelegate {
 
 // ── Data Classes ────────────────────────────────────────────────────────
 class _ProfilePost {
+  final String id;
   final String image, caption, timeAgo;
   final int likes, comments;
   _ProfilePost({
+    required this.id,
     required this.image,
     required this.caption,
     required this.likes,
     required this.comments,
     required this.timeAgo,
+  });
+}
+
+class _ProfileFavorite {
+  final String id;
+  final String postId;
+  final String image;
+  final String caption;
+  final String savedAt;
+  const _ProfileFavorite({
+    required this.id,
+    required this.postId,
+    required this.image,
+    required this.caption,
+    required this.savedAt,
   });
 }
 

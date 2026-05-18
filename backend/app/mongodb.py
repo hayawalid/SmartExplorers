@@ -29,6 +29,7 @@ class MongoDB:
     STORIES = "stories"
     PHOTOS = "photos"
     REVIEWS = "reviews"
+    SAVED_POSTS = "saved_posts"
     SERVICE_LISTINGS = "service_listings"
     FAVORITES = "favorites"
     BOOKINGS = "bookings"
@@ -103,6 +104,10 @@ async def create_indexes():
     await db[mongodb.PHOTOS].create_index("user_id")
     await db[mongodb.REVIEWS].create_index([("author_id", 1), ("created_at", -1)])
     await db[mongodb.REVIEWS].create_index("provider_id")
+    await db[mongodb.SAVED_POSTS].create_index([("user_id", 1), ("saved_at", -1)])
+    await db[mongodb.SAVED_POSTS].create_index(
+        [("user_id", 1), ("post_id", 1)], unique=True
+    )
     
     # Marketplace indexes
     await db[mongodb.SERVICE_LISTINGS].create_index([("category", 1), ("featured_flag", -1)])
