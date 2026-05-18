@@ -38,6 +38,60 @@ class SocialApiService {
     throw Exception('Failed to create post: ${response.body}');
   }
 
+  Future<Map<String, dynamic>> addComment(
+    String postId,
+    Map<String, dynamic> payload,
+  ) async {
+    final response = await _client.post(
+      Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.socialEndpoint}/posts/$postId/comments',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to add comment: ${response.body}');
+  }
+
+  Future<Map<String, dynamic>> likePost(String postId, String userId) async {
+    final response = await _client.post(
+      Uri.parse(
+        '${ApiConfig.baseUrl}${ApiConfig.socialEndpoint}/posts/$postId/likes',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode({'user_id': userId}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to like post: ${response.body}');
+  }
+
+  Future<Map<String, dynamic>> unlikePost(String postId, String userId) async {
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}${ApiConfig.socialEndpoint}/posts/$postId/likes?user_id=$userId',
+    );
+    final response = await _client.delete(
+      uri,
+      headers: {'Accept': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to unlike post: ${response.body}');
+  }
+
   Future<Map<String, dynamic>> createReview(
     Map<String, dynamic> payload,
   ) async {

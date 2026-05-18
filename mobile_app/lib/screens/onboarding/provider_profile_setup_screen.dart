@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'dart:io';
 import 'dart:ui';
-import '../../theme/app_theme.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/theme/app_theme.dart';
 import '../../services/auth_api_service.dart';
+import '../../services/face_verification_service.dart';
+import '../selfie_camera_screen.dart';
 
 /// Provider signup – 4-step cinematic glass flow
 /// Step 1: Basic info  Step 2: Service type  Step 3: Verification  Step 4: Review
@@ -36,8 +41,16 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
   bool _selfieCaptured = false;
   double _scanProgress = 0.0;
 
+  // Real image files
+  File? _idImageFile;
+  File? _selfieFile;
+  bool _isVerifying = false;
+  bool _verificationPassed = false;
+  String? _verificationError;
+
   late AnimationController _fadeController;
   late AnimationController _scanController;
+  late AnimationController _celebrationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scanAnimation;
 
@@ -69,6 +82,10 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     _scanAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _scanController, curve: Curves.easeInOut),
     );
+    _celebrationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
   }
 
   @override
@@ -81,6 +98,7 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     _bioController.dispose();
     _fadeController.dispose();
     _scanController.dispose();
+    _celebrationController.dispose();
     _authService.dispose();
     super.dispose();
   }
@@ -145,8 +163,20 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
   }
 
   Future<void> _startIdScan() async {
-    setState(() => _idScanning = true);
+    final picker = ImagePicker();
+    final XFile? picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+
+    if (picked == null) return;
+
+    setState(() {
+      _idScanning = true;
+      _idImageFile = File(picked.path);
+    });
     HapticFeedback.lightImpact();
+
     _scanController.reset();
     _scanController.forward();
 
@@ -156,28 +186,47 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
       setState(() => _scanProgress = i / 100);
     }
 
-    HapticFeedback.heavyImpact();
+  HapticFeedback.heavyImpact();
     setState(() {
       _idScanning = false;
       _idCaptured = true;
     });
+    _celebrationController.forward(from: 0);
+
+    // Auto-trigger verification if selfie already captured
+    if (_selfieCaptured && _selfieFile != null) {
+      await _runFaceVerification();
+    }
   }
+
 
   Future<void> _startSelfieCapture() async {
     setState(() => _selfieCapturing = true);
     HapticFeedback.lightImpact();
 
-    for (int i = 3; i >= 1; i--) {
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted) return;
-      HapticFeedback.selectionClick();
+    final File? selfieFile = await Navigator.of(context).push<File>(
+      MaterialPageRoute(builder: (_) => const SelfieCameraScreen()),
+    );
+
+    if (!mounted) return;
+
+    if (selfieFile == null) {
+      setState(() => _selfieCapturing = false);
+      return;
     }
 
-    HapticFeedback.heavyImpact();
     setState(() {
       _selfieCapturing = false;
+      _selfieFile = selfieFile;
       _selfieCaptured = true;
     });
+    HapticFeedback.heavyImpact();
+    _celebrationController.forward(from: 0);
+
+    // Auto-trigger verification if ID already captured
+    if (_idCaptured && _idImageFile != null) {
+      await _runFaceVerification();
+    }
   }
 
   bool get _canContinue {
@@ -191,7 +240,7 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
       case 1:
         return _selectedService.isNotEmpty;
       case 2:
-        return _idCaptured && _selfieCaptured;
+        return _idCaptured && _selfieCaptured && _verificationPassed;
       case 3:
         return true;
       default:
@@ -342,6 +391,52 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
   }
 
   // ── Step 1: Basic Info ─────────────────────────────────────────────────
+  Future<void> _runFaceVerification() async {
+    if (_idImageFile == null || _selfieFile == null) return;
+
+    debugPrint('[FaceVerif] Starting verification...');
+    debugPrint('[FaceVerif] ID file: ${_idImageFile!.path}');
+    debugPrint('[FaceVerif] Selfie file: ${_selfieFile!.path}');
+
+    setState(() {
+      _isVerifying = true;
+      _verificationError = null;
+      _verificationPassed = false;
+    });
+
+    try {
+      debugPrint('[FaceVerif] Calling backend...');
+      final result = await FaceVerificationService.instance.verifyFaces(
+        idImageFile: _idImageFile!,
+        selfieFile: _selfieFile!,
+      );
+
+      debugPrint('[FaceVerif] Response: $result');
+
+      final passes = result['passes_threshold'] == true ||
+          result['verified'] == true;
+
+      debugPrint('[FaceVerif] Passes: $passes');
+
+      setState(() {
+        _isVerifying = false;
+        _verificationPassed = passes;
+        _verificationError = passes
+            ? null
+            : 'Face verification failed. Confidence: '
+              '${((result['confidence'] as num? ?? 0) * 100).toStringAsFixed(0)}%. '
+              'Please retake your selfie or use a clearer ID photo.';
+      });
+    } catch (e) {
+      debugPrint('[FaceVerif] ERROR: $e');
+      setState(() {
+        _isVerifying = false;
+        _verificationPassed = false;
+        _verificationError = 'Verification error: ${e.toString()}';
+      });
+    }
+  }
+
 
   Widget _buildBasicInfoStep() {
     return Column(

@@ -5,6 +5,7 @@ import 'dart:ui';
 import '../theme/app_theme.dart';
 import '../widgets/smart_explorers_logo.dart';
 import '../services/social_api_service.dart';
+import '../services/session_store.dart';
 import '../services/marketplace_api_service.dart';
 import 'create_post_screen.dart';
 import 'write_review_screen.dart';
@@ -14,10 +15,10 @@ import 'travel_space_detail_screen.dart';
 /// Cinematic image cards with glassmorphism overlays.
 class FeedScreen extends StatefulWidget {
   const FeedScreen({
-    super.key,
+    Key? key,
     required this.currentThemeMode,
     required this.onThemeModeSelected,
-  });
+  }) : super(key: key);
 
   final ThemeMode currentThemeMode;
   final ValueChanged<ThemeMode> onThemeModeSelected;
@@ -28,7 +29,7 @@ class FeedScreen extends StatefulWidget {
 
 class _FeedScreenState extends State<FeedScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  late final TabController _tabController;
 
   @override
   void initState() {
@@ -1036,44 +1037,56 @@ class _PostsTabState extends State<_PostsTab> {
 
   static final _fallbackPosts = [
     _PostData(
+      id: '0',
       author: 'Ahmed Hassan',
       handle: '@ahmedh',
+      authorAvatar: '',
+      authorId: '',
       text:
           'Sunrise at the Pyramids never gets old. Best time to go is before 7 AM.',
       image: 'lib/public/pexels-meryemmeva-34823948.jpg',
-      likes: 182,
-      comments: 24,
-      timeAgo: '2h',
+      createdAt: '',
+      commentsList: [],
+      likesList: [],
     ),
     _PostData(
+      id: '1',
       author: 'Sara Johnson',
       handle: '@saraj',
+      authorAvatar: '',
+      authorId: '',
       text:
           'Loved the guided walk through Old Cairo. So much history packed into one afternoon.',
       image: 'lib/public/smart_itineraries.jpg',
-      likes: 139,
-      comments: 19,
-      timeAgo: '4h',
+      createdAt: '',
+      commentsList: [],
+      likesList: [],
     ),
     _PostData(
+      id: '2',
       author: 'Mohamed Ali',
       handle: '@mohamedali',
+      authorAvatar: '',
+      authorId: '',
       text:
           'The Red Sea reef trip today was incredible. Clear water, calm weather, and a great crew.',
       image: 'lib/public/pexels-zahide-tas-367420941-28406392.jpg',
-      likes: 210,
-      comments: 33,
-      timeAgo: '6h',
+      createdAt: '',
+      commentsList: [],
+      likesList: [],
     ),
     _PostData(
+      id: '3',
       author: 'Nour Adel',
       handle: '@nouradel',
+      authorAvatar: '',
+      authorId: '',
       text:
           'Verified guides really make a difference when exploring with family.',
       image: 'lib/public/verified_guides.jpg',
-      likes: 97,
-      comments: 11,
-      timeAgo: '9h',
+      createdAt: '',
+      commentsList: [],
+      likesList: [],
     ),
   ];
 
@@ -1086,30 +1099,69 @@ class _PostsTabState extends State<_PostsTab> {
   Future<void> _loadPosts() async {
     try {
       final data = await _socialService.getPosts();
+      // If feed is empty, show empty state (do not display static fallback cards)
       if (data.isNotEmpty) {
+        if (!mounted) return;
         setState(() {
           _posts =
               data.asMap().entries.map((e) {
                 final p = e.value;
+                final createdAt = p['created_at']?.toString() ?? '';
+                final authorName =
+                    p['author_name']?.toString() ??
+                    p['author_username']?.toString() ??
+                    'Traveler';
+                final authorHandle =
+                    p['author_username'] != null
+                        ? '@${p['author_username']}'
+                        : '@traveler';
+                final authorAvatar = p['author_avatar']?.toString() ?? '';
+                final media =
+                    p['media_url']?.toString() ??
+                    (p['media_urls'] is List
+                        ? (p['media_urls'] as List).isNotEmpty
+                            ? (p['media_urls'] as List)[0].toString()
+                            : ''
+                        : '');
+                final comments =
+                    p['comments'] ??
+                    p['comments_list'] ??
+                    p['comments_list'] ??
+                    [];
+                final likes = p['likes'] ?? p['likes_list'] ?? [];
                 return _PostData(
-                  author: p['author']?.toString() ?? 'Traveler',
-                  handle: p['handle']?.toString() ?? '@traveler',
+                  id: p['_id']?.toString() ?? '${e.key}',
+                  author: authorName,
+                  handle: authorHandle,
+                  authorAvatar: authorAvatar,
+                  authorId: p['author_id']?.toString() ?? '',
                   text: p['caption']?.toString() ?? p['text']?.toString() ?? '',
-                  image: _defaultImages[e.key % _defaultImages.length],
-                  likes: (p['like_count'] as num?)?.toInt() ?? 0,
-                  comments: (p['comment_count'] as num?)?.toInt() ?? 0,
-                  timeAgo: p['time_ago']?.toString() ?? 'Just now',
+                  image:
+                      media.isNotEmpty
+                          ? media
+                          : _defaultImages[e.key % _defaultImages.length],
+                  createdAt: createdAt,
+                  commentsList: comments is List ? comments : [],
+                  likesList: likes is List ? likes : [],
                 );
               }).toList();
           _loading = false;
         });
         return;
       }
-    } catch (_) {}
-    setState(() {
-      _posts = _fallbackPosts;
-      _loading = false;
-    });
+      // empty feed
+      if (!mounted) return;
+      setState(() {
+        _posts = [];
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _posts = [];
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _openCreatePostPage() async {
@@ -1225,6 +1277,21 @@ class _PostCard extends StatefulWidget {
   State<_PostCard> createState() => _PostCardState();
 }
 
+String _formatTimeAgo(String iso) {
+  if (iso.isEmpty) return 'Just now';
+  try {
+    final dt = DateTime.parse(iso).toLocal();
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 60) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  } catch (_) {
+    return 'Just now';
+  }
+}
+
 class _PostCardState extends State<_PostCard> {
   late int _likes;
   bool _liked = false;
@@ -1233,15 +1300,39 @@ class _PostCardState extends State<_PostCard> {
   @override
   void initState() {
     super.initState();
-    _likes = widget.post.likes;
+    _likes = widget.post.likesList.length;
+    final currentUserId = SessionStore.instance.userId;
+    _liked =
+        currentUserId != null && widget.post.likesList.contains(currentUserId);
   }
 
-  void _toggleLike() {
+  Future<void> _toggleLike() async {
     HapticFeedback.lightImpact();
+    final userId = SessionStore.instance.userId;
+    if (userId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Sign in to like posts')));
+      return;
+    }
     setState(() {
       _liked = !_liked;
       _likes += _liked ? 1 : -1;
     });
+    try {
+      if (_liked) {
+        await SocialApiService().likePost(widget.post.id, userId);
+      } else {
+        await SocialApiService().unlikePost(widget.post.id, userId);
+      }
+    } catch (_) {
+      // revert on error
+      if (!mounted) return;
+      setState(() {
+        _liked = !_liked;
+        _likes += _liked ? 1 : -1;
+      });
+    }
   }
 
   void _toggleBookmark() {
@@ -1274,115 +1365,196 @@ class _PostCardState extends State<_PostCard> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder:
-          (ctx) => Container(
-            height: MediaQuery.of(context).size.height * 0.6,
-            decoration: BoxDecoration(
-              color: widget.isDark ? AppDesign.cardDark : Colors.white,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
-              ),
-            ),
-            child: Column(
-              children: [
-                Center(
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 12, bottom: 8),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(2),
-                      color:
-                          widget.isDark ? Colors.white24 : AppDesign.lightGrey,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'Comments (${widget.post.comments})',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color:
-                          widget.isDark ? Colors.white : AppDesign.eerieBlack,
-                    ),
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: 3,
-                    itemBuilder: (ctx, i) {
-                      final names = ['Ahmed', 'Sara', 'Mohamed'];
-                      final comments = [
-                        'Amazing shot! 😍',
-                        'Egypt is on my bucket list!',
-                        'Great recommendation, thanks for sharing!',
-                      ];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor:
-                                  widget.isDark
-                                      ? Colors.white.withValues(alpha: 0.1)
-                                      : AppDesign.offWhite,
-                              child: Text(
-                                names[i][0],
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color:
-                                      widget.isDark
-                                          ? Colors.white
-                                          : AppDesign.eerieBlack,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    names[i],
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                      color:
-                                          widget.isDark
-                                              ? Colors.white
-                                              : AppDesign.eerieBlack,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    comments[i],
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color:
-                                          widget.isDark
-                                              ? Colors.white70
-                                              : AppDesign.eerieBlack,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+      builder: (ctx) {
+        final comments = List<Map<String, dynamic>>.from(
+          widget.post.commentsList.map(
+            (c) =>
+                c is Map
+                    ? Map<String, dynamic>.from(c)
+                    : {'text': c.toString()},
           ),
+        );
+        final TextEditingController _commentController =
+            TextEditingController();
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.6,
+              decoration: BoxDecoration(
+                color: widget.isDark ? AppDesign.cardDark : Colors.white,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 8),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(2),
+                        color:
+                            widget.isDark
+                                ? Colors.white24
+                                : AppDesign.lightGrey,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'Comments (${comments.length})',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color:
+                            widget.isDark ? Colors.white : AppDesign.eerieBlack,
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child:
+                        comments.isEmpty
+                            ? Center(
+                              child: Text(
+                                'No comments yet',
+                                style: TextStyle(color: AppDesign.midGrey),
+                              ),
+                            )
+                            : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: comments.length,
+                              itemBuilder: (ctx, i) {
+                                final c = comments[i];
+                                final authorName =
+                                    c['author_name'] ??
+                                    c['author_username'] ??
+                                    'Traveler';
+                                final text = c['text']?.toString() ?? '';
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: AppDesign.electricCobalt
+                                              .withValues(alpha: 0.12),
+                                        ),
+                                        child: const Icon(LucideIcons.user),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              authorName,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color:
+                                                    widget.isDark
+                                                        ? Colors.white
+                                                        : AppDesign.eerieBlack,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              text,
+                                              style: TextStyle(
+                                                color: AppDesign.midGrey,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      8,
+                      16,
+                      MediaQuery.of(context).viewInsets.bottom + 24,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _commentController,
+                            decoration: InputDecoration(
+                              hintText: 'Write a comment...',
+                              filled: true,
+                              fillColor:
+                                  widget.isDark
+                                      ? AppDesign.cardDark
+                                      : AppDesign.offWhite,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: () async {
+                            final text = _commentController.text.trim();
+                            if (text.isEmpty) return;
+                            final userId = SessionStore.instance.userId;
+                            final username = SessionStore.instance.username;
+                            try {
+                              final resp = await SocialApiService().addComment(
+                                widget.post.id,
+                                {'author_id': userId, 'text': text},
+                              );
+                              setModalState(() {
+                                comments.insert(0, {
+                                  'author_id': userId,
+                                  'author_username': username,
+                                  'text': text,
+                                  'created_at':
+                                      DateTime.now().toUtc().toIso8601String(),
+                                });
+                                _commentController.clear();
+                              });
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to add comment: $e'),
+                                ),
+                              );
+                            }
+                          },
+                          child: const Text('Send'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1439,19 +1611,28 @@ class _PostCardState extends State<_PostCard> {
                           children: [
                             Row(
                               children: [
-                                CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: AppDesign.electricCobalt
-                                      .withValues(alpha: 0.12),
-                                  child: Text(
-                                    widget.post.author[0],
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 16,
-                                      color: AppDesign.electricCobalt,
+                                widget.post.authorAvatar.isNotEmpty
+                                    ? CircleAvatar(
+                                      radius: 20,
+                                      backgroundImage: NetworkImage(
+                                        widget.post.authorAvatar,
+                                      ),
+                                    )
+                                    : CircleAvatar(
+                                      radius: 20,
+                                      backgroundColor: AppDesign.electricCobalt
+                                          .withValues(alpha: 0.12),
+                                      child: Text(
+                                        widget.post.author.isNotEmpty
+                                            ? widget.post.author[0]
+                                            : '?',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 16,
+                                          color: AppDesign.electricCobalt,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
@@ -1470,7 +1651,7 @@ class _PostCardState extends State<_PostCard> {
                                         ),
                                       ),
                                       Text(
-                                        '${widget.post.handle} · ${widget.post.timeAgo}',
+                                        '${widget.post.handle} · ${_formatTimeAgo(widget.post.createdAt)}',
                                         style: TextStyle(
                                           fontSize: 13,
                                           color: AppDesign.midGrey,
@@ -1517,7 +1698,7 @@ class _PostCardState extends State<_PostCard> {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '${widget.post.comments}',
+                                  '${widget.post.commentsList.length}',
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: AppDesign.midGrey,
@@ -1615,7 +1796,7 @@ class _PostCardState extends State<_PostCard> {
                             const SizedBox(height: 16),
                             _PostActions(
                               likes: _likes,
-                              comments: widget.post.comments,
+                              comments: widget.post.commentsList.length,
                               liked: _liked,
                               onLikeTap: _toggleLike,
                               onCommentsTap: _showComments,
@@ -1664,7 +1845,7 @@ class _PostCardState extends State<_PostCard> {
                     const SizedBox(height: 14),
                     _PostActions(
                       likes: _likes,
-                      comments: widget.post.comments,
+                      comments: widget.post.commentsList.length,
                       liked: _liked,
                       onLikeTap: _toggleLike,
                       onCommentsTap: _showComments,
@@ -2057,6 +2238,7 @@ class _ProvidersTabState extends State<_ProvidersTab> {
     try {
       final data = await _marketplaceService.getListings();
       if (data.isNotEmpty) {
+        if (!mounted) return;
         setState(() {
           _providers =
               data.asMap().entries.map((e) {
@@ -2078,6 +2260,7 @@ class _ProvidersTabState extends State<_ProvidersTab> {
         return;
       }
     } catch (_) {}
+    if (!mounted) return;
     setState(() {
       _providers = _fallbackProviders;
       _loading = false;
@@ -2569,18 +2752,25 @@ class _PostHeader extends StatelessWidget {
                 ],
               ),
             ),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: isDark ? AppDesign.cardDark : Colors.white,
-              child: Text(
-                post.author[0],
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: AppDesign.electricCobalt,
-                ),
-              ),
-            ),
+            child:
+                post.authorAvatar.isNotEmpty
+                    ? CircleAvatar(
+                      radius: 18,
+                      backgroundImage: NetworkImage(post.authorAvatar),
+                    )
+                    : CircleAvatar(
+                      radius: 18,
+                      backgroundColor:
+                          isDark ? AppDesign.cardDark : Colors.white,
+                      child: Text(
+                        post.author.isNotEmpty ? post.author[0] : '?',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: AppDesign.electricCobalt,
+                        ),
+                      ),
+                    ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -2596,7 +2786,7 @@ class _PostHeader extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${post.handle} · ${post.timeAgo}',
+                  '${post.handle} · ${_formatTimeAgo(post.createdAt)}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppDesign.midGrey,
@@ -2826,16 +3016,27 @@ class _LoadingBlurImageState extends State<_LoadingBlurImage> {
 
 // ── Data Classes ────────────────────────────────────────────────────────
 class _PostData {
-  final String author, handle, text, image, timeAgo;
-  final int likes, comments;
+  final String id;
+  final String author;
+  final String handle;
+  final String authorAvatar;
+  final String authorId;
+  final String text;
+  final String image;
+  final String createdAt;
+  final List<dynamic> commentsList;
+  final List<dynamic> likesList;
   _PostData({
+    required this.id,
     required this.author,
     required this.handle,
+    required this.authorAvatar,
+    required this.authorId,
     required this.text,
     required this.image,
-    required this.likes,
-    required this.comments,
-    required this.timeAgo,
+    required this.createdAt,
+    required this.commentsList,
+    required this.likesList,
   });
 }
 

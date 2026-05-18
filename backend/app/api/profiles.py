@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Request
 from typing import Dict, Any, List
 from bson import ObjectId
+from typing import Optional
 
 from app.mongodb import get_database, mongodb
 
@@ -10,17 +11,48 @@ router = APIRouter(prefix="/api/v1/profiles", tags=["profiles"])
 def _serialize(doc: Dict[str, Any]) -> Dict[str, Any]:
     if not doc:
         return doc
-    doc["_id"] = str(doc["_id"])
-    return doc
+    return _json_safe(doc)
+
+
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, ObjectId):
+        return str(value)
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [_json_safe(item) for item in value]
+    return value
 
 
 @router.get("/travelers/{user_id}")
-async def get_traveler_profile(user_id: str):
+async def get_traveler_profile(request: Request, user_id: str, include_posts: Optional[bool] = False, posts_limit: int = 50):
     db = get_database()
     doc = await db[mongodb.TRAVELER_PROFILES].find_one({"user_id": user_id})
     if not doc:
         raise HTTPException(status_code=404, detail="Traveler profile not found")
-    return _serialize(doc)
+    profile = _serialize(doc)
+
+    if include_posts:
+        # fetch posts authored by this user
+        cursor = db[mongodb.POSTS].find({"author_id": user_id}).sort("created_at", -1).limit(posts_limit)
+        posts = []
+        async for p in cursor:
+            if not p.get("media_url") and p.get("media_urls"):
+                p["media_url"] = p["media_urls"][0]
+            if p.get("media_url"):
+                if p["media_url"].startswith("/"):
+                    p["media_url"] = str(request.base_url).rstrip("/") + p["media_url"]
+            if p.get("media_urls"):
+                p["media_urls"] = [
+                    str(request.base_url).rstrip("/") + url if url.startswith("/") else url
+                    for url in p["media_urls"]
+                ]
+            posts.append(_json_safe(p))
+        profile["posts"] = posts
+
+    return profile
 
 
 @router.put("/travelers/{user_id}")

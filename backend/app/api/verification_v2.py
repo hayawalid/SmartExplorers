@@ -410,11 +410,55 @@ async def get_verification_stats(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================================
+# FACE VERIFICATION (Flutter app endpoint)
+# ============================================================================
+
+@router.post("/verify-faces")
+async def verify_faces_endpoint(
+    id_image: UploadFile = File(...),
+    selfie_image: UploadFile = File(...),
+):
+    """
+    Simple face verification endpoint called by the Flutter app.
+    Accepts id_image and selfie_image, returns match result.
+    """
+    from app.services.face_verification import face_verification_service
+
+    try:
+        id_image_bytes = await id_image.read()
+        selfie_image_bytes = await selfie_image.read()
+
+        doc_validation = face_verification_service.validate_image_quality(id_image_bytes)
+        if not doc_validation["valid"]:
+            raise HTTPException(status_code=400, detail=f"ID image invalid: {doc_validation['reason']}")
+
+        selfie_validation = face_verification_service.validate_image_quality(selfie_image_bytes)
+        if not selfie_validation["valid"]:
+            raise HTTPException(status_code=400, detail=f"Selfie invalid: {selfie_validation['reason']}")
+
+        result = face_verification_service.verify_faces(id_image_bytes, selfie_image_bytes)
+
+        return {
+            "verified": result.get("verified", False),
+            "confidence": result.get("confidence", 0.0),
+            "passes_threshold": result.get("passes_threshold", False),
+            "message": "Faces match" if result.get("passes_threshold") else "Faces do not match",
+            "mock_mode": result.get("mock_mode", False),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Verification failed: {str(e)}")
+
 @router.post("/admin/re-verify/{provider_id}")
 async def re_verify_provider(
     provider_id: str,
     db=Depends(get_database)
 ):
+    
+
     """Re-run verification for a provider (admin only)"""
     
     # TODO: Add admin auth

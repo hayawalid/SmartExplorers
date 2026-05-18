@@ -26,7 +26,7 @@ from ..services.encryption import encryption_service
 from ..services.ocr import ocr_service
 from ..services.face_verification import face_verification_service
 
-router = APIRouter(prefix="/api/verification", tags=["verification"])
+router = APIRouter(prefix="/api/v1/verification", tags=["verification"])
 
 
 # Mock auth - replace with real authentication
@@ -511,6 +511,50 @@ async def get_verification_stats(
         expired_count=expired,
         fraud_detection_rate=round(fraud_rate, 2)
     )
+
+@router.post("/verify-faces")
+async def verify_faces_endpoint(
+    id_image: UploadFile = File(...),
+    selfie_image: UploadFile = File(...),
+):
+    """
+    Simple face verification endpoint.
+    Accepts id_image and selfie_image, returns match result.
+    """
+    try:
+        id_image_bytes = await id_image.read()
+        selfie_image_bytes = await selfie_image.read()
+
+        # Validate images
+        doc_validation = face_verification_service.validate_image_quality(id_image_bytes)
+        if not doc_validation["valid"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"ID image invalid: {doc_validation['reason']}"
+            )
+
+        selfie_validation = face_verification_service.validate_image_quality(selfie_image_bytes)
+        if not selfie_validation["valid"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Selfie invalid: {selfie_validation['reason']}"
+            )
+
+        # Verify faces
+        result = face_verification_service.verify_faces(id_image_bytes, selfie_image_bytes)
+
+        return {
+            "verified": result.get("verified", False),
+            "confidence": result.get("confidence", 0.0),
+            "passes_threshold": result.get("passes_threshold", False),
+            "message": "Faces match" if result.get("passes_threshold") else "Faces do not match",
+            "mock_mode": result.get("mock_mode", False),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Verification failed: {str(e)}")
 
 
 @router.delete("/{verification_id}", status_code=status.HTTP_204_NO_CONTENT)

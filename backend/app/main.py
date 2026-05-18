@@ -4,6 +4,7 @@ UPDATED main.py - WITH SMART MATCHING SYSTEM INTEGRATED
 This shows how to integrate the matching system into your existing main.py
 Copy the relevant sections to your actual /mnt/project/main.py
 """
+import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +24,7 @@ from app.api.marketplace import router as marketplace_router
 from app.api.safety import router as safety_router
 from app.api.preferences import router as preferences_router
 from app.api.services import router as services_router
+from app.api.verification_v2 import router as verification_router
 
 # ====== NEW: Import matching system ======
 # from matching_api import router as matching_router, initialize_matching_system  # COMMENTED OUT – module doesn't exist yet
@@ -118,7 +120,11 @@ async def validation_exception_handler(request, exc):
     )
 
 # Static files (avatars, post images)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+else:
+    print(f"Warning: Static directory not found at {static_dir}")
 
 # CORS middleware
 app.add_middleware(
@@ -140,6 +146,7 @@ app.include_router(marketplace_router)
 app.include_router(services_router)
 app.include_router(safety_router)
 app.include_router(preferences_router)
+app.include_router(verification_router)
 
 # ====== NEW: Include matching router ======
 app.include_router(matching_router)

@@ -50,10 +50,9 @@ class ProfileApiService {
   }
 
   Future<Map<String, dynamic>?> getTravelerProfile(String userId) async {
-    // if (ApiConfig.offlineMode) return {'user_id': userId}; // COMMENTED OUT
     final response = await _client.get(
       Uri.parse(
-        '${ApiConfig.baseUrl}${ApiConfig.profilesEndpoint}/travelers/$userId',
+        '${ApiConfig.baseUrl}${ApiConfig.profilesEndpoint}/travelers/$userId?include_posts=true',
       ),
       headers: {'Accept': 'application/json'},
     );
