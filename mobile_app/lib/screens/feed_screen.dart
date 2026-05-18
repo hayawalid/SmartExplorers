@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../widgets/smart_explorers_logo.dart';
 import '../services/social_api_service.dart';
 import '../services/session_store.dart';
+import '../services/api_config.dart';
 import '../services/marketplace_api_service.dart';
 import 'create_post_screen.dart';
 import 'write_review_screen.dart';
@@ -3157,41 +3158,110 @@ class _LoadingBlurImageState extends State<_LoadingBlurImage> {
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      widget.image,
-      width: widget.width,
-      height: widget.height,
-      fit: widget.fit,
-      filterQuality: FilterQuality.high,
-      gaplessPlayback: true,
-      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (frame != null || wasSynchronouslyLoaded) {
-          if (!_revealed) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                setState(() => _revealed = true);
-              }
-            });
+    final src = widget.image;
+    Widget img;
+    if (src.startsWith('http://') || src.startsWith('https://')) {
+      img = Image.network(
+        src,
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+        filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (frame != null || wasSynchronouslyLoaded) {
+            if (!_revealed) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _revealed = true);
+              });
+            }
           }
-        }
+          return TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 18.0, end: _revealed ? 0.0 : 18.0),
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) {
+              return ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: value, sigmaY: value),
+                child: AnimatedOpacity(
+                  opacity: _revealed ? 1.0 : 0.88,
+                  duration: const Duration(milliseconds: 180),
+                  child: child,
+                ),
+              );
+            },
+          );
+        },
+      );
+    } else if (src.startsWith('/')) {
+      img = Image.network(
+        '${ApiConfig.baseUrl}$src',
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+        filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (frame != null || wasSynchronouslyLoaded) {
+            if (!_revealed) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _revealed = true);
+              });
+            }
+          }
+          return TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 18.0, end: _revealed ? 0.0 : 18.0),
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) {
+              return ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: value, sigmaY: value),
+                child: AnimatedOpacity(
+                  opacity: _revealed ? 1.0 : 0.88,
+                  duration: const Duration(milliseconds: 180),
+                  child: child,
+                ),
+              );
+            },
+          );
+        },
+      );
+    } else {
+      img = Image.asset(
+        src,
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+        filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (frame != null || wasSynchronouslyLoaded) {
+            if (!_revealed) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _revealed = true);
+              });
+            }
+          }
+          return TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 18.0, end: _revealed ? 0.0 : 18.0),
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) {
+              return ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: value, sigmaY: value),
+                child: AnimatedOpacity(
+                  opacity: _revealed ? 1.0 : 0.88,
+                  duration: const Duration(milliseconds: 180),
+                  child: child,
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
 
-        return TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: 18.0, end: _revealed ? 0.0 : 18.0),
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
-          builder: (context, value, _) {
-            return ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: value, sigmaY: value),
-              child: AnimatedOpacity(
-                opacity: _revealed ? 1.0 : 0.88,
-                duration: const Duration(milliseconds: 180),
-                child: child,
-              ),
-            );
-          },
-        );
-      },
-    );
+    return img;
   }
 }
 

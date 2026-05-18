@@ -32,6 +32,9 @@ class AuthApiService {
         username: user['username'] as String,
         accountType: user['account_type'] as String,
         accessToken: data['access_token'] as String,
+        avatarUrl:
+            (user['avatar_url'] as String?) ??
+            (user['profile_picture_url'] as String?),
       );
 
       return data;
@@ -114,6 +117,9 @@ class AuthApiService {
         username: user['username'] as String,
         accountType: user['account_type'] as String,
         accessToken: data['access_token'] as String,
+        avatarUrl:
+            (user['avatar_url'] as String?) ??
+            (user['profile_picture_url'] as String?),
       );
 
       return data;

@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Body, Request
+from fastapi import APIRouter, Body, Request, UploadFile, File, HTTPException
+import os
+import uuid
 from typing import Dict, Any, Optional, List
 from bson import ObjectId
 from datetime import datetime
@@ -103,6 +105,22 @@ async def create_post(payload: Dict[str, Any] = Body(...)):
     result = await db[mongodb.POSTS].insert_one(payload)
     doc = await db[mongodb.POSTS].find_one({"_id": result.inserted_id})
     return _serialize(doc)
+
+
+@router.post("/upload")
+async def upload_media(file: UploadFile = File(...)):
+    try:
+        ext = os.path.splitext(file.filename)[1] if file.filename else ""
+        filename = f"{uuid.uuid4().hex}{ext}"
+        save_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "static", "posts"))
+        os.makedirs(save_dir, exist_ok=True)
+        dest_path = os.path.join(save_dir, filename)
+        content = await file.read()
+        with open(dest_path, "wb") as f:
+            f.write(content)
+        return {"path": f"/static/posts/{filename}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/posts/{post_id}")

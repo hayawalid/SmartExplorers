@@ -7,6 +7,7 @@ class SessionStore {
   String? username;
   String? accountType; // traveler | service_provider
   String? accessToken; // JWT token from backend
+  String? avatarUrl;
 
   bool get isLoggedIn => userId != null && username != null;
 
@@ -15,11 +16,13 @@ class SessionStore {
     required String username,
     required String accountType,
     String? accessToken,
+    String? avatarUrl,
   }) {
     this.userId = userId;
     this.username = username;
     this.accountType = accountType;
     this.accessToken = accessToken;
+    this.avatarUrl = avatarUrl;
   }
 
   void clear() {
@@ -27,5 +30,6 @@ class SessionStore {
     username = null;
     accountType = null;
     accessToken = null;
+    avatarUrl = null;
   }
 }

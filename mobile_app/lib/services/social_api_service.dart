@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'api_config.dart';
 
@@ -52,6 +53,21 @@ class SocialApiService {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
     throw Exception('Failed to create post: ${response.body}');
+  }
+
+  Future<String> uploadMedia(File file) async {
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}${ApiConfig.socialEndpoint}/upload',
+    );
+    final request = http.MultipartRequest('POST', uri);
+    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    final streamed = await _client.send(request);
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return data['path'] as String;
+    }
+    throw Exception('Failed to upload media: ${response.body}');
   }
 
   Future<Map<String, dynamic>> deletePost(

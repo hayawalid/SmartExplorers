@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../widgets/smart_explorers_logo.dart';
@@ -27,6 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   String _name = 'User';
   String _username = '@user';
   String _bio = '';
+  String? _avatarUrl;
   int _trips = 0;
   int _reviewsCount = 0;
   int _photos = 0;
@@ -75,11 +78,15 @@ class _ProfileScreenState extends State<ProfileScreen>
         _name = user['full_name'] ?? _name;
         _username = '@${user['username'] ?? 'user'}';
         _bio = user['bio'] ?? _bio;
+        _avatarUrl =
+            user['avatar_url']?.toString() ??
+            user['profile_picture_url']?.toString();
         _trips = user['trips_count'] ?? _trips;
         _reviewsCount = user['reviews_count'] ?? _reviewsCount;
         _photos = user['photos_count'] ?? _photos;
         _nameController.text = _name;
         _bioController.text = _bio;
+        SessionStore.instance.avatarUrl = _avatarUrl;
       });
     } catch (_) {}
   }
@@ -202,7 +209,67 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
       );
     }
+    if (source.startsWith('/')) {
+      return Image.network('${ApiConfig.baseUrl}$source', fit: fit);
+    }
     return Image.asset(source, fit: fit);
+  }
+
+  ImageProvider<Object>? _avatarProvider(String? source) {
+    final value = source?.trim();
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return NetworkImage(value);
+    }
+    if (value.startsWith('/')) {
+      return NetworkImage('${ApiConfig.baseUrl}$value');
+    }
+    return AssetImage(value);
+  }
+
+  Future<void> _uploadProfilePicture() async {
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 88,
+      );
+      if (picked == null) {
+        return;
+      }
+
+      final uploadedUrl = await _socialService.uploadMedia(File(picked.path));
+      final userId = SessionStore.instance.userId;
+      if (userId == null) {
+        return;
+      }
+
+      final updated = await _profileService.updateUser(userId, {
+        'avatar_url': uploadedUrl,
+        'profile_picture_url': uploadedUrl,
+      });
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _avatarUrl = updated['avatar_url']?.toString() ?? uploadedUrl;
+        SessionStore.instance.avatarUrl = _avatarUrl;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile picture updated')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update profile picture: $error')),
+      );
+    }
   }
 
   Future<void> _loadUserReviews() async {
@@ -482,12 +549,30 @@ class _ProfileScreenState extends State<ProfileScreen>
                 backgroundColor: AppDesign.electricCobalt.withValues(
                   alpha: 0.12,
                 ),
-                child: Icon(
-                  LucideIcons.user,
-                  size: 36,
-                  color: isDark ? Colors.white : AppDesign.electricCobalt,
+                backgroundImage: _avatarProvider(
+                  _avatarUrl ?? SessionStore.instance.avatarUrl,
                 ),
+                child:
+                    _avatarProvider(
+                              _avatarUrl ?? SessionStore.instance.avatarUrl,
+                            ) ==
+                            null
+                        ? Icon(
+                          LucideIcons.user,
+                          size: 36,
+                          color:
+                              isDark ? Colors.white : AppDesign.electricCobalt,
+                        )
+                        : null,
               ),
+              if (_isEditing) ...[
+                const SizedBox(height: 10),
+                TextButton.icon(
+                  onPressed: _uploadProfilePicture,
+                  icon: const Icon(LucideIcons.image),
+                  label: const Text('Upload profile picture'),
+                ),
+              ],
               const SizedBox(height: 14),
               if (_isEditing) ...[
                 SizedBox(
