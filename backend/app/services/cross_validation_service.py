@@ -339,10 +339,10 @@ class CrossValidationService:
             
             verification_results["detailed_results"][check_name] = result
             
-            # Calculate scores
+            
+            # Calculate scores — always add earned points regardless of pass/fail
             if result.get("passed"):
                 verification_results["checks_passed"].append(check_name)
-                total_score += result.get("score", 0)
             else:
                 verification_results["checks_failed"].append(check_name)
                 if result.get("critical", False):
@@ -350,6 +350,7 @@ class CrossValidationService:
                         f"CRITICAL: {check_name} - {result.get('message', 'Failed')}"
                     )
             
+            total_score += result.get("score", 0)
             max_score += result.get("max_score", 10)
         
         # Calculate overall score (0-100)
@@ -445,30 +446,33 @@ class CrossValidationService:
             claimed_lat = provider_data.get("latitude")
             claimed_lng = provider_data.get("longitude")
             
-            if not address:
+            if not business_name and not address:
                 return {
                     "passed": False,
                     "score": 0,
                     "max_score": 15,
-                    "message": "No address provided"
+                    "message": "No business name or address provided"
                 }
             
-            # Try multiple address formats
+            # Build search variations — business name first, address as fallback
             geocode_result = None
-            address_variations = [
-                f"{business_name} Egypt",
-                f"{address}",
-                f"{address}, Cairo, Egypt",
-                f"{address.split(',')[0]}, Cairo, Egypt" if ',' in address else f"{address}, Egypt",
-            ]
+            address_variations = []
+            if business_name:
+                address_variations.append(f"{business_name} Egypt")
+            if address:
+                address_variations.append(f"{address}")
+                address_variations.append(f"{address}, Cairo, Egypt")
+                if ',' in address:
+                    address_variations.append(f"{address.split(',')[0]}, Cairo, Egypt")
+                else:
+                    address_variations.append(f"{address}, Egypt")
             
             for addr in address_variations:
                 geocode_result = await self._nominatim_geocode(addr)
                 if geocode_result:
                     break
             
-            if not geocode_result:
-                # Try direct place name search as fallback
+            if not geocode_result and business_name:
                 geocode_result = await self._direct_nominatim_search(f"{business_name} Egypt")
             
             if not geocode_result:
@@ -537,6 +541,9 @@ class CrossValidationService:
             }
             
         except Exception as e:
+            import traceback
+            print(f"  [ERROR] _analyze_reviews crashed: {e}")
+            traceback.print_exc()
             return {
                 "passed": False,
                 "score": 0,
@@ -552,12 +559,12 @@ class CrossValidationService:
             latitude = provider_data.get("latitude")
             longitude = provider_data.get("longitude")
             
-            if not (business_name and latitude and longitude):
+            if not business_name:
                 return {
                     "passed": False,
                     "score": 0,
                     "max_score": 10,
-                    "message": "Missing business info"
+                    "message": "Missing business name"
                 }
             
             # Try direct Nominatim search first (more reliable)
@@ -641,13 +648,23 @@ class CrossValidationService:
         }
         
         # Facebook verification
+        business_name = provider_data.get("business_name", "")
+
+        # Facebook verification
         facebook_url = provider_data.get("facebook_url")
         if facebook_url:
-            fb_result = await self._verify_facebook(facebook_url)
+            fb_result = await self._verify_facebook(facebook_url, business_name)
             results["platforms"]["facebook"] = fb_result
             if fb_result.get("verified"):
-                results["score"] += 5
-        
+                # Full points only if name matches or we couldn't check name
+                if fb_result.get("confidence") == "high" or not business_name:
+                    results["score"] += 5
+                else:
+                    # Page exists but name doesn't match — likely fake/unrelated account
+                    results["score"] += 1
+                    results["warnings"] = results.get("warnings", [])
+                    results["warnings"].append("Facebook page exists but name doesn't match business")
+
         # Instagram verification
         instagram_username = provider_data.get("instagram_username")
         if instagram_username:
@@ -660,49 +677,173 @@ class CrossValidationService:
         
         return results
     
-    async def _verify_facebook(self, facebook_url: str) -> Dict:
-        """Verify Facebook page exists and is active"""
-        
+    async def _verify_facebook(self, facebook_url: str, business_name: str = "") -> Dict:
+        """
+        Verify Facebook page exists and optionally name-matches the business.
+        Uses Open Graph meta tags which Facebook serves without auth.
+        """
         try:
-            headers = {"User-Agent": "SmartExplorers/1.0"}
-            response = await self.http_client.get(facebook_url, headers=headers)
-            exists = response.status_code == 200
-            
-            return {
-                "verified": exists,
-                "exists": exists
+            headers = {
+                "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
             }
-                
+            response = await self.http_client.get(
+                facebook_url, headers=headers, follow_redirects=True, timeout=10.0
+            )
+
+            if response.status_code != 200:
+                return {"verified": False, "exists": False, "reason": f"HTTP {response.status_code}"}
+
+            body = response.text
+
+            # Facebook serves real page content to its own crawler UA
+            not_found_signals = [
+                "This page isn\u2019t available",
+                "This content isn\u2019t available",
+                "Page Not Found",
+            ]
+            if any(signal in body for signal in not_found_signals):
+                return {"verified": False, "exists": False, "reason": "Page not found"}
+
+            # Extract Open Graph title (og:title) for name matching
+            og_title = ""
+            og_match = re.search(r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)["\']', body)
+            if not og_match:
+                # Try reversed attribute order
+                og_match = re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:title["\']', body)
+            if og_match:
+                og_title = og_match.group(1).strip()
+
+            # Also try <title> tag as fallback
+            if not og_title:
+                title_match = re.search(r'<title>([^<]+)</title>', body)
+                if title_match:
+                    og_title = title_match.group(1).strip()
+
+            # Name match: check if any word of the business name appears in the page title
+            name_match = False
+            name_match_score = 0.0
+            if business_name and og_title:
+                business_words = [w.lower() for w in business_name.split() if len(w) > 3]
+                title_lower = og_title.lower()
+                matched_words = [w for w in business_words if w in title_lower]
+                name_match_score = len(matched_words) / len(business_words) if business_words else 0
+                name_match = name_match_score >= 0.5  # at least half the words match
+
+            return {
+                "verified": True,
+                "exists": True,
+                "page_title": og_title,
+                "name_match": name_match,
+                "name_match_score": round(name_match_score, 2),
+                # Only award full points if name matches; partial if page exists but name differs
+                "confidence": "high" if name_match else "low"
+            }
+
         except Exception as e:
-            return {
-                "verified": False,
-                "error": str(e)
-            }
-    
-    async def _verify_instagram(self, username: str) -> Dict:
-        """Verify Instagram account exists"""
+            return {"verified": False, "error": str(e)}
         
+    async def _verify_instagram(self, username: str) -> Dict:
+        """
+        Verify Instagram account exists using Instagram's internal profile API.
+        Falls back to HTML scraping if the API is blocked.
+        """
         try:
             username = username.replace('@', '').strip()
-            profile_url = f"https://www.instagram.com/{username}/"
-            
+
+            # Method 1: Instagram internal API (most reliable, no auth needed)
+            api_url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                "User-Agent": "Instagram 76.0.0.15.395 Android",
+                "x-ig-app-id": "936619743392459",
             }
-            response = await self.http_client.get(profile_url, headers=headers)
-            exists = response.status_code == 200
-            
+            response = await self.http_client.get(api_url, headers=headers, timeout=10.0)
+
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    user = data.get("data", {}).get("user")
+                    if user and user.get("id"):
+                        return {
+                            "verified": True,
+                            "username": username,
+                            "active": True,
+                            "method": "api"
+                        }
+                    else:
+                        return {"verified": False, "username": username, "reason": "User not found in API response"}
+                except Exception:
+                    pass
+
+            if response.status_code == 404:
+                return {"verified": False, "username": username, "reason": "Account does not exist (404)"}
+
+            # Method 2: HTML fallback — check for definitive not-found markers
+            profile_url = f"https://www.instagram.com/{username}/"
+            html_headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept-Language": "en-US,en;q=0.9",
+            }
+            html_response = await self.http_client.get(profile_url, headers=html_headers, timeout=10.0)
+
+            if html_response.status_code == 404:
+                return {"verified": False, "username": username, "reason": "Account does not exist (404)"}
+
+            body = html_response.text
+            not_found_signals = [
+                "Sorry, this page isn\u2019t available",
+                "Sorry, this page isn't available",
+                "Page Not Found",
+            ]
+            if any(signal in body for signal in not_found_signals):
+                return {"verified": False, "username": username, "reason": "Page not found"}
+
+            # If we got a 200 with no not-found signal, check for login wall
+            # Instagram returns 200 for login walls on non-existent accounts too
+            login_wall_signals = [
+                "Log in to Instagram",
+                "You must log in to continue",
+                "loginForm",
+                "login_form",
+            ]
+            if any(signal in body for signal in login_wall_signals):
+                # Can't confirm — treat as unverified (conservative)
+                return {
+                    "verified": False,
+                    "username": username,
+                    "reason": "Login wall — cannot confirm account existence",
+                    "method": "html_fallback",
+                    "confidence": "none"
+                }
+
+            # Check for positive signals that the profile actually exists
+            profile_signals = [
+                f'"username":"{username}"',
+                f'"username": "{username}"',
+                f'@{username}',
+                '"ProfilePage"',
+                '"profile_pic_url"',
+            ]
+            profile_confirmed = any(signal in body for signal in profile_signals)
+
+            if not profile_confirmed:
+                return {
+                    "verified": False,
+                    "username": username,
+                    "reason": "No profile data found in page — likely non-existent or private",
+                    "method": "html_fallback",
+                    "confidence": "none"
+                }
+
             return {
-                "verified": exists,
+                "verified": True,
                 "username": username,
-                "active": exists
+                "active": True,
+                "method": "html_fallback",
+                "confidence": "low"
             }
-            
+
         except Exception as e:
-            return {
-                "verified": False,
-                "error": str(e)
-            }
+            return {"verified": False, "error": str(e)}
     
     def _extract_facebook_page_id(self, url: str) -> Optional[str]:
         """Extract Facebook page ID from URL"""
@@ -730,7 +871,7 @@ class CrossValidationService:
             all_reviews = []
             
             # INTERNAL reviews from YOUR platform
-            if db:
+            if db is not None:
                 internal_reviews = await self._get_internal_reviews(provider_data, db)
                 all_reviews.extend(internal_reviews)
             
@@ -774,7 +915,28 @@ class CrossValidationService:
             # Authenticity: 0-5 points
             authenticity_score = analysis.get("authenticity_score", 0.5)
             score += int(authenticity_score * 5)
-            
+
+            # Verification penalties: reviews calling out specific failures
+            # Each penalty reduces score proportionally (max -2 per flag)
+            penalties = analysis.get("verification_penalties", {})
+            penalty_map = {
+                "bad_phone": 2,
+                "bad_location": 2,
+                "bad_hours": 1,
+                "scam_reports": 3,
+                "license_issues": 2,
+            }
+            total_penalty = 0
+            triggered_penalties = []
+            for flag, max_deduction in penalty_map.items():
+                flag_score = penalties.get(flag, 0)
+                if flag_score >= 0.5:
+                    deduction = int(flag_score * max_deduction)
+                    total_penalty += deduction
+                    triggered_penalties.append(f"{flag} (-{deduction}pts)")
+
+            score = max(0, score - total_penalty)
+
             return {
                 "passed": score >= 8,
                 "score": score,
@@ -784,10 +946,14 @@ class CrossValidationService:
                 "sentiment": sentiment,
                 "authenticity_score": authenticity_score,
                 "common_themes": analysis.get("themes", []),
-                "red_flags": analysis.get("red_flags", [])
+                "red_flags": analysis.get("red_flags", []),
+                "verification_penalties": triggered_penalties
             }
             
         except Exception as e:
+            import traceback
+            print(f"  [ERROR] _analyze_reviews crashed: {e}")
+            traceback.print_exc()
             return {
                 "passed": False,
                 "score": 0,
@@ -801,16 +967,39 @@ class CrossValidationService:
     async def _get_tripadvisor_reviews(self, business_name: str) -> List[Dict]:
         return []
     
+    
     async def _get_internal_reviews(self, provider_data: Dict, db) -> List[Dict]:
         """Get reviews from your own database"""
         try:
+            from app.mongodb import mongodb as _mongodb
             provider_id = provider_data.get("_id")
             
-            if not provider_id or not db:
-                return []
+            print(f"  [DEBUG] _get_internal_reviews called: provider_id={provider_id!r}, db={db!r}")
             
-            reviews_cursor = db.reviews.find({
-                "provider_id": provider_id
+            if not provider_id:
+                print("  [DEBUG] Returning early: no provider_id")
+                return []
+            if db is None:
+                print("  [DEBUG] Returning early: db is None")
+                return []
+
+            try:
+                from bson import ObjectId
+                id_variants = [provider_id, ObjectId(provider_id)]
+            except Exception:
+                id_variants = [provider_id]
+
+            # DEBUG - remove after fix confirmed
+            print(f"  [DEBUG] REVIEWS collection name: {_mongodb.REVIEWS!r}")
+            print(f"  [DEBUG] Searching provider_id variants: {id_variants}")
+            sample = await db[_mongodb.REVIEWS].find_one({})
+            print(f"  [DEBUG] Sample review doc: {sample}")
+            count_all = await db[_mongodb.REVIEWS].count_documents({})
+            count_match = await db[_mongodb.REVIEWS].count_documents({"provider_id": {"$in": id_variants}})
+            print(f"  [DEBUG] Total reviews in collection: {count_all}, matching this provider: {count_match}")
+
+            reviews_cursor = db[_mongodb.REVIEWS].find({
+                "provider_id": {"$in": id_variants}
             }).sort("created_at", -1).limit(50)
             
             reviews = []
@@ -837,6 +1026,7 @@ class CrossValidationService:
                 for i, r in enumerate(reviews[:20])
             ])
             
+
             response = self.groq_client.chat.completions.create(
                 model=settings.GROQ_MODEL,
                 messages=[{
@@ -848,9 +1038,15 @@ class CrossValidationService:
 Provide JSON with:
 - sentiment: overall sentiment (positive/neutral/negative/mixed)
 - themes: list of main topics mentioned (max 5)
-- red_flags: any safety concerns, scam mentions, or serious issues (list)
-- authenticity_score: 0-1 (are reviews genuine?)
+- red_flags: any safety concerns, scam mentions, or serious issues (list, can be empty)
+- authenticity_score: 0-1 (are reviews genuine? look for copy-paste patterns, generic praise)
 - recommendation: should this provider be trusted? (yes/no/maybe)
+- verification_penalties: object with these keys (each 0-1, where 1 = strong complaint found):
+    - bad_phone: reviews mention phone not working, wrong number, unreachable
+    - bad_location: reviews mention wrong address, place doesn't exist, hard to find
+    - bad_hours: reviews mention closed when should be open, wrong hours listed
+    - scam_reports: reviews mention scam, fraud, overcharging, theft
+    - license_issues: reviews mention unlicensed, illegal, unregistered
 
 Return ONLY valid JSON."""
                 }],
@@ -862,12 +1058,14 @@ Return ONLY valid JSON."""
             return analysis
             
         except Exception as e:
+            print(f"[WARN] _ai_analyze_reviews failed: {e}")
             return {
                 "sentiment": "positive",
                 "themes": [],
                 "red_flags": [],
                 "authenticity_score": 0.7,
-                "recommendation": "maybe"
+                "recommendation": "maybe",
+                "verification_penalties": {}
             }
     
     # ========================================================================

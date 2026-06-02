@@ -46,6 +46,8 @@ class ProviderVerificationService:
         """Get MongoDB database instance"""
         if self.db is None:
             self.db = mongodb.db
+        if self.db is None:
+            raise RuntimeError("MongoDB not connected — call connect_to_mongo() before verifying")
         return self.db
     
     async def verify_provider_complete(
@@ -145,7 +147,8 @@ class ProviderVerificationService:
                 "average_rating": rev_result.get("average_rating", 0),
                 "sentiment": rev_result.get("sentiment", "unknown"),
                 "authenticity_score": rev_result.get("authenticity_score", 0),
-                "red_flags": rev_result.get("red_flags", [])
+                "red_flags": rev_result.get("red_flags", []),
+                "verification_penalties": rev_result.get("verification_penalties", []),
             }
         }
         total_earned += rev_score
@@ -212,6 +215,61 @@ class ProviderVerificationService:
         total_earned += lic_score
         total_max += self.MAX_POINTS["license_validity"]
         
+        # ----------------------------------------------------------------
+        # Cross-penalty: review complaints reduce the relevant check scores
+        # If reviews say phone/location/hours/license is bad, penalize those
+        # source scores directly (in addition to the review score penalty)
+        # ----------------------------------------------------------------
+        rev_details = source_scores["review_analysis"]["details"]
+        raw_penalties = detailed_results.get("review_analysis", {}).get("verification_penalties", {})
+
+        # verification_penalties from _analyze_reviews is a dict {flag: 0-1}
+        # but after processing it becomes a list of strings like "bad_phone (-2pts)"
+        # Re-fetch the raw dict from the Groq result via the stored details
+        # We stored triggered_penalties as strings; re-parse them to apply cross-penalties
+        triggered = rev_details.get("verification_penalties", [])
+
+        def _has_penalty(flag_prefix: str) -> bool:
+            return any(p.startswith(flag_prefix) for p in triggered)
+
+        # bad_phone → reduce phone_location score by up to 3 pts
+        if _has_penalty("bad_phone"):
+            reduction = min(source_scores["phone_location"]["earned"], 3)
+            source_scores["phone_location"]["earned"] = max(0, source_scores["phone_location"]["earned"] - reduction)
+            source_scores["phone_location"]["passed"] = source_scores["phone_location"]["earned"] >= 3
+            total_earned -= reduction
+
+        # bad_location → reduce location_verification score by up to 5 pts
+        if _has_penalty("bad_location"):
+            reduction = min(source_scores["location_verification"]["earned"], 5)
+            source_scores["location_verification"]["earned"] = max(0, source_scores["location_verification"]["earned"] - reduction)
+            source_scores["location_verification"]["passed"] = source_scores["location_verification"]["earned"] >= 5
+            total_earned -= reduction
+
+        # bad_hours → reduce business_hours score by up to 3 pts
+        if _has_penalty("bad_hours"):
+            reduction = min(source_scores["business_hours"]["earned"], 3)
+            source_scores["business_hours"]["earned"] = max(0, source_scores["business_hours"]["earned"] - reduction)
+            source_scores["business_hours"]["passed"] = source_scores["business_hours"]["earned"] >= 3
+            total_earned -= reduction
+
+        # scam_reports → reduce business_existence score by up to 5 pts
+        if _has_penalty("scam_reports"):
+            reduction = min(source_scores["business_existence"]["earned"], 5)
+            source_scores["business_existence"]["earned"] = max(0, source_scores["business_existence"]["earned"] - reduction)
+            source_scores["business_existence"]["passed"] = source_scores["business_existence"]["earned"] >= 5
+            total_earned -= reduction
+
+        # license_issues → reduce license_validity score by up to 4 pts
+        if _has_penalty("license_issues"):
+            reduction = min(source_scores["license_validity"]["earned"], 4)
+            source_scores["license_validity"]["earned"] = max(0, source_scores["license_validity"]["earned"] - reduction)
+            source_scores["license_validity"]["passed"] = source_scores["license_validity"]["earned"] >= 5
+            total_earned -= reduction
+
+        # Recalculate overall after cross-penalties
+        total_earned = max(0, total_earned)
+
         # Calculate overall score (0-100)
         overall_score = (total_earned / total_max) * 100 if total_max > 0 else 0
         
@@ -267,7 +325,7 @@ class ProviderVerificationService:
                 "_id": str(user["_id"]),
                 "email": user.get("email"),
                 "full_name": user.get("full_name"),
-                "business_name": user.get("business_name") or user.get("full_name"),
+                "business_name": (profile.get("business_name") if profile else None) or user.get("business_name") or user.get("full_name"),
                 "phone": user.get("phone_number") or (profile.get("phone_number") if profile else None),
                 "address": profile.get("address") if profile else None,
                 "city": profile.get("city") if profile else None,
