@@ -100,6 +100,10 @@ app.include_router(verification_router)
 
 # ====== NEW: Include matching router ======
 app.include_router(matching_router)
+
+# ====== NEW: Include recommendations router ======
+from app.api.recommendations import router as recommendations_router
+app.include_router(recommendations_router)
 # ==========================================
 # app.include_router(verification_router)  # COMMENTED OUT – uses SQLAlchemy
 # app.include_router(itinerary_router)  # Add when ready
