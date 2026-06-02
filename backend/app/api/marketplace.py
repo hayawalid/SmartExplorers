@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Body
 from typing import Dict, Any, Optional
 from bson import ObjectId
+from datetime import datetime
 
 from app.mongodb import get_database, mongodb
 
@@ -98,3 +99,39 @@ async def list_bookings(user_id: Optional[str] = None, provider_id: Optional[str
         enriched_bookings.append(booking)
     
     return enriched_bookings
+
+
+@router.put("/bookings/{booking_id}")
+async def update_booking(booking_id: str, payload: Dict[str, Any] = Body(...)):
+    db = get_database()
+
+    if not ObjectId.is_valid(booking_id):
+        return {"detail": "Invalid booking_id"}
+
+    # Update the booking with new status and timestamp
+    update_data = {**payload, "updated_at": datetime.utcnow()}
+
+    result = await db[mongodb.BOOKINGS].find_one_and_update(
+        {"_id": ObjectId(booking_id)},
+        {"$set": update_data},
+        return_document=True
+    )
+
+    if not result:
+        return {"detail": "Booking not found"}
+
+    # Enrich the response with traveler and service details
+    booking = _serialize(result)
+
+    if booking.get("user_id"):
+        user = await db[mongodb.USERS].find_one({"_id": ObjectId(booking["user_id"])})
+        if user:
+            booking["traveler_username"] = user.get("username", "Unknown Traveler")
+            booking["traveler_full_name"] = user.get("full_name", "")
+
+    if booking.get("service_id"):
+        service = await db[mongodb.SERVICES].find_one({"_id": ObjectId(booking["service_id"])})
+        if service:
+            booking["service_name"] = service.get("service_name", "Service")
+
+    return booking

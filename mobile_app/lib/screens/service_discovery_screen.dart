@@ -26,6 +26,10 @@ class _ServiceDiscoveryScreenState extends State<ServiceDiscoveryScreen>
   bool _isLoading = false;
   String? _error;
 
+  // Booking status tracking
+  Map<String, String> _bookingStatuses = {}; // service_id -> status
+  bool _loadingBookings = false;
+
   // Filter state
   String _selectedServiceType = 'All';
   List<String> _selectedTags = [];
@@ -61,6 +65,34 @@ class _ServiceDiscoveryScreenState extends State<ServiceDiscoveryScreen>
   void initState() {
     super.initState();
     _loadServices();
+    _loadUserBookings();
+  }
+
+  Future<void> _loadUserBookings() async {
+    final userId = SessionStore.instance.userId;
+    if (userId == null) return;
+
+    setState(() => _loadingBookings = true);
+
+    try {
+      final bookings = await _servicesService.getBookings(userId: userId);
+
+      final statuses = <String, String>{};
+      for (final booking in bookings) {
+        final serviceId = booking['service_id'] as String?;
+        final status = booking['status'] as String?;
+        if (serviceId != null && status != null) {
+          statuses[serviceId] = status;
+        }
+      }
+
+      setState(() {
+        _bookingStatuses = statuses;
+        _loadingBookings = false;
+      });
+    } catch (e) {
+      setState(() => _loadingBookings = false);
+    }
   }
 
   Future<void> _loadServices() async {
@@ -93,6 +125,13 @@ class _ServiceDiscoveryScreenState extends State<ServiceDiscoveryScreen>
         _error = 'Failed to load services: $e';
         _isLoading = false;
       });
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadUserBookings();
     }
   }
 
@@ -255,6 +294,9 @@ class _ServiceDiscoveryScreenState extends State<ServiceDiscoveryScreen>
   }
 
   Widget _buildServiceCard(Service service) {
+    final bookingStatus = _bookingStatuses[service.id] ?? 'none';
+    final hasBooking = bookingStatus != 'none';
+
     return GestureDetector(
       onTap: () => _navigateToServiceDetail(service),
       child: Container(
@@ -269,7 +311,7 @@ class _ServiceDiscoveryScreenState extends State<ServiceDiscoveryScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header with title and rating
+              // Header with title and booking status
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,6 +343,14 @@ class _ServiceDiscoveryScreenState extends State<ServiceDiscoveryScreen>
                       ],
                     ),
                   ),
+                  // Booking status badge
+                  _buildBookingStatusBadge(bookingStatus),
+                ],
+              ),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
                   if (service.rating > 0)
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -328,6 +378,30 @@ class _ServiceDiscoveryScreenState extends State<ServiceDiscoveryScreen>
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                  const Spacer(),
+                  // Book button (visible only if no active booking)
+                  if (!hasBooking)
+                    GestureDetector(
+                      onTap: () => _navigateToServiceDetail(service),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppDesign.accentColor,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Book Now',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                 ],
@@ -451,6 +525,56 @@ class _ServiceDiscoveryScreenState extends State<ServiceDiscoveryScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBookingStatusBadge(String status) {
+    Color badgeColor;
+    String badgeText;
+    IconData? icon;
+
+    switch (status) {
+      case 'pending':
+        badgeColor = Colors.orange;
+        badgeText = 'Requested';
+        icon = LucideIcons.clock;
+        break;
+      case 'confirmed':
+        badgeColor = Colors.green;
+        badgeText = 'Confirmed';
+        icon = LucideIcons.check;
+        break;
+      case 'declined':
+        badgeColor = Colors.red;
+        badgeText = 'Declined';
+        icon = LucideIcons.x;
+        break;
+      default:
+        return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: badgeColor.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: badgeColor.withOpacity(0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: badgeColor),
+          const SizedBox(width: 4),
+          Text(
+            badgeText,
+            style: TextStyle(
+              color: badgeColor,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

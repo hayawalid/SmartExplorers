@@ -251,6 +251,7 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
   List<MatchRequest> _confirmedRequests = [];
   bool _isLoading = true;
   String? _error;
+  String? _processingId;
 
   @override
   void initState() {
@@ -281,8 +282,14 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
             ) {
               return MatchRequest(
                 id: booking['_id'] ?? '',
-                travelerName: booking['traveler_username'] ?? booking['user_id'] ?? 'Unknown Traveler',
-                service: booking['service_name'] ?? booking['service_id'] ?? 'Service',
+                travelerName:
+                    booking['traveler_username'] ??
+                    booking['user_id'] ??
+                    'Unknown Traveler',
+                service:
+                    booking['service_name'] ??
+                    booking['service_id'] ??
+                    'Service',
                 date: booking['booking_date'] ?? 'TBD',
                 time: booking['booking_time'] ?? 'TBD',
                 duration: 'TBD',
@@ -299,8 +306,14 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
             ) {
               return MatchRequest(
                 id: booking['_id'] ?? '',
-                travelerName: booking['traveler_username'] ?? booking['user_id'] ?? 'Unknown Traveler',
-                service: booking['service_name'] ?? booking['service_id'] ?? 'Service',
+                travelerName:
+                    booking['traveler_username'] ??
+                    booking['user_id'] ??
+                    'Unknown Traveler',
+                service:
+                    booking['service_name'] ??
+                    booking['service_id'] ??
+                    'Service',
                 date: booking['booking_date'] ?? 'TBD',
                 time: booking['booking_time'] ?? 'TBD',
                 duration: 'TBD',
@@ -319,6 +332,92 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
         _isLoading = false;
         _error = 'Failed to load bookings: ${e.toString()}';
       });
+    }
+  }
+
+  Future<void> _handleAcceptRequest(MatchRequest request) async {
+    HapticFeedback.mediumImpact();
+    setState(() => _processingId = request.id);
+
+    try {
+      await _servicesService.updateBookingStatus(
+        bookingId: request.id,
+        status: 'confirmed',
+        providerResponse: 'accepted',
+      );
+
+      // Remove from pending and add to confirmed
+      setState(() {
+        _pendingRequests.removeWhere((r) => r.id == request.id);
+        _confirmedRequests.add(
+          MatchRequest(
+            id: request.id,
+            travelerName: request.travelerName,
+            service: request.service,
+            date: request.date,
+            time: request.time,
+            duration: request.duration,
+            price: request.price,
+            message: request.message,
+            rating: request.rating,
+            isNew: false,
+            isConfirmed: true,
+          ),
+        );
+        _processingId = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('✓ Request accepted successfully!'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      setState(() => _processingId = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to accept request: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleDeclineRequest(MatchRequest request) async {
+    HapticFeedback.mediumImpact();
+    setState(() => _processingId = request.id);
+
+    try {
+      await _servicesService.updateBookingStatus(
+        bookingId: request.id,
+        status: 'declined',
+        providerResponse: 'declined',
+      );
+
+      setState(() {
+        _pendingRequests.removeWhere((r) => r.id == request.id);
+        _processingId = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Request declined'),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      setState(() => _processingId = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to decline request: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
 
@@ -904,7 +1003,10 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                       children: [
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => HapticFeedback.mediumImpact(),
+                            onTap:
+                                _processingId == null
+                                    ? () => _handleDeclineRequest(request)
+                                    : null,
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
@@ -915,15 +1017,24 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Center(
-                                child: Text(
-                                  'Decline',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppDesign.onboardingAccent,
-                                  ),
-                                ),
+                              child: Center(
+                                child:
+                                    _processingId == request.id
+                                        ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                        : const Text(
+                                          'Decline',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppDesign.onboardingAccent,
+                                          ),
+                                        ),
                               ),
                             ),
                           ),
@@ -932,7 +1043,10 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                         Expanded(
                           flex: 2,
                           child: GestureDetector(
-                            onTap: () => HapticFeedback.mediumImpact(),
+                            onTap:
+                                _processingId == null
+                                    ? () => _handleAcceptRequest(request)
+                                    : null,
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
@@ -944,15 +1058,28 @@ class _MatchRequestsScreenState extends State<MatchRequestsScreen>
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Center(
-                                child: Text(
-                                  'Accept Request',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                              child: Center(
+                                child:
+                                    _processingId == request.id
+                                        ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
+                                          ),
+                                        )
+                                        : const Text(
+                                          'Accept Request',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
                               ),
                             ),
                           ),

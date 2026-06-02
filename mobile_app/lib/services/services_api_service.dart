@@ -309,4 +309,30 @@ class ServicesApiService {
     }
     throw Exception('Failed to fetch bookings: ${response.body}');
   }
+
+  /// Update booking status
+  Future<Map<String, dynamic>> updateBookingStatus({
+    required String bookingId,
+    required String status,
+    String? providerResponse,
+  }) async {
+    final body = {
+      'status': status,
+      if (providerResponse != null) 'provider_response': providerResponse,
+    };
+
+    final response = await _client.put(
+      Uri.parse('${ApiConfig.baseUrl}/api/v1/marketplace/bookings/$bookingId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to update booking: ${response.body}');
+  }
 }
