@@ -32,6 +32,7 @@ class MongoDB:
     STORIES = "stories"
     PHOTOS = "photos"
     REVIEWS = "reviews"
+    SAVED_POSTS = "saved_posts"
     SERVICE_LISTINGS = "service_listings"
     FAVORITES = "favorites"
     BOOKINGS = "bookings"
@@ -122,32 +123,32 @@ async def create_indexes():
     if mongodb.db is None:
         print("⚠️  Skipping index creation (MongoDB not connected)")
         return
-    
+
     try:
         db = mongodb.db
-        
+
         # Users indexes
         await db[mongodb.USERS].create_index("email", unique=True)
         await db[mongodb.USERS].create_index("username", unique=True)
         await db[mongodb.USERS].create_index("account_type")
-        
+
         # Profiles indexes
         await db[mongodb.TRAVELER_PROFILES].create_index("user_id", unique=True)
         await db[mongodb.SERVICE_PROVIDER_PROFILES].create_index("user_id", unique=True)
-        
+
         # Conversations indexes
         await db[mongodb.CONVERSATIONS].create_index("conversation_id", unique=True)
         await db[mongodb.CONVERSATIONS].create_index("user_id")
         await db[mongodb.CONVERSATIONS].create_index([("user_id", 1), ("is_active", 1)])
-        
+
         # User memories index
         await db[mongodb.USER_MEMORIES].create_index("user_id", unique=True)
-        
+
         # Safety indexes
         await db[mongodb.SAFETY_PROFILES].create_index("user_id", unique=True)
         await db[mongodb.EMERGENCY_CONTACTS].create_index("user_id")
         await db[mongodb.PANIC_EVENTS].create_index([("user_id", 1), ("timestamp", -1)])
-        
+
         # Social indexes
         await db[mongodb.POSTS].create_index([("author_id", 1), ("created_at", -1)])
         await db[mongodb.POSTS].create_index("created_at")
@@ -155,33 +156,37 @@ async def create_indexes():
         await db[mongodb.PHOTOS].create_index("user_id")
         await db[mongodb.REVIEWS].create_index([("author_id", 1), ("created_at", -1)])
         await db[mongodb.REVIEWS].create_index("provider_id")
-        
+        await db[mongodb.SAVED_POSTS].create_index([("user_id", 1), ("saved_at", -1)])
+        await db[mongodb.SAVED_POSTS].create_index(
+            [("user_id", 1), ("post_id", 1)], unique=True
+        )
+
         # Marketplace indexes
         await db[mongodb.SERVICE_LISTINGS].create_index([("category", 1), ("featured_flag", -1)])
         await db[mongodb.SERVICE_LISTINGS].create_index("provider_id")
         await db[mongodb.FAVORITES].create_index([("user_id", 1), ("listing_id", 1)], unique=True)
         await db[mongodb.BOOKINGS].create_index("user_id")
         await db[mongodb.BOOKINGS].create_index("provider_id")
-        
+
         # Preferences index
         await db[mongodb.USER_PREFERENCES].create_index("user_id", unique=True)
-        
+
         # Itineraries index
         await db[mongodb.ITINERARIES].create_index("user_id")
-        
+
         # Portfolio & Credentials
         await db[mongodb.PORTFOLIO_ITEMS].create_index("provider_id")
         await db[mongodb.CREDENTIALS].create_index("provider_id")
-        
+
         # Services indexes (for discovery and filtering)
         await db[mongodb.SERVICES].create_index([("provider_id", 1), ("is_active", 1)])
         await db[mongodb.SERVICES].create_index("service_type")
         await db[mongodb.SERVICES].create_index("tags")
         await db[mongodb.SERVICES].create_index("cluster_keywords")
         await db[mongodb.SERVICES].create_index("created_at")
-        
+
         print("✓ MongoDB indexes created")
-        
+
     except Exception as e:
         print(f"⚠️  Index creation warning: {e}")
 

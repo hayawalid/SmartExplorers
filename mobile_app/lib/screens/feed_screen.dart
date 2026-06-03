@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'dart:ui';
@@ -6,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../widgets/smart_explorers_logo.dart';
 import '../services/social_api_service.dart';
 import '../services/session_store.dart';
+import '../services/api_config.dart';
 import '../services/marketplace_api_service.dart';
 import 'create_post_screen.dart';
 import 'write_review_screen.dart';
@@ -15,10 +17,10 @@ import 'travel_space_detail_screen.dart';
 /// Cinematic image cards with glassmorphism overlays.
 class FeedScreen extends StatefulWidget {
   const FeedScreen({
-    Key? key,
+    super.key,
     required this.currentThemeMode,
     required this.onThemeModeSelected,
-  }) : super(key: key);
+  });
 
   final ThemeMode currentThemeMode;
   final ValueChanged<ThemeMode> onThemeModeSelected;
@@ -1025,69 +1027,16 @@ class _PostsTab extends StatefulWidget {
 
 class _PostsTabState extends State<_PostsTab> {
   final SocialApiService _socialService = SocialApiService();
+  List<_PostData> _allPosts = [];
   List<_PostData> _posts = [];
   bool _loading = true;
+  _ExploreSortMode _sortMode = _ExploreSortMode.mostRecent;
 
   static const _defaultImages = [
     'lib/public/pexels-meryemmeva-34823948.jpg',
     'lib/public/smart_itineraries.jpg',
     'lib/public/pexels-zahide-tas-367420941-28406392.jpg',
     'lib/public/verified_guides.jpg',
-  ];
-
-  static final _fallbackPosts = [
-    _PostData(
-      id: '0',
-      author: 'Ahmed Hassan',
-      handle: '@ahmedh',
-      authorAvatar: '',
-      authorId: '',
-      text:
-          'Sunrise at the Pyramids never gets old. Best time to go is before 7 AM.',
-      image: 'lib/public/pexels-meryemmeva-34823948.jpg',
-      createdAt: '',
-      commentsList: [],
-      likesList: [],
-    ),
-    _PostData(
-      id: '1',
-      author: 'Sara Johnson',
-      handle: '@saraj',
-      authorAvatar: '',
-      authorId: '',
-      text:
-          'Loved the guided walk through Old Cairo. So much history packed into one afternoon.',
-      image: 'lib/public/smart_itineraries.jpg',
-      createdAt: '',
-      commentsList: [],
-      likesList: [],
-    ),
-    _PostData(
-      id: '2',
-      author: 'Mohamed Ali',
-      handle: '@mohamedali',
-      authorAvatar: '',
-      authorId: '',
-      text:
-          'The Red Sea reef trip today was incredible. Clear water, calm weather, and a great crew.',
-      image: 'lib/public/pexels-zahide-tas-367420941-28406392.jpg',
-      createdAt: '',
-      commentsList: [],
-      likesList: [],
-    ),
-    _PostData(
-      id: '3',
-      author: 'Nour Adel',
-      handle: '@nouradel',
-      authorAvatar: '',
-      authorId: '',
-      text:
-          'Verified guides really make a difference when exploring with family.',
-      image: 'lib/public/verified_guides.jpg',
-      createdAt: '',
-      commentsList: [],
-      likesList: [],
-    ),
   ];
 
   @override
@@ -1098,12 +1047,13 @@ class _PostsTabState extends State<_PostsTab> {
 
   Future<void> _loadPosts() async {
     try {
-      final data = await _socialService.getPosts();
+      final currentUserId = SessionStore.instance.userId;
+      final data = await _socialService.getPosts(userId: currentUserId);
       // If feed is empty, show empty state (do not display static fallback cards)
       if (data.isNotEmpty) {
         if (!mounted) return;
         setState(() {
-          _posts =
+          _allPosts =
               data.asMap().entries.map((e) {
                 final p = e.value;
                 final createdAt = p['created_at']?.toString() ?? '';
@@ -1143,8 +1093,10 @@ class _PostsTabState extends State<_PostsTab> {
                   createdAt: createdAt,
                   commentsList: comments is List ? comments : [],
                   likesList: likes is List ? likes : [],
+                  bookmarked: p['bookmarked'] == true,
                 );
               }).toList();
+          _posts = _buildSortedPosts(_allPosts);
           _loading = false;
         });
         return;
@@ -1152,16 +1104,74 @@ class _PostsTabState extends State<_PostsTab> {
       // empty feed
       if (!mounted) return;
       setState(() {
+        _allPosts = [];
         _posts = [];
         _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
+        _allPosts = [];
         _posts = [];
         _loading = false;
       });
     }
+  }
+
+  List<_PostData> _buildSortedPosts(List<_PostData> source) {
+    final currentUserId = SessionStore.instance.userId;
+    final posts = List<_PostData>.from(source);
+
+    switch (_sortMode) {
+      case _ExploreSortMode.oldest:
+        posts.sort(
+          (a, b) => _parseDate(a.createdAt).compareTo(_parseDate(b.createdAt)),
+        );
+        break;
+      case _ExploreSortMode.mostRecent:
+        posts.sort(
+          (a, b) => _parseDate(b.createdAt).compareTo(_parseDate(a.createdAt)),
+        );
+        break;
+      case _ExploreSortMode.highestInteractions:
+        posts.sort(
+          (a, b) => _postInteractions(b).compareTo(_postInteractions(a)),
+        );
+        break;
+      case _ExploreSortMode.mostRelevant:
+        if (currentUserId != null) {
+          posts.removeWhere((post) => post.authorId == currentUserId);
+        }
+        posts.sort((a, b) {
+          final interactionsDiff = _postInteractions(
+            b,
+          ).compareTo(_postInteractions(a));
+          if (interactionsDiff != 0) return interactionsDiff;
+          return _parseDate(b.createdAt).compareTo(_parseDate(a.createdAt));
+        });
+        break;
+    }
+
+    return posts;
+  }
+
+  DateTime _parseDate(String value) {
+    try {
+      return DateTime.parse(value).toLocal();
+    } catch (_) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+  }
+
+  int _postInteractions(_PostData post) =>
+      post.likesList.length + post.commentsList.length;
+
+  void _applySort(_ExploreSortMode mode) {
+    if (_sortMode == mode) return;
+    setState(() {
+      _sortMode = mode;
+      _posts = _buildSortedPosts(_allPosts);
+    });
   }
 
   Future<void> _openCreatePostPage() async {
@@ -1202,6 +1212,12 @@ class _PostsTabState extends State<_PostsTab> {
                   ),
                 ),
               ),
+              _SortMenuButton(
+                sortMode: _sortMode,
+                isDark: widget.isDark,
+                onSelected: _applySort,
+              ),
+              const SizedBox(width: 10),
               TextButton.icon(
                 onPressed: _openCreatePostPage,
                 icon: const Icon(LucideIcons.plus, size: 16),
@@ -1252,6 +1268,7 @@ class _PostsTabState extends State<_PostsTab> {
                                 post: _posts[i],
                                 isDark: widget.isDark,
                                 isLandscape: widget.isLandscape,
+                                bookmarked: false,
                               ),
                             ),
                           ),
@@ -1263,15 +1280,129 @@ class _PostsTabState extends State<_PostsTab> {
   }
 }
 
+enum _ExploreSortMode { oldest, mostRecent, highestInteractions, mostRelevant }
+
+class _SortMenuButton extends StatelessWidget {
+  const _SortMenuButton({
+    required this.sortMode,
+    required this.isDark,
+    required this.onSelected,
+  });
+
+  final _ExploreSortMode sortMode;
+  final bool isDark;
+  final ValueChanged<_ExploreSortMode> onSelected;
+
+  String get _label {
+    switch (sortMode) {
+      case _ExploreSortMode.oldest:
+        return 'Oldest';
+      case _ExploreSortMode.mostRecent:
+        return 'Most recent';
+      case _ExploreSortMode.highestInteractions:
+        return 'Top interactions';
+      case _ExploreSortMode.mostRelevant:
+        return 'Most relevant';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = isDark ? Colors.white : AppDesign.eerieBlack;
+    final border = isDark ? Colors.white12 : AppDesign.lightGrey;
+    final background = isDark ? AppDesign.cardDark : Colors.white;
+
+    return PopupMenuButton<_ExploreSortMode>(
+      tooltip: 'Sort posts',
+      onSelected: onSelected,
+      color: background,
+      offset: const Offset(0, 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      itemBuilder:
+          (context) => [
+            _popupItem(
+              value: _ExploreSortMode.oldest,
+              selected: sortMode == _ExploreSortMode.oldest,
+              label: 'Oldest',
+            ),
+            _popupItem(
+              value: _ExploreSortMode.mostRecent,
+              selected: sortMode == _ExploreSortMode.mostRecent,
+              label: 'Most recent',
+            ),
+            _popupItem(
+              value: _ExploreSortMode.highestInteractions,
+              selected: sortMode == _ExploreSortMode.highestInteractions,
+              label: 'Highest interactions',
+            ),
+            _popupItem(
+              value: _ExploreSortMode.mostRelevant,
+              selected: sortMode == _ExploreSortMode.mostRelevant,
+              label: 'Most relevant',
+            ),
+          ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: foreground,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(CupertinoIcons.chevron_down, size: 14, color: foreground),
+          ],
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<_ExploreSortMode> _popupItem({
+    required _ExploreSortMode value,
+    required bool selected,
+    required String label,
+  }) {
+    return PopupMenuItem<_ExploreSortMode>(
+      value: value,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ),
+          if (selected) const Icon(LucideIcons.check, size: 16),
+        ],
+      ),
+    );
+  }
+}
+
 class _PostCard extends StatefulWidget {
   const _PostCard({
     required this.post,
     required this.isDark,
     required this.isLandscape,
+    required this.bookmarked,
   });
   final _PostData post;
   final bool isDark;
   final bool isLandscape;
+  final bool bookmarked;
 
   @override
   State<_PostCard> createState() => _PostCardState();
@@ -1295,7 +1426,7 @@ String _formatTimeAgo(String iso) {
 class _PostCardState extends State<_PostCard> {
   late int _likes;
   bool _liked = false;
-  bool _bookmarked = false;
+  late bool _bookmarked;
 
   @override
   void initState() {
@@ -1304,6 +1435,18 @@ class _PostCardState extends State<_PostCard> {
     final currentUserId = SessionStore.instance.userId;
     _liked =
         currentUserId != null && widget.post.likesList.contains(currentUserId);
+    _bookmarked = widget.bookmarked;
+  }
+
+  @override
+  void didUpdateWidget(covariant _PostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.bookmarked != widget.bookmarked) {
+      _bookmarked = widget.bookmarked;
+    }
+    if (oldWidget.post.likesList.length != widget.post.likesList.length) {
+      _likes = widget.post.likesList.length;
+    }
   }
 
   Future<void> _toggleLike() async {
@@ -1335,17 +1478,57 @@ class _PostCardState extends State<_PostCard> {
     }
   }
 
-  void _toggleBookmark() {
+  Future<void> _toggleBookmark() async {
     HapticFeedback.lightImpact();
+    final userId = SessionStore.instance.userId;
+    if (userId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Sign in to save posts')));
+      return;
+    }
+
+    final previous = _bookmarked;
     setState(() => _bookmarked = !_bookmarked);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_bookmarked ? 'Post saved' : 'Post removed from saved'),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+
+    try {
+      if (_bookmarked) {
+        await SocialApiService().saveFavorite({
+          'user_id': userId,
+          'post_id': widget.post.id,
+          'author_id': widget.post.authorId,
+          'author_name': widget.post.author,
+          'author_username':
+              widget.post.handle.startsWith('@')
+                  ? widget.post.handle.substring(1)
+                  : widget.post.handle,
+          'author_avatar': widget.post.authorAvatar,
+          'text': widget.post.text,
+          'media_url': widget.post.image,
+          'created_at': widget.post.createdAt,
+          'saved_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      } else {
+        await SocialApiService().removeFavorite(userId, widget.post.id);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_bookmarked ? 'Post saved' : 'Post removed from saved'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _bookmarked = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update saved posts')),
+      );
+    }
   }
 
   void _sharePost() {
@@ -1374,8 +1557,7 @@ class _PostCardState extends State<_PostCard> {
                     : {'text': c.toString()},
           ),
         );
-        final TextEditingController _commentController =
-            TextEditingController();
+        final TextEditingController commentController = TextEditingController();
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Container(
@@ -1494,7 +1676,7 @@ class _PostCardState extends State<_PostCard> {
                       children: [
                         Expanded(
                           child: TextField(
-                            controller: _commentController,
+                            controller: commentController,
                             decoration: InputDecoration(
                               hintText: 'Write a comment...',
                               filled: true,
@@ -1516,12 +1698,12 @@ class _PostCardState extends State<_PostCard> {
                         const SizedBox(width: 8),
                         FilledButton(
                           onPressed: () async {
-                            final text = _commentController.text.trim();
+                            final text = commentController.text.trim();
                             if (text.isEmpty) return;
                             final userId = SessionStore.instance.userId;
                             final username = SessionStore.instance.username;
                             try {
-                              final resp = await SocialApiService().addComment(
+                              await SocialApiService().addComment(
                                 widget.post.id,
                                 {'author_id': userId, 'text': text},
                               );
@@ -1533,10 +1715,10 @@ class _PostCardState extends State<_PostCard> {
                                   'created_at':
                                       DateTime.now().toUtc().toIso8601String(),
                                 });
-                                _commentController.clear();
+                                commentController.clear();
                               });
                             } catch (e) {
-                              if (!mounted) return;
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('Failed to add comment: $e'),
@@ -2798,9 +2980,9 @@ class _PostHeader extends StatelessWidget {
           GestureDetector(
             onTap: onBookmarkTap,
             child: Icon(
-              LucideIcons.bookmark,
+              bookmarked ? CupertinoIcons.bookmark_fill : LucideIcons.bookmark,
               size: 18,
-              color: bookmarked ? AppDesign.electricCobalt : AppDesign.midGrey,
+              color: bookmarked ? const Color(0xFFFFC107) : AppDesign.midGrey,
             ),
           ),
         ],
@@ -2976,41 +3158,110 @@ class _LoadingBlurImageState extends State<_LoadingBlurImage> {
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      widget.image,
-      width: widget.width,
-      height: widget.height,
-      fit: widget.fit,
-      filterQuality: FilterQuality.high,
-      gaplessPlayback: true,
-      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (frame != null || wasSynchronouslyLoaded) {
-          if (!_revealed) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                setState(() => _revealed = true);
-              }
-            });
+    final src = widget.image;
+    Widget img;
+    if (src.startsWith('http://') || src.startsWith('https://')) {
+      img = Image.network(
+        src,
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+        filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (frame != null || wasSynchronouslyLoaded) {
+            if (!_revealed) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _revealed = true);
+              });
+            }
           }
-        }
+          return TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 18.0, end: _revealed ? 0.0 : 18.0),
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) {
+              return ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: value, sigmaY: value),
+                child: AnimatedOpacity(
+                  opacity: _revealed ? 1.0 : 0.88,
+                  duration: const Duration(milliseconds: 180),
+                  child: child,
+                ),
+              );
+            },
+          );
+        },
+      );
+    } else if (src.startsWith('/')) {
+      img = Image.network(
+        '${ApiConfig.baseUrl}$src',
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+        filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (frame != null || wasSynchronouslyLoaded) {
+            if (!_revealed) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _revealed = true);
+              });
+            }
+          }
+          return TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 18.0, end: _revealed ? 0.0 : 18.0),
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) {
+              return ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: value, sigmaY: value),
+                child: AnimatedOpacity(
+                  opacity: _revealed ? 1.0 : 0.88,
+                  duration: const Duration(milliseconds: 180),
+                  child: child,
+                ),
+              );
+            },
+          );
+        },
+      );
+    } else {
+      img = Image.asset(
+        src,
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+        filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (frame != null || wasSynchronouslyLoaded) {
+            if (!_revealed) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _revealed = true);
+              });
+            }
+          }
+          return TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 18.0, end: _revealed ? 0.0 : 18.0),
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) {
+              return ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: value, sigmaY: value),
+                child: AnimatedOpacity(
+                  opacity: _revealed ? 1.0 : 0.88,
+                  duration: const Duration(milliseconds: 180),
+                  child: child,
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
 
-        return TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: 18.0, end: _revealed ? 0.0 : 18.0),
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
-          builder: (context, value, _) {
-            return ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: value, sigmaY: value),
-              child: AnimatedOpacity(
-                opacity: _revealed ? 1.0 : 0.88,
-                duration: const Duration(milliseconds: 180),
-                child: child,
-              ),
-            );
-          },
-        );
-      },
-    );
+    return img;
   }
 }
 
@@ -3026,6 +3277,7 @@ class _PostData {
   final String createdAt;
   final List<dynamic> commentsList;
   final List<dynamic> likesList;
+  final bool bookmarked;
   _PostData({
     required this.id,
     required this.author,
@@ -3037,6 +3289,7 @@ class _PostData {
     required this.createdAt,
     required this.commentsList,
     required this.likesList,
+    required this.bookmarked,
   });
 }
 

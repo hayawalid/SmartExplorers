@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import '../services/session_store.dart';
 import '../services/social_api_service.dart';
 import '../theme/app_theme.dart';
@@ -16,23 +18,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final SocialApiService _socialService = SocialApiService();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _captionController = TextEditingController();
-  final TextEditingController _imageController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   bool _submitting = false;
-  String? _selectedImage;
-
-  static const List<String> _suggestedImages = [
-    'lib/public/pexels-meryemmeva-34823948.jpg',
-    'lib/public/smart_itineraries.jpg',
-    'lib/public/pexels-zahide-tas-367420941-28406392.jpg',
-    'lib/public/verified_guides.jpg',
-  ];
+  File? _selectedImageFile;
 
   @override
   void dispose() {
     _socialService.dispose();
     _captionController.dispose();
-    _imageController.dispose();
     _locationController.dispose();
     super.dispose();
   }
@@ -43,10 +36,20 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
 
     final caption = _captionController.text.trim();
-    final image =
-        _imageController.text.trim().isNotEmpty
-            ? _imageController.text.trim()
-            : _selectedImage;
+    String? image;
+    if (_selectedImageFile != null) {
+      try {
+        image = await _socialService.uploadMedia(_selectedImageFile!);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to upload image: $e')));
+        }
+        setState(() => _submitting = false);
+        return;
+      }
+    }
     final authorId = SessionStore.instance.userId;
     final authorName = SessionStore.instance.username ?? 'Traveler';
 
@@ -103,11 +106,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final XFile? picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        setState(() {
+          _selectedImageFile = File(picked.path);
+        });
+      }
+    } catch (e) {
+      // ignore errors silently for now
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final background = isDark ? AppDesign.eerieBlack : AppDesign.offWhite;
-    final card = isDark ? AppDesign.cardDark : Colors.white;
+
     final text = isDark ? Colors.white : AppDesign.eerieBlack;
     final sub = AppDesign.midGrey;
 
@@ -215,35 +237,47 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    TextFormField(
-                      controller: _imageController,
-                      decoration: const InputDecoration(
-                        hintText: 'Image asset path or URL (optional)',
-                      ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () => _pickImage(ImageSource.gallery),
+                          icon: const Icon(LucideIcons.image),
+                          label: const Text('Choose from gallery'),
+                        ),
+                        FilledButton.icon(
+                          onPressed:
+                              _selectedImageFile != null
+                                  ? () {
+                                    setState(() {
+                                      _selectedImageFile = null;
+                                    });
+                                  }
+                                  : null,
+                          icon: const Icon(LucideIcons.trash),
+                          label: const Text('Delete image'),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
-                    SizedBox(
-                      height: 42,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemBuilder: (context, index) {
-                          final image = _suggestedImages[index];
-                          final selected = _selectedImage == image;
-                          return ChoiceChip(
-                            label: Text('Image ${index + 1}'),
-                            selected: selected,
-                            onSelected: (_) {
-                              setState(() {
-                                _selectedImage = image;
-                                _imageController.text = image;
-                              });
-                            },
-                          );
-                        },
-                        separatorBuilder: (_, __) => const SizedBox(width: 10),
-                        itemCount: _suggestedImages.length,
+                    if (_selectedImageFile != null)
+                      Container(
+                        height: 160,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppDesign.lightGrey),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            _selectedImageFile!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),

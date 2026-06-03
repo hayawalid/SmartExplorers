@@ -119,6 +119,25 @@ class ProfileApiService {
     throw Exception('Failed to save provider profile: ${response.body}');
   }
 
+  Future<Map<String, dynamic>> updateUser(
+    String userId,
+    Map<String, dynamic> payload,
+  ) async {
+    final response = await _client.patch(
+      Uri.parse('${ApiConfig.baseUrl}${ApiConfig.usersEndpoint}/$userId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to update user: ${response.body}');
+  }
+
   Future<List<Map<String, dynamic>>> getUserPhotos(String userId) async {
     final response = await _client.get(
       Uri.parse(

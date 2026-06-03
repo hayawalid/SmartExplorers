@@ -52,14 +52,43 @@ class ItineraryGenerator:
     async def generate_itinerary(self, request: ItineraryGenerationRequest, user_id: int) -> Dict[str, Any]:
         """Generate AI-powered itinerary using Groq + RAG"""
         
+        # ============================================================
+        # DATE & DURATION VALIDATION – Ask user if missing
+        # ============================================================
+        # Check if start_date is provided
+        if request.start_date is None:
+            raise ValueError(
+                "❌ Trip start date is missing. Please provide the start date (YYYY-MM-DD).\n"
+                "Example: 'start_date': '2025-12-01'"
+            )
+        
+        # Check if end_date is provided
+        if request.end_date is None:
+            raise ValueError(
+                "❌ Trip end date is missing. Please provide the end date (YYYY-MM-DD).\n"
+                "Example: 'end_date': '2025-12-07'"
+            )
+        
         # Calculate trip duration
         total_days = (request.end_date - request.start_date).days + 1
         
         # Validate duration
         if total_days < 1:
-            raise ValueError("Trip must be at least 1 day long")
+            raise ValueError(
+                f"❌ Invalid trip duration: {total_days} days. "
+                "End date must be after or equal to start date.\n"
+                f"Start: {request.start_date}, End: {request.end_date}"
+            )
         if total_days > 30:
-            raise ValueError("Maximum trip duration is 30 days")
+            raise ValueError(
+                f"❌ Maximum trip duration is 30 days. You requested {total_days} days.\n"
+                "Please shorten your trip or split it into multiple itineraries."
+            )
+        
+        # Also check if dates are in the future? (Optional, but good practice)
+        today = date.today()
+        if request.start_date < today:
+            print(f"⚠️  Warning: Start date {request.start_date} is in the past.")
         
         # 🔍 RAG: Get relevant destinations using semantic search
         relevant_destinations = await self._get_relevant_destinations(request)
