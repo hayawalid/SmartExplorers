@@ -5,6 +5,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'dart:ui';
 import '../theme/app_theme.dart';
 import '../widgets/smart_explorers_logo.dart';
+import 'dart:convert';
 import '../services/social_api_service.dart';
 import '../services/session_store.dart';
 import '../services/api_config.dart';
@@ -2274,30 +2275,64 @@ class _ProvidersTabState extends State<_ProvidersTab> {
 
   Future<void> _loadProviders() async {
     try {
+      // Try ranked/verified endpoint first (sorted by verification score)
+      final uri = Uri.parse(
+        '${ApiConfig.baseUrl}/api/v1/profiles/providers/verified/ranked?limit=50',
+      );
+      final response = await _socialService.httpClient
+          .get(uri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        if (data.isNotEmpty && mounted) {
+          setState(() {
+            _providers = data.asMap().entries.map((e) {
+              final p = e.value as Map<String, dynamic>;
+              final score = (p['verification_score'] as num?)?.toDouble() ?? 0.0;
+              final level = p['verification_level'] as String? ?? 'basic';
+              return _ProviderData(
+                name: p['full_name']?.toString() ?? 'Provider',
+                specialty: (p['business_name']?.toString().isNotEmpty == true
+                    ? p['business_name'].toString()
+                    : p['service_type']?.toString()) ?? 'Service',
+                rating: (p['rating'] as num?)?.toDouble() ?? 0.0,
+                reviews: (p['review_count'] as num?)?.toInt() ?? 0,
+                image: _defaultImages[e.key % _defaultImages.length],
+                verified: level == 'verified' || level == 'trusted',
+                verificationScore: score,
+                verificationLevel: level,
+              );
+            }).toList();
+            _loading = false;
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // Fallback to marketplace listings
+    try {
       final data = await _marketplaceService.getListings();
-      if (data.isNotEmpty) {
-        if (!mounted) return;
+      if (data.isNotEmpty && mounted) {
         setState(() {
-          _providers =
-              data.asMap().entries.map((e) {
-                final p = e.value;
-                return _ProviderData(
-                  name: p['name']?.toString() ?? 'Provider',
-                  specialty:
-                      p['specialty']?.toString() ??
-                      p['category']?.toString() ??
-                      'Service',
-                  rating: (p['rating'] as num?)?.toDouble() ?? 0.0,
-                  reviews: (p['review_count'] as num?)?.toInt() ?? 0,
-                  image: _defaultImages[e.key % _defaultImages.length],
-                  verified: p['is_verified'] == true,
-                );
-              }).toList();
+          _providers = data.asMap().entries.map((e) {
+            final p = e.value;
+            return _ProviderData(
+              name: p['name']?.toString() ?? 'Provider',
+              specialty: p['specialty']?.toString() ?? p['category']?.toString() ?? 'Service',
+              rating: (p['rating'] as num?)?.toDouble() ?? 0.0,
+              reviews: (p['review_count'] as num?)?.toInt() ?? 0,
+              image: _defaultImages[e.key % _defaultImages.length],
+              verified: p['is_verified'] == true,
+            );
+          }).toList();
           _loading = false;
         });
         return;
       }
     } catch (_) {}
+
     if (!mounted) return;
     setState(() {
       _providers = _fallbackProviders;
@@ -2401,7 +2436,7 @@ class _ProvidersTabState extends State<_ProvidersTab> {
                               ),
                             ),
                           ),
-                        ),
+                    ),
                   ),
         ),
       ],
@@ -2413,6 +2448,13 @@ class _ProviderCard extends StatelessWidget {
   const _ProviderCard({required this.provider, required this.isDark});
   final _ProviderData provider;
   final bool isDark;
+
+  Color _scoreBadgeColor(double score) {
+    if (score >= 80) return const Color(0xFF00C566);
+    if (score >= 60) return const Color(0xFF1A1A1A);
+    if (score >= 40) return const Color(0xFFFFA726);
+    return const Color(0xFF9B9BA5);
+  }
 
   void _showProviderDetail(BuildContext context) {
     showModalBottomSheet(
@@ -2694,6 +2736,24 @@ class _ProviderCard extends StatelessWidget {
                               color: AppDesign.success,
                             ),
                           ),
+                        if (provider.verificationScore > 0) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _scoreBadgeColor(provider.verificationScore).withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${provider.verificationScore.toStringAsFixed(0)}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: _scoreBadgeColor(provider.verificationScore),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -3206,6 +3266,8 @@ class _ProviderData {
   final double rating;
   final int reviews;
   final bool verified;
+  final double verificationScore;
+  final String verificationLevel;
   _ProviderData({
     required this.name,
     required this.specialty,
@@ -3213,5 +3275,7 @@ class _ProviderData {
     required this.reviews,
     required this.image,
     required this.verified,
+    this.verificationScore = 0,
+    this.verificationLevel = 'basic',
   });
 }
