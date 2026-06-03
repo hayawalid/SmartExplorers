@@ -115,6 +115,39 @@ class _ProviderNavigationShellState extends State<ProviderNavigationShell>
               isDark: isDark,
             ),
           ),
+          if (_currentIndex == 4)
+            Positioned(
+              right: 20,
+              bottom: MediaQuery.of(context).padding.bottom + 100,
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.pushNamed(context, '/provider_verification');
+                },
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppDesign.navSafety, AppDesign.navExplore],
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppDesign.navSafety.withValues(alpha: 0.4),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    LucideIcons.shieldCheck,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

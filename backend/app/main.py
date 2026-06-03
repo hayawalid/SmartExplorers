@@ -147,6 +147,8 @@ app.include_router(services_router)
 app.include_router(safety_router)
 app.include_router(preferences_router)
 # app.include_router(verification_router)  # COMMENTED OUT - TensorFlow/DeepFace dependency issue
+from app.api.verification_v2 import router as verification_v2_router
+app.include_router(verification_v2_router)
 
 # ====== NEW: Include matching router ======
 app.include_router(matching_router)

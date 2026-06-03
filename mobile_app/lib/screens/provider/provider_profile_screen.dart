@@ -237,6 +237,37 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
             )).toList(),
           ),
           const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(context, '/provider_verification');
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppDesign.navSafety, AppDesign.navExplore],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(LucideIcons.shieldCheck, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text(
+                    'Verification Status',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () => HapticFeedback.lightImpact(),
             icon: const Icon(LucideIcons.edit2, size: 16),
