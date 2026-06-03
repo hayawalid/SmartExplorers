@@ -8,6 +8,8 @@ class SocialApiService {
 
   SocialApiService({http.Client? client}) : _client = client ?? http.Client();
 
+  http.Client get httpClient => _client;
+
   Future<List<Map<String, dynamic>>> getPosts({
     String? authorId,
     String? userId,
