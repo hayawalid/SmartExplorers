@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Body, Request
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from bson import ObjectId
 from typing import Optional
 
@@ -105,51 +105,6 @@ async def create_portfolio_item(provider_id: str, payload: Dict[str, Any] = Body
     result = await db[mongodb.PORTFOLIO_ITEMS].insert_one(payload)
     doc = await db[mongodb.PORTFOLIO_ITEMS].find_one({"_id": result.inserted_id})
     return _serialize(doc)
-
-
-@router.get("/providers/verified/ranked")
-async def get_ranked_providers(
-    limit: int = 50,
-    service_type: Optional[str] = None,
-    min_score: float = 0,
-):
-    """Return service providers sorted by verification score descending."""
-    from app.services.provider_verification_service import provider_verification_service
-    providers = await provider_verification_service.get_recommended_providers(
-        limit=limit,
-        service_type=service_type,
-        min_score=min_score,
-    )
-    # Serialize ObjectIds and attach verification badge
-    results = []
-    for p in providers:
-        score = p.get("verification_score", 0)
-        if score >= 80:
-            badge = "trusted"
-        elif score >= 60:
-            badge = "verified"
-        elif score >= 40:
-            badge = "standard"
-        else:
-            badge = "basic"
-
-        profile = p.get("profile") or {}
-        results.append({
-            "user_id": p.get("user_id"),
-            "full_name": p.get("full_name"),
-            "username": p.get("username"),
-            "avatar_url": p.get("avatar_url"),
-            "verification_score": round(score, 1),
-            "verification_level": p.get("verification_level", "basic"),
-            "verification_badge": badge,
-            "service_type": p.get("service_type"),
-            "business_name": profile.get("business_name"),
-            "bio": profile.get("bio"),
-            "city": profile.get("city"),
-            "rating": p.get("rating", 0),
-            "review_count": p.get("review_count", 0),
-        })
-    return results
 
 
 @router.get("/providers/{provider_id}/credentials")

@@ -5,7 +5,6 @@ import '../theme/app_theme.dart';
 import 'feed_screen.dart';
 import 'safety_dashboard_screen.dart';
 import 'provider_profile_screen.dart';
-import 'provider_verification_screen.dart';
 
 /// Provider Navigation Shell with 4 tabs (no marketplace)
 /// Match Requests, Feed, Emergency/Safety, Profile
@@ -71,11 +70,6 @@ class _ProviderNavigationShellState extends State<ProviderNavigationShell>
     );
   }
 
-  void _navigateToVerification() {
-    HapticFeedback.lightImpact();
-    Navigator.pushNamed(context, '/provider_verification');
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -105,38 +99,6 @@ class _ProviderNavigationShellState extends State<ProviderNavigationShell>
             bottom: 30,
             child: _buildFloatingNavBar(isDark),
           ),
-
-          // Floating verification button (only show on Profile tab)
-          if (_currentIndex == 3)
-            Positioned(
-              right: 20,
-              bottom: 120,
-              child: GestureDetector(
-                onTap: _navigateToVerification,
-                child: Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppDesign.navSafety, AppDesign.navExplore],
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppDesign.navSafety.withValues(alpha: 0.4),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    CupertinoIcons.checkmark_shield_fill,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );

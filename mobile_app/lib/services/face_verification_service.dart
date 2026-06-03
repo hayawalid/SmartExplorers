@@ -41,51 +41,6 @@ class FaceVerificationService {
         final error = jsonDecode(response.body);
         throw Exception(error['detail'] ?? 'Verification failed');
       }
-} catch (e) {
-      throw Exception('Face verification error: $e');
-    }
-  }
-
-  /// Sends id image, selfie, providerId and expectedName to the backend.
-  /// Returns keys: verified, confidence, passes_threshold, message,
-  ///               ocr_name, expected_name, name_matched.
-  Future<Map<String, dynamic>> verifyFacesWithName({
-    required File idImageFile,
-    required File selfieFile,
-    required String providerId,
-    required String expectedName,
-  }) async {
-    try {
-      final uri = Uri.parse(
-          '${ApiConfig.baseUrl}/api/v1/verification/verify-faces-with-name');
-
-      final request = http.MultipartRequest('POST', uri);
-
-      request.files.add(await http.MultipartFile.fromPath(
-        'id_image',
-        idImageFile.path,
-        filename: 'id_image.jpg',
-      ));
-
-      request.files.add(await http.MultipartFile.fromPath(
-        'selfie_image',
-        selfieFile.path,
-        filename: 'selfie.jpg',
-      ));
-
-      request.fields['provider_id'] = providerId;
-      request.fields['expected_name'] = expectedName;
-
-      final streamedResponse =
-          await request.send().timeout(const Duration(seconds: 30));
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body) as Map<String, dynamic>;
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['detail'] ?? 'Verification failed');
-      }
     } catch (e) {
       throw Exception('Face verification error: $e');
     }

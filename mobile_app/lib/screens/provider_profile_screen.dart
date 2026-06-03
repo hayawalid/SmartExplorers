@@ -7,7 +7,6 @@ import '../widgets/smart_explorers_logo.dart';
 import '../services/session_store.dart';
 import '../services/profile_api_service.dart';
 import '../services/api_config.dart';
-import 'provider_verification_screen.dart';
 
 /// Provider Profile Screen with 3 tabs: Portfolio, Credentials, Reviews
 /// Designed for service providers to showcase their work and qualifications
@@ -203,13 +202,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
     } catch (_) {
       // Keep fallback data on error
     }
-  }
-
-  void _openVerification() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ProviderVerificationScreen()),
-    );
   }
 
   @override
@@ -517,38 +509,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
           ),
 
           const SizedBox(height: 16),
-
-          // Verification Status Button
-          GestureDetector(
-            onTap: _openVerification,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppDesign.navSafety, AppDesign.navExplore],
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(CupertinoIcons.checkmark_shield_fill, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text(
-                    'Verification Status',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
 
           // Edit Profile Button
           GestureDetector(

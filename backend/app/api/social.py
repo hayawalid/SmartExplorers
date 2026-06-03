@@ -279,15 +279,4 @@ async def create_review(payload: Dict[str, Any] = Body(...)):
     db = get_database()
     result = await db[mongodb.REVIEWS].insert_one(payload)
     doc = await db[mongodb.REVIEWS].find_one({"_id": result.inserted_id})
-
-    # Re-run verification for the provider so score reflects new review
-    provider_id = payload.get("provider_id")
-    if provider_id:
-        try:
-            from app.services.provider_verification_service import provider_verification_service
-            import asyncio
-            asyncio.create_task(provider_verification_service.verify_provider_complete(provider_id))
-        except Exception:
-            pass  # Non-blocking
-
     return _serialize(doc)

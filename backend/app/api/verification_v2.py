@@ -197,138 +197,6 @@ async def get_provider_verification_status(
 
 
 # ============================================================================
-# PROVIDER VERIFICATION ENDPOINTS (for Flutter app)
-# ============================================================================
-
-@router.get("/providers/{provider_id}")
-async def get_provider_verification(
-    provider_id: str,
-    db=Depends(get_database)
-):
-    """
-    Get provider verification data (simplified for Flutter app).
-    Returns overall_score, verification_level, source_scores, etc.
-    """
-    from app.services.provider_verification_service import provider_verification_service
-    
-    try:
-        # Check if provider exists
-        provider = await db.service_provider_profiles.find_one({"user_id": provider_id})
-        
-        if not provider:
-            raise HTTPException(status_code=404, detail="Provider not found")
-        
-        # Get existing verification data from provider profile
-        verification_data = provider.get("verification", {})
-        
-        # Also get cross-validation service data if available
-        source_scores = {}
-        warnings = []
-        recommendations = []
-        
-        # Try to get fresh cross-validation data
-        try:
-            from app.services.cross_validation_service import cross_validation_service
-            cross_result = await cross_validation_service.verify_service_provider(
-                provider_data=provider,
-                db=db
-            )
-            if cross_result:
-                overall_score = cross_result.get("overall_score", 0.0)
-                verification_level = cross_result.get("verification_level", "basic")
-                source_scores = cross_result.get("detailed_results", {})
-                warnings = cross_result.get("warnings", [])
-                recommendations = cross_result.get("recommendations", [])
-            else:
-                overall_score = verification_data.get("overall_score", 0.0)
-                verification_level = verification_data.get("tier", "basic")
-        except Exception as e:
-            # Fallback to stored data
-            overall_score = verification_data.get("overall_score", 0.0)
-            verification_level = verification_data.get("tier", "basic")
-        
-        return {
-            "provider_id": provider_id,
-            "overall_score": overall_score,
-            "verification_level": verification_level,
-            "source_scores": source_scores,
-            "warnings": warnings,
-            "recommendations": recommendations,
-            "provider_profile": {
-                "business_name": provider.get("business_name"),
-                "address": provider.get("address"),
-                "city": provider.get("city"),
-                "latitude": provider.get("latitude"),
-                "longitude": provider.get("longitude"),
-                "phone_number": provider.get("phone_number"),
-                "facebook_url": provider.get("facebook_url"),
-                "instagram_username": provider.get("instagram_username"),
-                "business_license_number": provider.get("business_license_number"),
-                "verification_status": provider.get("verification_status", "pending"),
-                "id_name_match": provider.get("id_name_match", False),
-                "face_verified": provider.get("face_verified", False),
-            }
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/providers/{provider_id}/verify")
-async def trigger_provider_verification(
-    provider_id: str,
-    db=Depends(get_database)
-):
-    """
-    Trigger fresh verification for a provider.
-    Re-runs all 8 verification checks and returns updated scores.
-    """
-    from app.services.provider_verification_service import provider_verification_service
-    
-    try:
-        # Check if provider exists
-        provider = await db.service_provider_profiles.find_one({"user_id": provider_id})
-        
-        if not provider:
-            raise HTTPException(status_code=404, detail="Provider not found")
-        
-        # Run verification
-        report = await provider_verification_service.verify_provider_complete(
-            provider_id=provider_id
-        )
-        
-        if report.get("error"):
-            raise HTTPException(status_code=404, detail=report["error"])
-        
-        return {
-            "provider_id": provider_id,
-            "overall_score": report.get("overall_score", 0),
-            "verification_level": report.get("verification_level", "basic"),
-            "source_scores": report.get("source_scores", {}),
-            "warnings": report.get("warnings", []),
-            "recommendations": report.get("recommendations", []),
-            "provider_profile": {
-                "business_name": provider.get("business_name"),
-                "address": provider.get("address"),
-                "city": provider.get("city"),
-                "latitude": provider.get("latitude"),
-                "longitude": provider.get("longitude"),
-                "phone_number": provider.get("phone_number"),
-                "facebook_url": provider.get("facebook_url"),
-                "instagram_username": provider.get("instagram_username"),
-                "business_license_number": provider.get("business_license_number"),
-                "verification_status": report.get("verification_status", "pending"),
-            }
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
-# ============================================================================
 # PLACE VERIFICATION
 # ============================================================================
 
@@ -546,85 +414,6 @@ async def get_verification_stats(
 # FACE VERIFICATION (Flutter app endpoint)
 # ============================================================================
 
-# ============================================================================
-# PROVIDER BUSINESS INFO SUBMISSION (8-step scoring trigger)
-# ============================================================================
-
-class ProviderBusinessInfoRequest(BaseModel):
-    """Provider fills in their business details to improve verification score."""
-    business_name: Optional[str] = None
-    address: Optional[str] = None
-    city: Optional[str] = None
-    latitude: Optional[float] = Field(None, ge=-90, le=90)
-    longitude: Optional[float] = Field(None, ge=-180, le=180)
-    phone: Optional[str] = None
-    facebook_url: Optional[str] = None
-    instagram_username: Optional[str] = None
-    business_license: Optional[str] = None
-    business_hours: Optional[dict] = None
-
-
-@router.post("/providers/{provider_id}/submit-info")
-async def submit_provider_business_info(
-    provider_id: str,
-    payload: ProviderBusinessInfoRequest,
-    db=Depends(get_database),
-):
-    """
-    Provider submits / updates their business information.
-    Saves fields to their profile then triggers the 8-source re-verification
-    so the score is recalculated immediately.
-    """
-    from app.mongodb import mongodb
-    from app.services.provider_verification_service import provider_verification_service
-
-    update_fields: dict = {}
-    if payload.business_name is not None:
-        update_fields["business_name"] = payload.business_name
-    if payload.address is not None:
-        update_fields["address"] = payload.address
-    if payload.city is not None:
-        update_fields["city"] = payload.city
-    if payload.latitude is not None:
-        update_fields["latitude"] = payload.latitude
-    if payload.longitude is not None:
-        update_fields["longitude"] = payload.longitude
-    if payload.phone is not None:
-        update_fields["phone_number"] = payload.phone
-    if payload.facebook_url is not None:
-        update_fields["facebook_url"] = payload.facebook_url
-    if payload.instagram_username is not None:
-        update_fields["instagram_username"] = payload.instagram_username
-    if payload.business_license is not None:
-        update_fields["business_license_number"] = payload.business_license
-    if payload.business_hours is not None:
-        update_fields["business_hours"] = payload.business_hours
-
-    if update_fields:
-        update_fields["updated_at"] = datetime.utcnow()
-        await db[mongodb.SERVICE_PROVIDER_PROFILES].update_one(
-            {"user_id": provider_id},
-            {"$set": update_fields},
-            upsert=True,
-        )
-
-    # Re-run the 8-source verification with the new data
-    report = await provider_verification_service.verify_provider_complete(
-        provider_id=provider_id
-    )
-
-    if report.get("error"):
-        raise HTTPException(status_code=404, detail=report["error"])
-
-    return {
-        "success": True,
-        "message": "Business info saved and verification score updated.",
-        "overall_score": report.get("overall_score", 0),
-        "verification_level": report.get("verification_level", "basic"),
-        "source_scores": report.get("source_scores", {}),
-    }
-
-
 @router.post("/verify-faces")
 async def verify_faces_endpoint(
     id_image: UploadFile = File(...),
@@ -635,6 +424,7 @@ async def verify_faces_endpoint(
     Accepts id_image and selfie_image, returns match result.
     """
     from app.services.face_verification import face_verification_service
+
     try:
         id_image_bytes = await id_image.read()
         selfie_image_bytes = await selfie_image.read()
@@ -656,92 +446,11 @@ async def verify_faces_endpoint(
             "message": "Faces match" if result.get("passes_threshold") else "Faces do not match",
             "mock_mode": result.get("mock_mode", False),
         }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Verification failed: {str(e)}")
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Verification failed: {str(e)}")
-
-@router.post("/verify-faces-with-name")
-async def verify_faces_with_name_endpoint(
-    id_image: UploadFile = File(...),
-    selfie_image: UploadFile = File(...),
-    provider_id: Optional[str] = Form(None),
-    expected_name: Optional[str] = Form(None),
-):
-    """
-    Face verification + OCR name matching.
-    Compares the name on the ID document against the expected name
-    (from onboarding). Saves id_name_match to the provider profile.
-    """
-    from app.services.face_verification import face_verification_service
-    from app.services.ocr import ocr_service
-    from app.mongodb import mongodb, get_database
-
-    try:
-        id_image_bytes = await id_image.read()
-        selfie_image_bytes = await selfie_image.read()
-
-        # Validate images
-        doc_validation = face_verification_service.validate_image_quality(id_image_bytes)
-        if not doc_validation["valid"]:
-            raise HTTPException(status_code=400, detail=f"ID image invalid: {doc_validation['reason']}")
-
-        selfie_validation = face_verification_service.validate_image_quality(selfie_image_bytes)
-        if not selfie_validation["valid"]:
-            raise HTTPException(status_code=400, detail=f"Selfie invalid: {selfie_validation['reason']}")
-
-        # Face verification
-        face_result = face_verification_service.verify_faces(id_image_bytes, selfie_image_bytes)
-
-        # OCR name extraction
-        ocr_data = ocr_service.extract_id_data(id_image_bytes, "national_id")
-        ocr_name = ocr_data.get("full_name") or ""
-
-        # Name match — simple normalised comparison
-        name_matched = False
-        if expected_name and ocr_name:
-            def _norm(s: str) -> str:
-                import re
-                return re.sub(r"\s+", " ", s.strip().lower())
-            name_matched = _norm(ocr_name) == _norm(expected_name)
-
-        # Persist result to provider profile
-        if provider_id:
-            db = get_database()
-            await db[mongodb.SERVICE_PROVIDER_PROFILES].update_one(
-                {"user_id": provider_id},
-                {
-                    "$set": {
-                        "verification_status": "verified" if face_result.get("passes_threshold") else "pending",
-                        "face_verified": face_result.get("passes_threshold", False),
-                        "id_name_match": name_matched,
-                        "ocr_name": ocr_name,
-                    }
-                },
-                upsert=True,
-            )
-
-        return {
-            "verified": face_result.get("verified", False),
-            "confidence": face_result.get("confidence", 0.0),
-            "passes_threshold": face_result.get("passes_threshold", False),
-            "message": "Faces match" if face_result.get("passes_threshold") else "Faces do not match",
-            "mock_mode": face_result.get("mock_mode", False),
-            "ocr_name": ocr_name,
-            "expected_name": expected_name,
-            "name_matched": name_matched,
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Verification failed: {str(e)}")
-
 
 @router.post("/admin/re-verify/{provider_id}")
 async def re_verify_provider(

@@ -5,7 +5,6 @@ import 'screens/main_navigation_shell.dart';
 import 'screens/provider_navigation_shell.dart';
 import 'screens/admin_dashboard_screen.dart';
 import 'screens/user_profile_view_screen.dart';
-import 'screens/provider_verification_screen.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_manager.dart';
 
@@ -75,7 +74,6 @@ class _SmartExplorersAppState extends ConsumerState<SmartExplorersApp> {
         '/home': (context) => const MainNavigationShell(),
         '/provider_home': (context) => const ProviderNavigationShell(),
         '/admin': (context) => const AdminDashboardScreen(),
-        '/provider_verification': (context) => const ProviderVerificationScreen(),
       },
     );
   }

@@ -175,15 +175,6 @@ async def signup(body: SignupRequest, request: Request):
         {"user_id": user_id}, {"$set": prefs_doc}, upsert=True
     )
 
-    # ── Trigger background verification for new service providers ──
-    if body.account_type == "service_provider":
-        try:
-            from app.services.provider_verification_service import provider_verification_service
-            import asyncio
-            asyncio.create_task(provider_verification_service.verify_provider_complete(user_id))
-        except Exception:
-            pass  # Non-blocking — don't fail signup if verification errors
-
     # ── Build response ──
     user_doc["_id"] = result.inserted_id
     token = _create_access_token({"sub": user_id, "username": body.username})

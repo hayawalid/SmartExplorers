@@ -8,7 +8,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/theme/app_theme.dart';
 import '../../services/auth_api_service.dart';
 import '../../services/face_verification_service.dart';
-import '../../services/session_store.dart';
 import '../selfie_camera_screen.dart';
 
 /// Provider signup – 4-step cinematic glass flow
@@ -400,17 +399,16 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     debugPrint('[FaceVerif] Selfie file: ${_selfieFile!.path}');
 
     setState(() {
+      _isVerifying = true;
       _verificationError = null;
       _verificationPassed = false;
     });
 
     try {
       debugPrint('[FaceVerif] Calling backend...');
-      final result = await FaceVerificationService.instance.verifyFacesWithName(
+      final result = await FaceVerificationService.instance.verifyFaces(
         idImageFile: _idImageFile!,
         selfieFile: _selfieFile!,
-        providerId: SessionStore.instance.userId ?? '',
-        expectedName: _nameController.text.trim(),
       );
 
       debugPrint('[FaceVerif] Response: $result');
@@ -421,6 +419,7 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
       debugPrint('[FaceVerif] Passes: $passes');
 
       setState(() {
+        _isVerifying = false;
         _verificationPassed = passes;
         _verificationError = passes
             ? null
@@ -431,6 +430,7 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     } catch (e) {
       debugPrint('[FaceVerif] ERROR: $e');
       setState(() {
+        _isVerifying = false;
         _verificationPassed = false;
         _verificationError = 'Verification error: ${e.toString()}';
       });
