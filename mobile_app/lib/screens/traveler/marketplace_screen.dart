@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
-import '../services/marketplace_api_service.dart';
-import '../theme/app_theme.dart';
-import '../widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/services/marketplace_api_service.dart';
+import 'package:mobile_app/theme/app_theme.dart';
+import 'package:mobile_app/widgets/smart_explorers_logo.dart';
 
 /// Service provider marketplace with WCAG accessibility support
 class MarketplaceScreen extends StatefulWidget {

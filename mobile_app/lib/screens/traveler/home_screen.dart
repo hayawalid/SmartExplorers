@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
-import '../widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/widgets/smart_explorers_logo.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

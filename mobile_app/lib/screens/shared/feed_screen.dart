@@ -3,15 +3,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'dart:ui';
-import '../theme/app_theme.dart';
-import '../widgets/smart_explorers_logo.dart';
-import '../services/social_api_service.dart';
-import '../services/session_store.dart';
-import '../services/api_config.dart';
-import '../services/marketplace_api_service.dart';
-import 'create_post_screen.dart';
-import 'write_review_screen.dart';
-import 'travel_space_detail_screen.dart';
+import 'package:mobile_app/theme/app_theme.dart';
+import 'package:mobile_app/widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/services/social_api_service.dart';
+import 'package:mobile_app/services/session_store.dart';
+import 'package:mobile_app/services/api_config.dart';
+import 'package:mobile_app/services/marketplace_api_service.dart';
+import 'package:mobile_app/screens/traveler/create_post_screen.dart';
+import 'package:mobile_app/screens/shared/write_review_screen.dart';
+import 'package:mobile_app/screens/shared/travel_space_detail_screen.dart';
 
 /// Social feed with 3 tabs – Posts, Spaces, Providers.
 /// Cinematic image cards with glassmorphism overlays.

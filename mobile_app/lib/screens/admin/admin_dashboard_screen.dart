@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../theme/app_theme.dart';
-import '../widgets/smart_explorers_logo.dart';
-import '../services/admin_api_service.dart';
+import 'package:mobile_app/theme/app_theme.dart';
+import 'package:mobile_app/widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/services/admin_api_service.dart';
 
 /// Admin Dashboard – View insights, provider requests, user reports.
 class AdminDashboardScreen extends StatefulWidget {

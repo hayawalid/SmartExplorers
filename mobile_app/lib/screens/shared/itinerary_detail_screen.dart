@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
-import 'itinerary_planner_screen.dart';
+import 'package:mobile_app/screens/traveler/itinerary_planner_screen.dart';
 
 /// Full-screen detail view for itinerary items with Hero animation
 /// WCAG 2.1 AA compliant with proper Semantics and contrast ratios

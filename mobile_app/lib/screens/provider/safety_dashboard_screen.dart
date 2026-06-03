@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/semantics.dart';
 import 'dart:ui';
-import '../widgets/smart_explorers_logo.dart';
-import '../services/profile_api_service.dart';
-import '../services/safety_api_service.dart';
-import '../services/api_config.dart';
-import '../services/session_store.dart';
+import 'package:mobile_app/widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/services/profile_api_service.dart';
+import 'package:mobile_app/services/safety_api_service.dart';
+import 'package:mobile_app/services/api_config.dart';
+import 'package:mobile_app/services/session_store.dart';
 
 /// Safety Dashboard with WCAG 2.1 AA accessibility compliance
 /// Features: Emergency SOS with liveRegion, Semantics for screen readers

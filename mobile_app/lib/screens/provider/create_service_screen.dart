@@ -4,9 +4,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../services/services_api_service.dart';
-import '../services/session_store.dart';
-import '../theme/app_theme.dart';
+import 'package:mobile_app/services/services_api_service.dart';
+import 'package:mobile_app/services/session_store.dart';
+import 'package:mobile_app/theme/app_theme.dart';
 
 class CreateServiceScreen extends StatefulWidget {
   const CreateServiceScreen({super.key});

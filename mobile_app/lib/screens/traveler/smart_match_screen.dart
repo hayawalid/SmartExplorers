@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:math' as math;
-import '../theme/app_theme.dart';
-import '../widgets/smart_explorers_logo.dart';
-import '../widgets/animated_builder.dart';
-import '../services/planner_api_service.dart';
-import '../services/matching_api_service.dart';
-import '../services/profile_api_service.dart';
-import '../services/session_store.dart';
-import '../services/api_config.dart';
-import 'itinerary_calendar_screen.dart';
-import 'user_profile_view_screen.dart';
+import 'package:mobile_app/theme/app_theme.dart';
+import 'package:mobile_app/widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/widgets/animated_builder.dart';
+import 'package:mobile_app/services/planner_api_service.dart';
+import 'package:mobile_app/services/matching_api_service.dart';
+import 'package:mobile_app/services/profile_api_service.dart';
+import 'package:mobile_app/services/session_store.dart';
+import 'package:mobile_app/services/api_config.dart';
+import 'package:mobile_app/screens/shared/itinerary_calendar_screen.dart';
+import 'package:mobile_app/screens/shared/user_profile_view_screen.dart';
 
 /// Tab 4: Smart Match & Concierge
 /// Updated: View Itinerary button + Orbital circles interface

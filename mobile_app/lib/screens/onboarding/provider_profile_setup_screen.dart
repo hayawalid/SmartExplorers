@@ -8,7 +8,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/theme/app_theme.dart';
 import '../../services/auth_api_service.dart';
 import '../../services/face_verification_service.dart';
-import '../selfie_camera_screen.dart';
+import '../shared/selfie_camera_screen.dart';
 
 /// Provider signup – 4-step cinematic glass flow
 /// Step 1: Basic info  Step 2: Service type  Step 3: Verification  Step 4: Review

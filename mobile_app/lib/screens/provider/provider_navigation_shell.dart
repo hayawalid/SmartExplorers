@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
-import '../theme/app_theme.dart';
-import '../services/session_store.dart';
-import '../services/services_api_service.dart';
-import 'feed_screen.dart';
-import 'safety_hub_screen.dart';
-import 'provider_profile_screen.dart';
-import 'provider_services_screen.dart';
+import 'package:mobile_app/theme/app_theme.dart';
+import 'package:mobile_app/services/session_store.dart';
+import 'package:mobile_app/services/services_api_service.dart';
+import 'package:mobile_app/screens/shared/feed_screen.dart';
+import 'package:mobile_app/screens/shared/safety_hub_screen.dart';
+import 'package:mobile_app/screens/provider/provider_profile_screen.dart';
+import 'package:mobile_app/screens/provider/provider_services_screen.dart';
 
 class ProviderNavigationShell extends StatefulWidget {
   const ProviderNavigationShell({super.key});

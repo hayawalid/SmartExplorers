@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
-import '../theme/app_theme.dart';
+import 'package:mobile_app/theme/app_theme.dart';
 
 /// Detail page for a Travel Space / Group.
 /// Shows the shared itinerary between group members and their interests.

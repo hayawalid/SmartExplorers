@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'screens/onboarding/onboarding_flow.dart';
-import 'screens/main_navigation_shell.dart';
-import 'screens/provider_navigation_shell.dart';
-import 'screens/admin_dashboard_screen.dart';
-import 'screens/user_profile_view_screen.dart';
-import 'theme/app_theme.dart';
-import 'theme/theme_manager.dart';
+import 'package:mobile_app/screens/onboarding/onboarding_flow.dart';
+import 'package:mobile_app/screens/traveler/main_navigation_shell.dart';
+import 'package:mobile_app/screens/provider/provider_navigation_shell.dart';
+import 'package:mobile_app/screens/admin/admin_dashboard_screen.dart';
+import 'package:mobile_app/screens/shared/user_profile_view_screen.dart';
+import 'package:mobile_app/theme/app_theme.dart';
+import 'package:mobile_app/theme/theme_manager.dart';
 
 void main() {
   runApp(const ProviderScope(child: SmartExplorersApp()));

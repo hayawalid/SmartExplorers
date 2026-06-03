@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
-import '../widgets/smart_explorers_logo.dart';
-import '../services/chat_api_service.dart';
-import '../models/chat_models.dart' as models;
+import 'package:mobile_app/widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/services/chat_api_service.dart';
+import 'package:mobile_app/models/chat_models.dart' as models;
 
 class AIAssistantScreen extends StatefulWidget {
   const AIAssistantScreen({super.key});

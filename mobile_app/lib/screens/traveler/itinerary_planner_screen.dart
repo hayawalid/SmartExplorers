@@ -3,12 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
 import 'dart:async';
-import '../theme/app_theme.dart';
-import '../widgets/smart_explorers_logo.dart';
-import '../services/planner_api_service.dart';
-import '../services/profile_api_service.dart';
-import '../services/session_store.dart';
-import 'itinerary_calendar_screen.dart'; // Import the calendar screen
+import 'package:mobile_app/theme/app_theme.dart';
+import 'package:mobile_app/widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/services/planner_api_service.dart';
+import 'package:mobile_app/services/profile_api_service.dart';
+import 'package:mobile_app/services/session_store.dart';
+import 'package:mobile_app/screens/shared/itinerary_calendar_screen.dart'; // Import the calendar screen
 
 /// Agentic AI Itinerary Planner
 /// Starts as chat-only, shows suggestion cards when AI creates itineraries

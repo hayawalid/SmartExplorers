@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../theme/app_theme.dart';
-import '../widgets/smart_explorers_logo.dart';
-import '../services/profile_api_service.dart';
+import 'package:mobile_app/theme/app_theme.dart';
+import 'package:mobile_app/widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/services/profile_api_service.dart';
 
 /// View another user's profile — adapts layout for traveler vs provider.
 class UserProfileViewScreen extends StatefulWidget {

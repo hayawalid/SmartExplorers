@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'dart:ui';
-import '../services/services_api_service.dart';
-import '../services/session_store.dart';
-import '../models/service_models.dart';
-import '../theme/app_theme.dart';
-import '../widgets/smart_explorers_logo.dart';
-import 'service_detail_screen.dart';
+import 'package:mobile_app/services/services_api_service.dart';
+import 'package:mobile_app/services/session_store.dart';
+import 'package:mobile_app/models/service_models.dart';
+import 'package:mobile_app/theme/app_theme.dart';
+import 'package:mobile_app/widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/screens/shared/service_detail_screen.dart';
 
 /// Service Discovery Screen for Travelers
 /// Browse and discover services from providers matching their preferences

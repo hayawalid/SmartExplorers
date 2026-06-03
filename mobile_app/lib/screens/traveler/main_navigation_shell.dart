@@ -3,15 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
-import '../theme/app_theme.dart';
-import '../theme/theme_manager.dart';
-import '../widgets/smart_explorers_logo.dart';
-import 'itinerary_planner_screen.dart';
-import 'feed_screen.dart';
-import 'profile_screen.dart';
-import 'smart_match_screen.dart';
-import 'safety_hub_screen.dart';
-import 'service_discovery_screen.dart';
+import 'package:mobile_app/theme/app_theme.dart';
+import 'package:mobile_app/theme/theme_manager.dart';
+import 'package:mobile_app/widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/screens/traveler/itinerary_planner_screen.dart';
+import 'package:mobile_app/screens/shared/feed_screen.dart';
+import 'package:mobile_app/screens/traveler/profile_screen.dart';
+import 'package:mobile_app/screens/traveler/smart_match_screen.dart';
+import 'package:mobile_app/screens/shared/safety_hub_screen.dart';
+import 'package:mobile_app/screens/traveler/service_discovery_screen.dart';
 
 /// Main navigation shell – 5-tab floating bottom bar
 /// Each tab has a unique accent color

@@ -1,72 +1,80 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
-import '../services/session_store.dart';
-import '../services/social_api_service.dart';
-import '../theme/app_theme.dart';
 
-class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({super.key});
+import 'package:mobile_app/services/session_store.dart';
+import 'package:mobile_app/services/social_api_service.dart';
+import 'package:mobile_app/theme/app_theme.dart';
+
+class WriteReviewScreen extends StatefulWidget {
+  const WriteReviewScreen({super.key, this.providerName, this.providerId});
+
+  final String? providerName;
+  final String? providerId;
 
   @override
-  State<CreatePostScreen> createState() => _CreatePostScreenState();
+  State<WriteReviewScreen> createState() => _WriteReviewScreenState();
 }
 
-class _CreatePostScreenState extends State<CreatePostScreen> {
+class _WriteReviewScreenState extends State<WriteReviewScreen> {
   final SocialApiService _socialService = SocialApiService();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _captionController = TextEditingController();
+  final TextEditingController _providerController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _reviewController = TextEditingController();
+  double _rating = 5.0;
   bool _submitting = false;
-  File? _selectedImageFile;
+
+  static const List<String> _quickRatings = [
+    'Excellent',
+    'Great',
+    'Good',
+    'Fair',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _providerController.text = widget.providerName ?? '';
+  }
 
   @override
   void dispose() {
     _socialService.dispose();
-    _captionController.dispose();
+    _providerController.dispose();
     _locationController.dispose();
+    _titleController.dispose();
+    _reviewController.dispose();
     super.dispose();
   }
 
-  Future<void> _publishPost() async {
+  Future<void> _submitReview() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    final caption = _captionController.text.trim();
-    String? image;
-    if (_selectedImageFile != null) {
-      try {
-        image = await _socialService.uploadMedia(_selectedImageFile!);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Failed to upload image: $e')));
-        }
-        setState(() => _submitting = false);
-        return;
-      }
-    }
     final authorId = SessionStore.instance.userId;
     final authorName = SessionStore.instance.username ?? 'Traveler';
+    final providerName = _providerController.text.trim();
 
     setState(() => _submitting = true);
 
     try {
-      await _socialService.createPost(
+      await _socialService.createReview(
         {
           if (authorId != null) 'author_id': authorId,
-          'author_name': authorName,
           'author_username': SessionStore.instance.username ?? authorName,
-          'caption': caption,
-          'text': caption,
-          'media_url': image,
+          'author_name': authorName,
+          if (widget.providerId != null && widget.providerId!.isNotEmpty)
+            'provider_id': widget.providerId,
+          'provider_name': providerName,
+          'title': _titleController.text.trim(),
+          'content': _reviewController.text.trim(),
+          'text': _reviewController.text.trim(),
           'location': _locationController.text.trim(),
-          'like_count': 0,
-          'comment_count': 0,
+          'rating': _rating,
+          'helpful': 0,
           'created_at': DateTime.now().toUtc().toIso8601String(),
           'source': 'mobile_app',
         }..removeWhere((key, value) => value == null || value == ''),
@@ -78,7 +86,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Post published'),
+          content: const Text('Review submitted'),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -92,7 +100,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to publish post: $error'),
+          content: Text('Failed to submit review: $error'),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -106,30 +114,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      final picker = ImagePicker();
-      final XFile? picked = await picker.pickImage(
-        source: source,
-        maxWidth: 1920,
-        maxHeight: 1080,
-        imageQuality: 85,
-      );
-      if (picked != null) {
-        setState(() {
-          _selectedImageFile = File(picked.path);
-        });
-      }
-    } catch (e) {
-      // ignore errors silently for now
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final background = isDark ? AppDesign.eerieBlack : AppDesign.offWhite;
-
     final text = isDark ? Colors.white : AppDesign.eerieBlack;
     final sub = AppDesign.midGrey;
 
@@ -143,12 +131,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           icon: const Icon(LucideIcons.x),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Create Post'),
+        title: const Text('Write Review'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FilledButton(
-              onPressed: _submitting ? null : _publishPost,
+              onPressed: _submitting ? null : _submitReview,
               child:
                   _submitting
                       ? const SizedBox(
@@ -156,7 +144,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                      : const Text('Publish'),
+                      : const Text('Submit'),
             ),
           ),
         ],
@@ -193,7 +181,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Share a moment from the road',
+                      'Share what the experience was really like',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -202,7 +190,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Post a story, tip, or travel highlight for the community.',
+                      'Your review helps other travelers choose confidently.',
                       style: TextStyle(fontSize: 13, color: sub),
                     ),
                   ],
@@ -210,20 +198,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               ),
               const SizedBox(height: 18),
               _SectionCard(
-                title: 'Caption',
-                icon: LucideIcons.pen_line,
+                title: 'Provider',
+                icon: LucideIcons.user_round,
                 isDark: isDark,
                 child: TextFormField(
-                  controller: _captionController,
-                  minLines: 5,
-                  maxLines: 8,
-                  textInputAction: TextInputAction.newline,
+                  controller: _providerController,
                   decoration: const InputDecoration(
-                    hintText: 'What are you sharing today?',
+                    hintText: 'Provider or guide name',
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Add a caption before posting';
+                      return 'Add a provider name';
                     }
                     return null;
                   },
@@ -231,54 +216,89 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               ),
               const SizedBox(height: 16),
               _SectionCard(
-                title: 'Photo',
-                icon: LucideIcons.image,
+                title: 'Rating',
+                icon: LucideIcons.star,
                 isDark: isDark,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                    Row(
                       children: [
-                        FilledButton.icon(
-                          onPressed: () => _pickImage(ImageSource.gallery),
-                          icon: const Icon(LucideIcons.image),
-                          label: const Text('Choose from gallery'),
-                        ),
-                        FilledButton.icon(
-                          onPressed:
-                              _selectedImageFile != null
-                                  ? () {
-                                    setState(() {
-                                      _selectedImageFile = null;
-                                    });
-                                  }
-                                  : null,
-                          icon: const Icon(LucideIcons.trash),
-                          label: const Text('Delete image'),
+                        ...List.generate(5, (index) {
+                          final active = index < _rating.round();
+                          return IconButton(
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              setState(() {
+                                _rating = (index + 1).toDouble();
+                              });
+                            },
+                            icon: Icon(
+                              active ? LucideIcons.star : LucideIcons.star,
+                              color:
+                                  active
+                                      ? const Color(0xFFFFC107)
+                                      : AppDesign.midGrey,
+                            ),
+                          );
+                        }),
+                        const SizedBox(width: 8),
+                        Text(
+                          _rating.toStringAsFixed(0),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: text,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    if (_selectedImageFile != null)
-                      Container(
-                        height: 160,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppDesign.lightGrey),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.file(
-                            _selectedImageFile!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                          ),
-                        ),
-                      ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Tap a star to set the score.',
+                      style: TextStyle(fontSize: 12, color: sub),
+                    ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _SectionCard(
+                title: 'Review title',
+                icon: LucideIcons.pen_line,
+                isDark: isDark,
+                child: TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    hintText: 'A short summary of your experience',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Add a short title';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              _SectionCard(
+                title: 'Review',
+                icon: LucideIcons.message_square_more,
+                isDark: isDark,
+                child: TextFormField(
+                  controller: _reviewController,
+                  minLines: 5,
+                  maxLines: 8,
+                  textInputAction: TextInputAction.newline,
+                  decoration: const InputDecoration(
+                    hintText:
+                        'Describe what stood out, what to expect, and any tips...',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Write the review text';
+                    }
+                    return null;
+                  },
                 ),
               ),
               const SizedBox(height: 16),
@@ -289,7 +309,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 child: TextFormField(
                   controller: _locationController,
                   decoration: const InputDecoration(
-                    hintText: 'Where was this taken? (optional)',
+                    hintText: 'Where did this happen? (optional)',
                   ),
                 ),
               ),
@@ -309,26 +329,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                             : AppDesign.lightGrey,
                   ),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppDesign.electricCobalt.withValues(alpha: 0.12),
-                      ),
-                      child: const Icon(
-                        LucideIcons.sparkles,
-                        color: AppDesign.electricCobalt,
+                    Text(
+                      'Quick tone',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: text,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Your post will appear in the feed immediately after publishing.',
-                        style: TextStyle(color: sub, height: 1.4),
-                      ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children:
+                          _quickRatings
+                              .map(
+                                (label) => ChoiceChip(
+                                  label: Text(label),
+                                  selected: false,
+                                  onSelected: (_) {},
+                                ),
+                              )
+                              .toList(),
                     ),
                   ],
                 ),

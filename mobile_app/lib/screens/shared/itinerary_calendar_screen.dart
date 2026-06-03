@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../theme/app_theme.dart';
-import '../widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/theme/app_theme.dart';
+import 'package:mobile_app/widgets/smart_explorers_logo.dart';
 
 class ItineraryCalendarScreen extends StatefulWidget {
   /// Pass the full itinerary map from the planner to render dynamically.

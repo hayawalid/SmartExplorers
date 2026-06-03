@@ -4,12 +4,12 @@ import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../theme/app_theme.dart';
-import '../widgets/smart_explorers_logo.dart';
-import '../services/session_store.dart';
-import '../services/profile_api_service.dart';
-import '../services/social_api_service.dart';
-import '../services/api_config.dart';
+import 'package:mobile_app/theme/app_theme.dart';
+import 'package:mobile_app/widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/services/session_store.dart';
+import 'package:mobile_app/services/profile_api_service.dart';
+import 'package:mobile_app/services/social_api_service.dart';
+import 'package:mobile_app/services/api_config.dart';
 
 /// Profile Screen with Posts & Reviews sections
 class ProfileScreen extends StatefulWidget {
