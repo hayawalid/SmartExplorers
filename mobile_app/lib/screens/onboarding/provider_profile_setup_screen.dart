@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
 import 'dart:ui';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/theme/app_theme.dart';
+import 'package:mobile_app/services/session_store.dart';
 import '../../services/auth_api_service.dart';
 import '../../services/face_verification_service.dart';
 import '../shared/selfie_camera_screen.dart';
@@ -186,7 +186,7 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
       setState(() => _scanProgress = i / 100);
     }
 
-  HapticFeedback.heavyImpact();
+    HapticFeedback.heavyImpact();
     setState(() {
       _idScanning = false;
       _idCaptured = true;
@@ -199,14 +199,13 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     }
   }
 
-
   Future<void> _startSelfieCapture() async {
     setState(() => _selfieCapturing = true);
     HapticFeedback.lightImpact();
 
-    final File? selfieFile = await Navigator.of(context).push<File>(
-      MaterialPageRoute(builder: (_) => const SelfieCameraScreen()),
-    );
+    final File? selfieFile = await Navigator.of(
+      context,
+    ).push<File>(MaterialPageRoute(builder: (_) => const SelfieCameraScreen()));
 
     if (!mounted) return;
 
@@ -414,18 +413,19 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
 
       debugPrint('[FaceVerif] Response: $result');
 
-      final passes = result['passes_threshold'] == true ||
-          result['verified'] == true;
+      final passes =
+          result['passes_threshold'] == true || result['verified'] == true;
 
       debugPrint('[FaceVerif] Passes: $passes');
 
       setState(() {
         _verificationPassed = passes;
-        _verificationError = passes
-            ? null
-            : 'Face verification failed. Confidence: '
-              '${((result['confidence'] as num? ?? 0) * 100).toStringAsFixed(0)}%. '
-              'Please retake your selfie or use a clearer ID photo.';
+        _verificationError =
+            passes
+                ? null
+                : 'Face verification failed. Confidence: '
+                    '${((result['confidence'] as num? ?? 0) * 100).toStringAsFixed(0)}%. '
+                    'Please retake your selfie or use a clearer ID photo.';
       });
     } catch (e) {
       debugPrint('[FaceVerif] ERROR: $e');
@@ -435,7 +435,6 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
       });
     }
   }
-
 
   Widget _buildBasicInfoStep() {
     return Column(

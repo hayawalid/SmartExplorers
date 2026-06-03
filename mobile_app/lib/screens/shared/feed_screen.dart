@@ -5,12 +5,16 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'dart:ui';
 import 'package:mobile_app/theme/app_theme.dart';
 import 'package:mobile_app/widgets/smart_explorers_logo.dart';
+import 'package:mobile_app/models/service_models.dart';
+import 'package:mobile_app/screens/shared/service_detail_screen.dart';
+import 'package:mobile_app/screens/shared/user_profile_view_screen.dart';
+import 'package:mobile_app/services/matching_api_service.dart';
+import 'package:mobile_app/services/profile_api_service.dart';
+import 'package:mobile_app/services/services_api_service.dart';
 import 'package:mobile_app/services/social_api_service.dart';
 import 'package:mobile_app/services/session_store.dart';
 import 'package:mobile_app/services/api_config.dart';
-import 'package:mobile_app/services/marketplace_api_service.dart';
 import 'package:mobile_app/screens/traveler/create_post_screen.dart';
-import 'package:mobile_app/screens/shared/write_review_screen.dart';
 import 'package:mobile_app/screens/shared/travel_space_detail_screen.dart';
 
 /// Social feed with 3 tabs – Posts, Spaces, Providers.
@@ -2362,145 +2366,176 @@ class _ProvidersTab extends StatefulWidget {
   State<_ProvidersTab> createState() => _ProvidersTabState();
 }
 
+enum _BrowseMode { providers, services }
+
 class _ProvidersTabState extends State<_ProvidersTab> {
-  final MarketplaceApiService _marketplaceService = MarketplaceApiService();
-  final SocialApiService _socialService = SocialApiService();
-  List<_ProviderData> _providers = [];
-  bool _loading = true;
+  final MatchingApiService _matchingService = MatchingApiService();
+  final ProfileApiService _profileService = ProfileApiService();
+  final ServicesApiService _servicesService = ServicesApiService();
 
-  static const _defaultImages = [
-    'lib/public/verified_guides.jpg',
-    'lib/public/pexels-zahide-tas-367420941-28406392.jpg',
-    'lib/public/pexels-meryemmeva-34823948.jpg',
-    'lib/public/smart_itineraries.jpg',
-  ];
-
-  static final _fallbackProviders = [
-    _ProviderData(
-      name: 'Mohamed Ali',
-      specialty: 'Certified Egyptologist & Guide',
-      rating: 4.9,
-      reviews: 142,
-      image: 'lib/public/verified_guides.jpg',
-      verified: true,
-    ),
-    _ProviderData(
-      name: 'Fatima Hassan',
-      specialty: 'Desert Safari Expert',
-      rating: 4.8,
-      reviews: 89,
-      image: 'lib/public/pexels-zahide-tas-367420941-28406392.jpg',
-      verified: true,
-    ),
-    _ProviderData(
-      name: 'Youssef Kamel',
-      specialty: 'Photography Tours',
-      rating: 4.7,
-      reviews: 67,
-      image: 'lib/public/pexels-meryemmeva-34823948.jpg',
-      verified: false,
-    ),
-    _ProviderData(
-      name: 'Nour Adel',
-      specialty: 'Culinary & Heritage Tours',
-      rating: 4.9,
-      reviews: 210,
-      image: 'lib/public/smart_itineraries.jpg',
-      verified: true,
-    ),
-  ];
+  _BrowseMode _mode = _BrowseMode.providers;
+  String _searchQuery = '';
+  bool _loadingProviders = true;
+  bool _loadingServices = true;
+  String? _providerError;
+  String? _serviceError;
+  List<_ProviderResult> _providers = [];
+  List<Service> _services = [];
 
   @override
   void initState() {
     super.initState();
     _loadProviders();
-  }
-
-  Future<void> _loadProviders() async {
-    try {
-      // Try ranked/verified endpoint first (sorted by verification score)
-      final uri = Uri.parse(
-        '${ApiConfig.baseUrl}/api/v1/profiles/providers/verified/ranked?limit=50',
-      );
-      final response = await _socialService.httpClient
-          .get(uri, headers: {'Accept': 'application/json'})
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        if (data.isNotEmpty && mounted) {
-          setState(() {
-            _providers = data.asMap().entries.map((e) {
-              final p = e.value as Map<String, dynamic>;
-              final score = (p['verification_score'] as num?)?.toDouble() ?? 0.0;
-              final level = p['verification_level'] as String? ?? 'basic';
-              return _ProviderData(
-                name: p['full_name']?.toString() ?? 'Provider',
-                specialty: (p['business_name']?.toString().isNotEmpty == true
-                    ? p['business_name'].toString()
-                    : p['service_type']?.toString()) ?? 'Service',
-                rating: (p['rating'] as num?)?.toDouble() ?? 0.0,
-                reviews: (p['review_count'] as num?)?.toInt() ?? 0,
-                image: _defaultImages[e.key % _defaultImages.length],
-                verified: level == 'verified' || level == 'trusted',
-                verificationScore: score,
-                verificationLevel: level,
-              );
-            }).toList();
-            _loading = false;
-          });
-          return;
-        }
-      }
-    } catch (_) {}
-
-    // Fallback to marketplace listings
-    try {
-      final data = await _marketplaceService.getListings();
-      if (data.isNotEmpty && mounted) {
-        setState(() {
-          _providers = data.asMap().entries.map((e) {
-            final p = e.value;
-            return _ProviderData(
-              name: p['name']?.toString() ?? 'Provider',
-              specialty: p['specialty']?.toString() ?? p['category']?.toString() ?? 'Service',
-              rating: (p['rating'] as num?)?.toDouble() ?? 0.0,
-              reviews: (p['review_count'] as num?)?.toInt() ?? 0,
-              image: _defaultImages[e.key % _defaultImages.length],
-              verified: p['is_verified'] == true,
-            );
-          }).toList();
-          _loading = false;
-        });
-        return;
-      }
-    } catch (_) {}
-
-    if (!mounted) return;
-    setState(() {
-      _providers = _fallbackProviders;
-      _loading = false;
-    });
-  }
-
-  Future<void> _openWriteReviewPage() async {
-    final created = await Navigator.of(
-      context,
-    ).push<bool>(MaterialPageRoute(builder: (_) => const WriteReviewScreen()));
-    if (created == true && mounted) {
-      _loadProviders();
-    }
+    _loadServices();
   }
 
   @override
   void dispose() {
-    _marketplaceService.dispose();
-    _socialService.dispose();
+    _matchingService.dispose();
+    _profileService.dispose();
+    _servicesService.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadProviders() async {
+    setState(() {
+      _loadingProviders = true;
+      _providerError = null;
+    });
+
+    try {
+      final username = SessionStore.instance.username;
+      if (username == null || username.isEmpty) {
+        throw Exception('No active session found.');
+      }
+
+      final user = await _profileService.getUserByUsername(username);
+      final email = user['email']?.toString() ?? '';
+      if (email.isEmpty) {
+        throw Exception('Could not resolve your account email.');
+      }
+
+      final result = await _matchingService.findMatches(
+        userEmail: email,
+        includeProviders: true,
+        includeTravelers: false,
+        topK: 20,
+      );
+
+      final rawMatches =
+          (result['matches'] as List? ?? const []).cast<Map<String, dynamic>>();
+
+      if (!mounted) return;
+      setState(() {
+        _providers =
+            rawMatches
+                .where(
+                  (match) =>
+                      match['account_type']?.toString() == 'service_provider',
+                )
+                .map(_ProviderResult.fromJson)
+                .toList();
+        _loadingProviders = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _providerError = e.toString().replaceFirst('Exception: ', '');
+        _loadingProviders = false;
+      });
+    }
+  }
+
+  Future<void> _loadServices() async {
+    setState(() {
+      _loadingServices = true;
+      _serviceError = null;
+    });
+
+    try {
+      final userId = SessionStore.instance.userId ?? 'user_001';
+      final rawServices = await _servicesService.discoverServices(
+        userId: userId,
+        limit: 40,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _services = rawServices.map(Service.fromJson).toList();
+        _loadingServices = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _serviceError = 'Failed to load services: $e';
+        _loadingServices = false;
+      });
+    }
+  }
+
+  List<_ProviderResult> get _filteredProviders {
+    if (_searchQuery.isEmpty) return _providers;
+    final query = _searchQuery.toLowerCase();
+    return _providers.where((provider) {
+      return provider.name.toLowerCase().contains(query) ||
+          provider.email.toLowerCase().contains(query) ||
+          provider.bio.toLowerCase().contains(query) ||
+          provider.serviceType.toLowerCase().contains(query) ||
+          provider.matchReasons.any(
+            (reason) => reason.toLowerCase().contains(query),
+          ) ||
+          provider.commonInterests.any(
+            (interest) => interest.toLowerCase().contains(query),
+          );
+    }).toList();
+  }
+
+  List<Service> get _filteredServices {
+    if (_searchQuery.isEmpty) return _services;
+    final query = _searchQuery.toLowerCase();
+    return _services.where((service) {
+      return service.serviceName.toLowerCase().contains(query) ||
+          service.serviceType.toLowerCase().contains(query) ||
+          (service.description ?? '').toLowerCase().contains(query) ||
+          service.tags.any((tag) => tag.toLowerCase().contains(query)) ||
+          (service.providerName ?? '').toLowerCase().contains(query);
+    }).toList();
+  }
+
+  void _openProviderProfile(_ProviderResult provider) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => UserProfileViewScreen(
+              userId: provider.id,
+              displayName: provider.name,
+              accountType: 'service_provider',
+            ),
+      ),
+    );
+  }
+
+  void _openServiceDetail(Service service) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ServiceDetailScreen(service: service)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final surface = isDark ? AppDesign.cardDark : AppDesign.offWhite;
+    final card = isDark ? AppDesign.cardDark : Colors.white;
+    final text = isDark ? Colors.white : AppDesign.eerieBlack;
+    final muted = isDark ? Colors.white70 : AppDesign.midGrey;
+    final border =
+        isDark ? Colors.white.withOpacity(0.06) : AppDesign.lightGrey;
+
+    final providers = _filteredProviders;
+    final services = _filteredServices;
+
     return Column(
       children: [
         Padding(
@@ -2514,457 +2549,714 @@ class _ProvidersTabState extends State<_ProvidersTab> {
             children: [
               Expanded(
                 child: Text(
-                  'Providers',
+                  'Providers & Services',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: widget.isDark ? Colors.white : AppDesign.eerieBlack,
+                    color: isDark ? Colors.white : AppDesign.eerieBlack,
                   ),
                 ),
               ),
               TextButton.icon(
-                onPressed: _openWriteReviewPage,
-                icon: const Icon(LucideIcons.pen_line, size: 16),
-                label: const Text('Add Review'),
+                onPressed:
+                    _mode == _BrowseMode.providers
+                        ? _loadProviders
+                        : _loadServices,
+                icon: const Icon(LucideIcons.refresh_cw, size: 16),
+                label: const Text('Refresh'),
               ),
             ],
           ),
         ),
-        Expanded(
-          child:
-              _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _providers.isEmpty
-                  ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          LucideIcons.briefcase,
-                          size: 48,
-                          color: AppDesign.midGrey,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No providers yet',
-                          style: TextStyle(color: AppDesign.midGrey),
-                        ),
-                      ],
-                    ),
-                  )
-                  : RefreshIndicator(
-                    onRefresh: () async {
-                      setState(() => _loading = true);
-                      await _loadProviders();
-                    },
-                    child: ListView.builder(
-                      padding: EdgeInsets.fromLTRB(
-                        0,
-                        0,
-                        0,
-                        MediaQuery.of(context).padding.bottom + 100,
-                      ),
-                      itemCount: _providers.length,
-                      itemBuilder:
-                          (context, i) => Center(
-                            child: SizedBox(
-                              width: widget.maxContentWidth,
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: widget.isLandscape ? 24 : 20,
-                                ),
-                                child: _ProviderCard(
-                                  provider: _providers[i],
-                                  isDark: widget.isDark,
-                                ),
-                              ),
-                            ),
-                          ),
-                    ),
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.isLandscape ? 24 : 20,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: border),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _ModeButton(
+                    label: 'Providers',
+                    isSelected: _mode == _BrowseMode.providers,
+                    isDark: isDark,
+                    color: AppDesign.navConcierge,
+                    icon: LucideIcons.users,
+                    onTap: () => setState(() => _mode = _BrowseMode.providers),
                   ),
+                ),
+                Expanded(
+                  child: _ModeButton(
+                    label: 'Services',
+                    isSelected: _mode == _BrowseMode.services,
+                    isDark: isDark,
+                    color: AppDesign.navExplore,
+                    icon: LucideIcons.briefcase,
+                    onTap: () => setState(() => _mode = _BrowseMode.services),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.isLandscape ? 24 : 20,
+          ),
+          child: TextField(
+            onChanged: (value) => setState(() => _searchQuery = value.trim()),
+            style: TextStyle(color: text),
+            decoration: InputDecoration(
+              hintText:
+                  _mode == _BrowseMode.providers
+                      ? 'Search providers'
+                      : 'Search services',
+              prefixIcon: Icon(LucideIcons.search, color: muted),
+              filled: true,
+              fillColor: surface,
+              hintStyle: TextStyle(color: muted),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(color: border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(color: border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: const BorderSide(
+                  color: AppDesign.navConcierge,
+                  width: 1.4,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.isLandscape ? 24 : 20,
+          ),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              _mode == _BrowseMode.providers
+                  ? '${providers.length} providers available'
+                  : '${services.length} services available',
+              style: TextStyle(color: muted, fontSize: 13),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child:
+                _mode == _BrowseMode.providers
+                    ? _buildProvidersView(
+                      providers,
+                      isDark: isDark,
+                      card: card,
+                      text: text,
+                      muted: muted,
+                      border: border,
+                    )
+                    : _buildServicesView(
+                      services,
+                      isDark: isDark,
+                      card: card,
+                      text: text,
+                      muted: muted,
+                      border: border,
+                    ),
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildProvidersView(
+    List<_ProviderResult> providers, {
+    required bool isDark,
+    required Color card,
+    required Color text,
+    required Color muted,
+    required Color border,
+  }) {
+    if (_loadingProviders) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_providerError != null) {
+      return _EmptyState(
+        title: 'Providers unavailable',
+        message: _providerError!,
+        icon: LucideIcons.users,
+        onRetry: _loadProviders,
+      );
+    }
+
+    if (providers.isEmpty) {
+      return _EmptyState(
+        title: 'No providers found',
+        message: 'Try a different search term or refresh the results.',
+        icon: LucideIcons.users,
+        onRetry: _loadProviders,
+      );
+    }
+
+    return ListView.separated(
+      key: const ValueKey('providers'),
+      padding: EdgeInsets.fromLTRB(
+        widget.isLandscape ? 24 : 20,
+        0,
+        widget.isLandscape ? 24 : 20,
+        MediaQuery.of(context).padding.bottom + 100,
+      ),
+      itemCount: providers.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        return _ProviderCard(
+          provider: providers[index],
+          isDark: isDark,
+          card: card,
+          text: text,
+          muted: muted,
+          border: border,
+          onTap: () => _openProviderProfile(providers[index]),
+        );
+      },
+    );
+  }
+
+  Widget _buildServicesView(
+    List<Service> services, {
+    required bool isDark,
+    required Color card,
+    required Color text,
+    required Color muted,
+    required Color border,
+  }) {
+    if (_loadingServices) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_serviceError != null) {
+      return _EmptyState(
+        title: 'Services unavailable',
+        message: _serviceError!,
+        icon: LucideIcons.briefcase,
+        onRetry: _loadServices,
+      );
+    }
+
+    if (services.isEmpty) {
+      return _EmptyState(
+        title: 'No services found',
+        message: 'Try a different search term or refresh the results.',
+        icon: LucideIcons.search,
+        onRetry: _loadServices,
+      );
+    }
+
+    return ListView.separated(
+      key: const ValueKey('services'),
+      padding: EdgeInsets.fromLTRB(
+        widget.isLandscape ? 24 : 20,
+        0,
+        widget.isLandscape ? 24 : 20,
+        MediaQuery.of(context).padding.bottom + 100,
+      ),
+      itemCount: services.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        return _ServiceCard(
+          service: services[index],
+          isDark: isDark,
+          card: card,
+          text: text,
+          muted: muted,
+          border: border,
+          onTap: () => _openServiceDetail(services[index]),
+        );
+      },
+    );
+  }
+}
+
+class _ModeButton extends StatelessWidget {
+  const _ModeButton({
+    required this.label,
+    required this.isSelected,
+    required this.isDark,
+    required this.color,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final bool isDark;
+  final Color color;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor =
+        isSelected
+            ? Colors.white
+            : (isDark ? Colors.white70 : AppDesign.eerieBlack);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          decoration: BoxDecoration(
+            color: isSelected ? color : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: textColor),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.title,
+    required this.message,
+    required this.icon,
+    required this.onRetry,
+  });
+
+  final String title;
+  final String message;
+  final IconData icon;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final text = isDark ? Colors.white : AppDesign.eerieBlack;
+    final muted = isDark ? Colors.white54 : AppDesign.midGrey;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 54, color: muted),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              style: TextStyle(
+                color: text,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: muted, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Try again'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _ProviderCard extends StatelessWidget {
-  const _ProviderCard({required this.provider, required this.isDark});
-  final _ProviderData provider;
+  const _ProviderCard({
+    required this.provider,
+    required this.isDark,
+    required this.card,
+    required this.text,
+    required this.muted,
+    required this.border,
+    required this.onTap,
+  });
+
+  final _ProviderResult provider;
   final bool isDark;
-
-  Color _scoreBadgeColor(double score) {
-    if (score >= 80) return const Color(0xFF00C566);
-    if (score >= 60) return const Color(0xFF1A1A1A);
-    if (score >= 40) return const Color(0xFFFFA726);
-    return const Color(0xFF9B9BA5);
-  }
-
-  void _showProviderDetail(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder:
-          (ctx) => DraggableScrollableSheet(
-            initialChildSize: 0.8,
-            minChildSize: 0.5,
-            maxChildSize: 0.95,
-            builder:
-                (ctx, scrollController) => Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? AppDesign.cardDark : Colors.white,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(24),
-                    ),
-                  ),
-                  child: ListView(
-                    controller: scrollController,
-                    padding: EdgeInsets.zero,
-                    children: [
-                      Center(
-                        child: Container(
-                          margin: const EdgeInsets.only(top: 12, bottom: 8),
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(2),
-                            color:
-                                isDark ? Colors.white24 : AppDesign.lightGrey,
-                          ),
-                        ),
-                      ),
-                      ClipRRect(
-                        child: _LoadingBlurImage(
-                          key: ValueKey(provider.image),
-                          image: provider.image,
-                          width: double.infinity,
-                          height: 260,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    provider.name,
-                                    style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w700,
-                                      color:
-                                          isDark
-                                              ? Colors.white
-                                              : AppDesign.eerieBlack,
-                                    ),
-                                  ),
-                                ),
-                                if (provider.verified)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
-                                      color: AppDesign.success.withValues(
-                                        alpha: 0.1,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          LucideIcons.badge_check,
-                                          size: 14,
-                                          color: AppDesign.success,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Verified',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppDesign.success,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              provider.specialty,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppDesign.midGrey,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                const Icon(
-                                  LucideIcons.star,
-                                  size: 18,
-                                  color: Color(0xFFFFC107),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${provider.rating}',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color:
-                                        isDark
-                                            ? Colors.white
-                                            : AppDesign.eerieBlack,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '(${provider.reviews} reviews)',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: AppDesign.midGrey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      Navigator.pop(ctx);
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Booking request sent to ${provider.name}',
-                                          ),
-                                          behavior: SnackBarBehavior.floating,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'Book This Guide',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: () async {
-                                      Navigator.pop(ctx);
-                                      await Navigator.of(context).push<bool>(
-                                        MaterialPageRoute(
-                                          builder:
-                                              (_) => WriteReviewScreen(
-                                                providerName: provider.name,
-                                              ),
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(LucideIcons.pen_line),
-                                    label: const Text('Write Review'),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-          ),
-    );
-  }
+  final Color card;
+  final Color text;
+  final Color muted;
+  final Color border;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showProviderDetail(context),
+    final scoreColor =
+        provider.score >= 0.8
+            ? AppDesign.success
+            : provider.score >= 0.6
+            ? AppDesign.warning
+            : AppDesign.danger;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(22),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: isDark ? AppDesign.cardDark : Colors.white,
+          color: card,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: border),
           boxShadow:
               isDark
                   ? []
                   : [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
                     ),
                   ],
         ),
-        child: Row(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Provider photo
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                bottomLeft: Radius.circular(20),
-              ),
-              child: _LoadingBlurImage(
-                key: ValueKey(provider.image),
-                image: provider.image,
-                width: 110,
-                height: 130,
-                fit: BoxFit.cover,
-              ),
-            ),
-            // Info
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            provider.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                              color:
-                                  isDark ? Colors.white : AppDesign.eerieBlack,
-                            ),
-                          ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _Avatar(label: provider.name),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        provider.name,
+                        style: TextStyle(
+                          color: text,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
                         ),
-                        if (provider.verified)
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppDesign.success.withValues(alpha: 0.15),
-                            ),
-                            child: Icon(
-                              LucideIcons.badge_check,
-                              size: 14,
-                              color: AppDesign.success,
-                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _Chip(
+                            label: 'Service Provider',
+                            color: AppDesign.navConcierge,
                           ),
-                        if (provider.verificationScore > 0) ...[
-                          const SizedBox(width: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: _scoreBadgeColor(provider.verificationScore).withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(6),
+                          if (provider.serviceType.isNotEmpty)
+                            _Chip(
+                              label: provider.serviceType.replaceAll('_', ' '),
+                              color: scoreColor,
                             ),
-                            child: Text(
-                              '${provider.verificationScore.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: _scoreBadgeColor(provider.verificationScore),
-                              ),
-                            ),
-                          ),
                         ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      provider.specialty,
-                      style: TextStyle(fontSize: 12, color: AppDesign.midGrey),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        const Icon(
-                          LucideIcons.star,
-                          size: 14,
-                          color: Color(0xFFFFC107),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${provider.rating}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: isDark ? Colors.white : AppDesign.eerieBlack,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '(${provider.reviews})',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppDesign.midGrey,
-                          ),
-                        ),
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: () => _showProviderDetail(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              color: AppDesign.electricCobalt.withValues(
-                                alpha: 0.12,
-                              ),
-                            ),
-                            child: Text(
-                              'View',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppDesign.electricCobalt,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: scoreColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    '${(provider.score * 100).round()}%',
+                    style: TextStyle(
+                      color: scoreColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
+            if (provider.email.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                provider.email,
+                style: TextStyle(color: muted, fontSize: 12),
+              ),
+            ],
+            if (provider.bio.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                provider.bio,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: muted, height: 1.35),
+              ),
+            ],
+            if (provider.matchReasons.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children:
+                    provider.matchReasons.take(3).map((reason) {
+                      return _Chip(label: reason, color: AppDesign.navSafety);
+                    }).toList(),
+              ),
+            ],
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ServiceCard extends StatelessWidget {
+  const _ServiceCard({
+    required this.service,
+    required this.isDark,
+    required this.card,
+    required this.text,
+    required this.muted,
+    required this.border,
+    required this.onTap,
+  });
+
+  final Service service;
+  final bool isDark;
+  final Color card;
+  final Color text;
+  final Color muted;
+  final Color border;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(22),
+      child: Container(
+        decoration: BoxDecoration(
+          color: card,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: border),
+          boxShadow:
+              isDark
+                  ? []
+                  : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppDesign.navExplore.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    LucideIcons.briefcase,
+                    color: AppDesign.navExplore,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        service.serviceName,
+                        style: TextStyle(
+                          color: text,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        service.providerName ?? 'Unknown provider',
+                        style: TextStyle(color: muted, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                if (service.rating > 0)
+                  _Chip(
+                    label: service.rating.toStringAsFixed(1),
+                    color: AppDesign.success,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              service.serviceType.replaceAll('_', ' ').toUpperCase(),
+              style: TextStyle(
+                color: muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+            if (service.description != null &&
+                service.description!.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                service.description!,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: muted, height: 1.35),
+              ),
+            ],
+            if (service.tags.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children:
+                    service.tags.take(4).map((tag) {
+                      return _Chip(label: tag, color: AppDesign.navExplore);
+                    }).toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = label.trim().isEmpty ? '?' : label.trim()[0].toUpperCase();
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [AppDesign.navConcierge, AppDesign.navExplore],
+        ),
+      ),
+      child: Center(
+        child: Text(
+          initial,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProviderResult {
+  const _ProviderResult({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.bio,
+    required this.score,
+    required this.accountType,
+    required this.commonInterests,
+    required this.matchReasons,
+    required this.serviceType,
+  });
+
+  final String id;
+  final String name;
+  final String email;
+  final String bio;
+  final double score;
+  final String accountType;
+  final List<String> commonInterests;
+  final List<String> matchReasons;
+  final String serviceType;
+
+  factory _ProviderResult.fromJson(Map<String, dynamic> json) {
+    return _ProviderResult(
+      id: json['user_id']?.toString() ?? '',
+      name: json['full_name']?.toString() ?? 'Unknown Provider',
+      email: json['email']?.toString() ?? '',
+      bio: json['bio']?.toString() ?? '',
+      score: ((json['match_score'] ?? 0) as num).toDouble(),
+      accountType: json['account_type']?.toString() ?? 'service_provider',
+      commonInterests:
+          (json['common_interests'] as List?)?.cast<String>() ?? const [],
+      matchReasons:
+          (json['match_reasons'] as List?)?.cast<String>() ?? const [],
+      serviceType: json['service_type']?.toString() ?? '',
     );
   }
 }
@@ -3366,24 +3658,5 @@ class _SpaceData {
     required this.members,
     required this.image,
     required this.tag,
-  });
-}
-
-class _ProviderData {
-  final String name, specialty, image;
-  final double rating;
-  final int reviews;
-  final bool verified;
-  final double verificationScore;
-  final String verificationLevel;
-  _ProviderData({
-    required this.name,
-    required this.specialty,
-    required this.rating,
-    required this.reviews,
-    required this.image,
-    required this.verified,
-    this.verificationScore = 0,
-    this.verificationLevel = 'basic',
   });
 }

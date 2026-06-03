@@ -4,6 +4,7 @@ import 'package:mobile_app/screens/onboarding/onboarding_flow.dart';
 import 'package:mobile_app/screens/traveler/main_navigation_shell.dart';
 import 'package:mobile_app/screens/provider/provider_navigation_shell.dart';
 import 'package:mobile_app/screens/admin/admin_dashboard_screen.dart';
+import 'package:mobile_app/screens/provider_verification_screen.dart';
 import 'package:mobile_app/screens/shared/user_profile_view_screen.dart';
 import 'package:mobile_app/theme/app_theme.dart';
 import 'package:mobile_app/theme/theme_manager.dart';

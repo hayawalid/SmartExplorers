@@ -5,13 +5,11 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
 import 'package:mobile_app/theme/app_theme.dart';
 import 'package:mobile_app/theme/theme_manager.dart';
-import 'package:mobile_app/widgets/smart_explorers_logo.dart';
 import 'package:mobile_app/screens/traveler/itinerary_planner_screen.dart';
 import 'package:mobile_app/screens/shared/feed_screen.dart';
 import 'package:mobile_app/screens/traveler/profile_screen.dart';
 import 'package:mobile_app/screens/traveler/smart_match_screen.dart';
 import 'package:mobile_app/screens/shared/safety_hub_screen.dart';
-import 'package:mobile_app/screens/traveler/service_discovery_screen.dart';
 
 /// Main navigation shell – 5-tab floating bottom bar
 /// Each tab has a unique accent color
@@ -37,10 +35,10 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell>
       activeColor: AppDesign.navExplore,
     ),
     _NavTab(
-      icon: LucideIcons.briefcase,
-      activeIcon: LucideIcons.briefcase,
-      label: 'Services',
-      semanticLabel: 'Service Discovery',
+      icon: LucideIcons.star,
+      activeIcon: LucideIcons.star,
+      label: 'Match',
+      semanticLabel: 'Open Smart Match',
       activeColor: AppDesign.navConcierge,
     ),
     _NavTab(
@@ -103,7 +101,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell>
                   currentThemeMode: themeManager.currentMode,
                   onThemeModeSelected: themeManager.setThemeMode,
                 ),
-                ServiceDiscoveryScreen(),
+                const SmartMatchScreen(),
                 ItineraryPlannerScreen(),
                 SafetyHubScreen(),
                 ProfileScreen(),

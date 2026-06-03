@@ -24,8 +24,20 @@ class SmartMatchScreen extends StatefulWidget {
 
 class _SmartMatchScreenState extends State<SmartMatchScreen>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
-  late final AnimationController _pulseController;
-  late final AnimationController _orbitController;
+  AnimationController? _pulseController;
+  AnimationController? _orbitController;
+
+  AnimationController get pulseController =>
+      _pulseController ??= AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 1200),
+      )..repeat(reverse: true);
+
+  AnimationController get orbitController =>
+      _orbitController ??= AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 3000),
+      )..repeat();
 
   // Matching state
   final MatchingApiService _matchingService = MatchingApiService();
@@ -57,21 +69,14 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-
-    _orbitController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 3000),
-    )..repeat();
+    pulseController;
+    orbitController;
   }
 
   @override
   void dispose() {
-    _pulseController.dispose();
-    _orbitController.dispose();
+    _pulseController?.dispose();
+    _orbitController?.dispose();
     _matchingService.dispose();
     _profileService.dispose();
     super.dispose();
@@ -117,9 +122,8 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: isDark
-                              ? AppDesign.darkGrey
-                              : AppDesign.lightGrey,
+                          color:
+                              isDark ? AppDesign.darkGrey : AppDesign.lightGrey,
                         ),
                         child: Icon(
                           LucideIcons.arrowLeft,
@@ -136,10 +140,9 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                   const SizedBox(width: 8),
                   Text(
                     _showResults ? 'Match Results' : 'Concierge',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineMedium
-                        ?.copyWith(color: text),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.headlineMedium?.copyWith(color: text),
                   ),
                   if (_showResults) ...[
                     const Spacer(),
@@ -180,11 +183,12 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                       showDialog(
                         context: context,
                         barrierDismissible: false,
-                        builder: (_) => const Center(
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                          ),
-                        ),
+                        builder:
+                            (_) => const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            ),
                       );
                       try {
                         final itinerary =
@@ -194,8 +198,10 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                ItineraryCalendarScreen(itinerary: itinerary),
+                            builder:
+                                (context) => ItineraryCalendarScreen(
+                                  itinerary: itinerary,
+                                ),
                           ),
                         );
                       } catch (e) {
@@ -224,9 +230,7 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
               const SizedBox(height: 32),
               // Matching Circles Section
               Expanded(child: _buildMatchingSection(isDark, text)),
-              SizedBox(
-                height: MediaQuery.of(context).padding.bottom + 96,
-              ),
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 96),
             ] else ...[
               // ── Match Results List ──
               Expanded(child: _buildMatchResults(isDark, text)),
@@ -252,7 +256,7 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                 final centerY = constraints.maxHeight / 2;
 
                 return AnimatedBuilder(
-                  animation: _orbitController,
+                  animation: orbitController,
                   builder: (context, child) {
                     return Stack(
                       children: [
@@ -296,9 +300,9 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                 ),
                 const SizedBox(height: 28),
                 PulseAnimatedBuilder(
-                  animation: _pulseController,
+                  animation: pulseController,
                   builder: (context, child) {
-                    final scale = 1.0 + _pulseController.value * 0.02;
+                    final scale = 1.0 + pulseController.value * 0.02;
                     return Transform.scale(scale: scale, child: child);
                   },
                   child: SizedBox(
@@ -316,37 +320,38 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                           borderRadius: BorderRadius.circular(27),
                         ),
                       ),
-                      child: _isMatching
-                          ? const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
+                      child:
+                          _isMatching
+                              ? const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.5,
+                                    ),
                                   ),
-                                ),
-                                SizedBox(width: 12),
-                                Text(
-                                  'Finding Matches...',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -0.3,
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'Finding Matches...',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: -0.3,
+                                    ),
                                   ),
+                                ],
+                              )
+                              : const Text(
+                                'Start Matching',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -0.3,
                                 ),
-                              ],
-                            )
-                          : const Text(
-                              'Start Matching',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: -0.3,
                               ),
-                            ),
                     ),
                   ),
                 ),
@@ -535,13 +540,12 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
             curve: Curves.easeOutCubic,
             builder: (context, value, child) {
               final floatY =
-                  math.sin(_orbitController.value * 2 * math.pi + index * 0.4) *
+                  math.sin(orbitController.value * 2 * math.pi + index * 0.4) *
                   2.5;
               final scale =
                   1.0 +
-                  math.sin(_orbitController.value * 2 * math.pi + index * 0.6) *
-                      0.03;
-
+                  math.sin(orbitController.value * 2 * math.pi + index * 0.6) *
+                      0.06;
               return Transform.translate(
                 offset: Offset(0, floatY),
                 child: Transform.scale(
@@ -598,7 +602,7 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
           curve: Curves.easeOutCubic,
           builder: (context, value, child) {
             final floatY =
-                math.sin(_orbitController.value * 2 * math.pi + 1.5) * 3;
+                math.sin(orbitController.value * 2 * math.pi + 1.5) * 3;
             return Transform.translate(
               offset: Offset(0, floatY),
               child: Opacity(opacity: value * 0.8, child: child),
@@ -632,7 +636,7 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
           curve: Curves.easeOutCubic,
           builder: (context, value, child) {
             final floatY =
-                math.sin(_orbitController.value * 2 * math.pi + 2.8) * 3;
+                math.sin(orbitController.value * 2 * math.pi + 2.8) * 3;
             return Transform.translate(
               offset: Offset(0, floatY),
               child: Opacity(opacity: value * 0.8, child: child),
@@ -708,16 +712,25 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.search_off_rounded,
-                size: 64, color: text.withOpacity(0.3)),
+            Icon(
+              Icons.search_off_rounded,
+              size: 64,
+              color: text.withOpacity(0.3),
+            ),
             const SizedBox(height: 16),
-            Text('No matches found',
-                style:
-                    TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: text)),
+            Text(
+              'No matches found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: text,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text('Try adjusting your preferences',
-                style:
-                    TextStyle(fontSize: 14, color: text.withOpacity(0.5))),
+            Text(
+              'Try adjusting your preferences',
+              style: TextStyle(fontSize: 14, color: text.withOpacity(0.5)),
+            ),
             const SizedBox(height: 24),
             TextButton.icon(
               onPressed: () => setState(() => _showResults = false),
@@ -739,8 +752,7 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
     );
   }
 
-  Widget _buildMatchCard(
-      Map<String, dynamic> match, bool isDark, Color text) {
+  Widget _buildMatchCard(Map<String, dynamic> match, bool isDark, Color text) {
     final userId = match['user_id']?.toString() ?? '';
     final name = match['full_name']?.toString() ?? 'Unknown';
     final accountType = match['account_type']?.toString() ?? 'traveler';
@@ -780,13 +792,15 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
         decoration: BoxDecoration(
           color: isDark ? AppDesign.cardDark : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: isAccepted
-              ? Border.all(color: AppDesign.success, width: 2)
-              : Border.all(
-                  color: isDark
-                      ? Colors.white.withOpacity(0.06)
-                      : Colors.black.withOpacity(0.06),
-                ),
+          border:
+              isAccepted
+                  ? Border.all(color: AppDesign.success, width: 2)
+                  : Border.all(
+                    color:
+                        isDark
+                            ? Colors.white.withOpacity(0.06)
+                            : Colors.black.withOpacity(0.06),
+                  ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(isDark ? 0.3 : 0.06),
@@ -815,13 +829,31 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                       ),
                     ),
                     child: ClipOval(
-                      child: profilePic != null && profilePic.isNotEmpty
-                          ? Image.network(
-                              profilePic.startsWith('http')
-                                  ? profilePic
-                                  : '${ApiConfig.baseUrl}/$profilePic',
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
+                      child:
+                          profilePic != null && profilePic.isNotEmpty
+                              ? Image.network(
+                                profilePic.startsWith('http')
+                                    ? profilePic
+                                    : '${ApiConfig.baseUrl}/$profilePic',
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (_, __, ___) => Container(
+                                      color: scoreColor.withOpacity(0.15),
+                                      child: Center(
+                                        child: Text(
+                                          name.isNotEmpty
+                                              ? name[0].toUpperCase()
+                                              : '?',
+                                          style: TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold,
+                                            color: scoreColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                              )
+                              : Container(
                                 color: scoreColor.withOpacity(0.15),
                                 child: Center(
                                   child: Text(
@@ -836,22 +868,6 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                                   ),
                                 ),
                               ),
-                            )
-                          : Container(
-                              color: scoreColor.withOpacity(0.15),
-                              child: Center(
-                                child: Text(
-                                  name.isNotEmpty
-                                      ? name[0].toUpperCase()
-                                      : '?',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: scoreColor,
-                                  ),
-                                ),
-                              ),
-                            ),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -874,12 +890,18 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
-                                color: accountType == 'service_provider'
-                                    ? AppDesign.navConcierge.withOpacity(0.15)
-                                    : AppDesign.electricCobalt
-                                        .withOpacity(0.15),
+                                color:
+                                    accountType == 'service_provider'
+                                        ? AppDesign.navConcierge.withOpacity(
+                                          0.15,
+                                        )
+                                        : AppDesign.electricCobalt.withOpacity(
+                                          0.15,
+                                        ),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -889,9 +911,10 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: accountType == 'service_provider'
-                                      ? AppDesign.navConcierge
-                                      : AppDesign.electricCobalt,
+                                  color:
+                                      accountType == 'service_provider'
+                                          ? AppDesign.navConcierge
+                                          : AppDesign.electricCobalt,
                                 ),
                               ),
                             ),
@@ -928,7 +951,9 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                         ],
                       ),
                       border: Border.all(
-                          color: scoreColor.withOpacity(0.3), width: 2),
+                        color: scoreColor.withOpacity(0.3),
+                        width: 2,
+                      ),
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1018,26 +1043,30 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                     Wrap(
                       spacing: 6,
                       runSpacing: 6,
-                      children: commonInterests.take(5).map((interest) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: AppDesign.navConcierge.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            interest,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: isDark
-                                  ? AppDesign.offWhite
-                                  : AppDesign.eerieBlack,
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                      children:
+                          commonInterests.take(5).map((interest) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppDesign.navConcierge.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                interest,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color:
+                                      isDark
+                                          ? AppDesign.offWhite
+                                          : AppDesign.eerieBlack,
+                                ),
+                              ),
+                            );
+                          }).toList(),
                     ),
                   ],
                 ),
@@ -1049,8 +1078,11 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                 child: Row(
                   children: [
-                    Icon(Icons.translate_rounded,
-                        size: 14, color: text.withOpacity(0.4)),
+                    Icon(
+                      Icons.translate_rounded,
+                      size: 14,
+                      color: text.withOpacity(0.4),
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -1072,27 +1104,31 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: matchReasons.take(2).map((reason) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        children: [
-                          Icon(Icons.check_circle_rounded,
-                              size: 14, color: AppDesign.success),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              reason,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: text.withOpacity(0.55),
+                  children:
+                      matchReasons.take(2).map((reason) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle_rounded,
+                                size: 14,
+                                color: AppDesign.success,
                               ),
-                            ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  reason,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: text.withOpacity(0.55),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                        );
+                      }).toList(),
                 ),
               ),
 
@@ -1102,9 +1138,10 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
               decoration: BoxDecoration(
                 border: Border(
                   top: BorderSide(
-                    color: isDark
-                        ? Colors.white.withOpacity(0.06)
-                        : Colors.black.withOpacity(0.06),
+                    color:
+                        isDark
+                            ? Colors.white.withOpacity(0.06)
+                            : Colors.black.withOpacity(0.06),
                   ),
                 ),
               ),
@@ -1167,11 +1204,12 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => UserProfileViewScreen(
-                              userId: userId,
-                              displayName: name,
-                              accountType: accountType,
-                            ),
+                            builder:
+                                (_) => UserProfileViewScreen(
+                                  userId: userId,
+                                  displayName: name,
+                                  accountType: accountType,
+                                ),
                           ),
                         );
                       },
@@ -1241,24 +1279,24 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isActive
-                ? color.withOpacity(0.15)
-                : (isDark
-                    ? Colors.white.withOpacity(0.04)
-                    : Colors.black.withOpacity(0.03)),
+            color:
+                isActive
+                    ? color.withOpacity(0.15)
+                    : (isDark
+                        ? Colors.white.withOpacity(0.04)
+                        : Colors.black.withOpacity(0.03)),
             borderRadius: BorderRadius.circular(12),
-            border: isActive
-                ? Border.all(color: color.withOpacity(0.3))
-                : null,
+            border: isActive ? Border.all(color: color.withOpacity(0.3)) : null,
           ),
           child: Column(
             children: [
               Icon(
                 icon,
                 size: 20,
-                color: isActive
-                    ? color
-                    : (isDark ? Colors.white60 : Colors.black45),
+                color:
+                    isActive
+                        ? color
+                        : (isDark ? Colors.white60 : Colors.black45),
               ),
               const SizedBox(height: 4),
               Text(
@@ -1266,9 +1304,10 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  color: isActive
-                      ? color
-                      : (isDark ? Colors.white60 : Colors.black45),
+                  color:
+                      isActive
+                          ? color
+                          : (isDark ? Colors.white60 : Colors.black45),
                 ),
               ),
             ],
