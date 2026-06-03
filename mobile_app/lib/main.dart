@@ -74,6 +74,7 @@ class _SmartExplorersAppState extends ConsumerState<SmartExplorersApp> {
         '/home': (context) => const MainNavigationShell(),
         '/provider_home': (context) => const ProviderNavigationShell(),
         '/admin': (context) => const AdminDashboardScreen(),
+        '/provider_verification': (context) => const ProviderVerificationScreen(),
       },
     );
   }

@@ -100,44 +100,10 @@ _model_trained = False
 
 
 async def fetch_all_users(db) -> List[Dict[str, Any]]:
-    """Fetch all active, non-banned users with their profiles embedded."""
-    users: List[Dict[str, Any]] = []
-
-    cursor = db[mongodb.USERS].find({"is_active": True, "is_banned": False})
-
-    async for user in cursor:
-        user_id = str(user["_id"])
-        account_type = user.get("account_type")
-
-        user_dict: Dict[str, Any] = {
-            "_id": user_id,
-            "email": user.get("email"),
-            "username": user.get("username"),
-            "full_name": user.get("full_name"),
-            "account_type": account_type,
-            "verified_flag": user.get("verified_flag", False),
-            "profile_picture_url": user.get("profile_picture_url"),
-            "bio": user.get("bio"),
-            "travel_dates": [],  # not implemented in schema yet
-        }
-
-        if account_type == "traveler":
-            profile = await db[mongodb.TRAVELER_PROFILES].find_one({"user_id": user_id})
-            if profile:
-                profile_dict = dict(profile)
-                profile_dict.pop("_id", None)
-                profile_dict.pop("user_id", None)
-                user_dict["profile"] = profile_dict
-        else:
-            profile = await db[mongodb.SERVICE_PROVIDER_PROFILES].find_one({"user_id": user_id})
-            if profile:
-                profile_dict = dict(profile)
-                profile_dict.pop("_id", None)
-                profile_dict.pop("user_id", None)
-                user_dict["provider_profile"] = profile_dict
-
-        users.append(user_dict)
-
+    """Delegate to the engine's synchronous DB fetch so all callers see the same users."""
+    loop = asyncio.get_event_loop()
+    # Use the engine's fetch_all_users implementation (runs synchronously)
+    users = await loop.run_in_executor(_executor, matching_engine.fetch_all_users)
     return users
 
 

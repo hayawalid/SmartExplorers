@@ -399,16 +399,17 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     debugPrint('[FaceVerif] Selfie file: ${_selfieFile!.path}');
 
     setState(() {
-      _isVerifying = true;
       _verificationError = null;
       _verificationPassed = false;
     });
 
     try {
       debugPrint('[FaceVerif] Calling backend...');
-      final result = await FaceVerificationService.instance.verifyFaces(
+      final result = await FaceVerificationService.instance.verifyFacesWithName(
         idImageFile: _idImageFile!,
         selfieFile: _selfieFile!,
+        providerId: SessionStore.instance.userId ?? '',
+        expectedName: _nameController.text.trim(),
       );
 
       debugPrint('[FaceVerif] Response: $result');
@@ -419,7 +420,6 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
       debugPrint('[FaceVerif] Passes: $passes');
 
       setState(() {
-        _isVerifying = false;
         _verificationPassed = passes;
         _verificationError = passes
             ? null
@@ -430,7 +430,6 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     } catch (e) {
       debugPrint('[FaceVerif] ERROR: $e');
       setState(() {
-        _isVerifying = false;
         _verificationPassed = false;
         _verificationError = 'Verification error: ${e.toString()}';
       });
