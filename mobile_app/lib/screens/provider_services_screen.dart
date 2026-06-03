@@ -1,4 +1,8 @@
+// ============================================================================
+// provider_services_screen.dart
+// ============================================================================
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../services/services_api_service.dart';
 import '../services/session_store.dart';
@@ -6,8 +10,6 @@ import '../models/service_models.dart';
 import '../theme/app_theme.dart';
 import 'create_service_screen.dart';
 
-/// Provider Service Management Screen
-/// Allows providers to create, edit, and manage their services
 class ProviderServicesScreen extends StatefulWidget {
   const ProviderServicesScreen({super.key});
 
@@ -18,7 +20,6 @@ class ProviderServicesScreen extends StatefulWidget {
 class _ProviderServicesScreenState extends State<ProviderServicesScreen>
     with AutomaticKeepAliveClientMixin {
   final ServicesApiService _servicesService = ServicesApiService();
-
   List<Service> _services = [];
   bool _isLoading = false;
   String? _error;
@@ -37,15 +38,9 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen>
       _isLoading = true;
       _error = null;
     });
-
     try {
       final providerId = SessionStore.instance.userId ?? 'provider_001';
-
-      final services = await _servicesService.getProviderServices(
-        providerId: providerId,
-        activeOnly: true,
-      );
-
+      final services = await _servicesService.getProviderServices(providerId: providerId, activeOnly: true);
       setState(() {
         _services = services.map((json) => Service.fromJson(json)).toList();
         _isLoading = false;
@@ -63,297 +58,193 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen>
       context,
       MaterialPageRoute(builder: (context) => const CreateServiceScreen()),
     );
-
-    if (result == true) {
-      _loadServices();
-    }
+    if (result == true) _loadServices();
   }
 
   void _deleteService(Service service) {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete Service?'),
-          content: Text(
-            'Are you sure you want to delete "${service.serviceName}"?',
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Service?'),
+        content: Text('Are you sure you want to delete "${service.serviceName}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _performDeleteService(service);
+            },
+            style: TextButton.styleFrom(foregroundColor: AppDesign.danger),
+            child: const Text('Delete'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _performDeleteService(service);
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: AppDesign.errorColor,
-              ),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
   }
 
   Future<void> _performDeleteService(Service service) async {
     try {
       final providerId = SessionStore.instance.userId ?? 'provider_001';
-      await _servicesService.deleteService(
-        serviceId: service.id!,
-        providerId: providerId,
-      );
-
+      await _servicesService.deleteService(serviceId: service.id!, providerId: providerId);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Service deleted successfully')),
+        const SnackBar(content: Text('Service deleted successfully'), behavior: SnackBarBehavior.floating),
       );
-
       _loadServices();
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: AppDesign.danger),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? AppDesign.eerieBlack : AppDesign.offWhite;
+    final textColor = isDark ? Colors.white : AppDesign.eerieBlack;
+    final cardColor = isDark ? AppDesign.cardDark : Colors.white;
 
     return Scaffold(
-      backgroundColor: AppDesign.surfaceColor,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppDesign.surfaceColor,
+        backgroundColor: backgroundColor,
         elevation: 0,
-        title: const Text(
-          'My Services',
-          style: TextStyle(
-            color: AppDesign.textColor,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: const Text('My Services'),
         centerTitle: true,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToCreateService,
-        backgroundColor: AppDesign.accentColor,
-        child: const Icon(LucideIcons.plus, color: AppDesign.textColorLight),
+        backgroundColor: AppDesign.electricCobalt,
+        child: const Icon(LucideIcons.plus, color: Colors.white),
       ),
-      body:
-          _isLoading
-              ? const Center(
-                child: CircularProgressIndicator(color: AppDesign.accentColor),
-              )
-              : _error != null
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
               ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      LucideIcons.alertCircle,
-                      size: 64,
-                      color: AppDesign.errorColor,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: AppDesign.textColor,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: _loadServices,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppDesign.accentColor,
-                        foregroundColor: AppDesign.textColorLight,
-                      ),
-                      child: const Text('Try Again'),
-                    ),
-                  ],
-                ),
-              )
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(LucideIcons.alertCircle, size: 64, color: AppDesign.danger),
+                      const SizedBox(height: 16),
+                      Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 16)),
+                      const SizedBox(height: 24),
+                      ElevatedButton(onPressed: _loadServices, child: const Text('Try Again')),
+                    ],
+                  ),
+                )
               : _services.isEmpty
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      LucideIcons.briefcase,
-                      size: 64,
-                      color: AppDesign.textColorMuted,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'No services yet',
-                      style: TextStyle(
-                        color: AppDesign.textColor,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(LucideIcons.briefcase, size: 64, color: AppDesign.midGrey),
+                          const SizedBox(height: 16),
+                          Text('No services yet',
+                              style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.w500)),
+                          const SizedBox(height: 8),
+                          Text('Create your first service to start accepting bookings',
+                              style: TextStyle(color: AppDesign.midGrey, fontSize: 14)),
+                          const SizedBox(height: 24),
+                          ElevatedButton(onPressed: _navigateToCreateService, child: const Text('Create Service')),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Create your first service to start accepting bookings',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppDesign.textColorMuted,
-                        fontSize: 14,
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 16,
+                        bottom: MediaQuery.of(context).padding.bottom + 100, // Extra padding for FAB + nav
                       ),
+                      itemCount: _services.length,
+                      itemBuilder: (context, index) => _buildServiceCard(_services[index], isDark, cardColor, textColor),
                     ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: _navigateToCreateService,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppDesign.accentColor,
-                        foregroundColor: AppDesign.textColorLight,
-                      ),
-                      child: const Text('Create Service'),
-                    ),
-                  ],
-                ),
-              )
-              : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _services.length,
-                itemBuilder: (context, index) {
-                  final service = _services[index];
-                  return _buildServiceCard(service);
-                },
-              ),
     );
   }
 
-  Widget _buildServiceCard(Service service) {
+  Widget _buildServiceCard(Service service, bool isDark, Color cardColor, Color textColor) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppDesign.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppDesign.borderColor, width: 1),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : AppDesign.lightGrey),
+        boxShadow: isDark ? [] : AppDesign.softShadow,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        service.serviceName,
-                        style: const TextStyle(
-                          color: AppDesign.textColor,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      Text(service.serviceName,
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
-                      Text(
-                        service.serviceType.replaceAll('_', ' ').toUpperCase(),
-                        style: const TextStyle(
-                          color: AppDesign.textColorMuted,
-                          fontSize: 12,
-                        ),
-                      ),
+                      Text(service.serviceType.replaceAll('_', ' ').toUpperCase(),
+                          style: TextStyle(fontSize: 12, color: AppDesign.midGrey)),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color:
-                        service.isActive
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
+                    color: service.isActive ? AppDesign.success.withOpacity(0.1) : AppDesign.danger.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Text(
-                    service.isActive ? 'Active' : 'Inactive',
-                    style: TextStyle(
-                      color: service.isActive ? Colors.green : Colors.red,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  child: Text(service.isActive ? 'Active' : 'Inactive',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: service.isActive ? AppDesign.success : AppDesign.danger)),
                 ),
               ],
             ),
-
             const SizedBox(height: 12),
-
-            // Stats
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildStat('Rating', '${service.rating}/5'),
-                _buildStat('Reviews', '${service.reviewsCount}'),
-                _buildStat('Bookings', '${service.bookingsCount}'),
+                _buildStat('Rating', '${service.rating}/5', textColor),
+                _buildStat('Reviews', '${service.reviewsCount}', textColor),
+                _buildStat('Bookings', '${service.bookingsCount}', textColor),
               ],
             ),
-
             const SizedBox(height: 12),
-
-            // Price
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: AppDesign.accentColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
+                color: AppDesign.electricCobalt.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
-                service.priceRange,
-                style: const TextStyle(
-                  color: AppDesign.accentColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: Text(service.priceRange,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppDesign.electricCobalt)),
             ),
-
             const SizedBox(height: 12),
-
-            // Action buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton.icon(
                   onPressed: () {
-                    // TODO: Navigate to edit screen
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Edit feature coming soon')),
+                      const SnackBar(content: Text('Edit feature coming soon'), behavior: SnackBarBehavior.floating),
                     );
                   },
-                  icon: const Icon(LucideIcons.edit2),
+                  icon: const Icon(LucideIcons.edit2, size: 16),
                   label: const Text('Edit'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppDesign.accentColor,
-                  ),
                 ),
                 TextButton.icon(
                   onPressed: () => _deleteService(service),
-                  icon: const Icon(LucideIcons.trash2),
+                  icon: const Icon(LucideIcons.trash2, size: 16),
                   label: const Text('Delete'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppDesign.errorColor,
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: AppDesign.danger),
                 ),
               ],
             ),
@@ -363,22 +254,12 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen>
     );
   }
 
-  Widget _buildStat(String label, String value) {
+  Widget _buildStat(String label, String value, Color textColor) {
     return Column(
       children: [
-        Text(
-          label,
-          style: const TextStyle(color: AppDesign.textColorMuted, fontSize: 11),
-        ),
+        Text(label, style: const TextStyle(fontSize: 11, color: AppDesign.midGrey)),
         const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            color: AppDesign.textColor,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor)),
       ],
     );
   }

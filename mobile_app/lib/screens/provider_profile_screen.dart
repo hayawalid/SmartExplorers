@@ -1,6 +1,9 @@
+// ============================================================================
+// provider_profile_screen.dart
+// ============================================================================
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:ui';
 import '../theme/app_theme.dart';
 import '../widgets/smart_explorers_logo.dart';
@@ -8,8 +11,6 @@ import '../services/session_store.dart';
 import '../services/profile_api_service.dart';
 import '../services/api_config.dart';
 
-/// Provider Profile Screen with 3 tabs: Portfolio, Credentials, Reviews
-/// Designed for service providers to showcase their work and qualifications
 class ProviderProfileScreen extends StatefulWidget {
   const ProviderProfileScreen({super.key});
 
@@ -22,7 +23,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
   late TabController _tabController;
   final ProfileApiService _profileService = ProfileApiService();
 
-  // Provider data
   final ProviderProfile _fallbackProvider = ProviderProfile(
     name: 'Ahmed Hassan',
     serviceType: 'Tour Guide',
@@ -36,134 +36,30 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
     memberSince: 'January 2022',
   );
 
-  // Portfolio images
   final List<PortfolioItem> _fallbackPortfolio = [
-    PortfolioItem(
-      id: '1',
-      title: 'Pyramids Tour',
-      likes: 234,
-      category: 'Tours',
-    ),
-    PortfolioItem(
-      id: '2',
-      title: 'Luxor Temple',
-      likes: 189,
-      category: 'Historical',
-    ),
-    PortfolioItem(
-      id: '3',
-      title: 'Nile Sunset',
-      likes: 312,
-      category: 'Scenic',
-    ),
-    PortfolioItem(
-      id: '4',
-      title: 'Valley of Kings',
-      likes: 276,
-      category: 'Tours',
-    ),
-    PortfolioItem(
-      id: '5',
-      title: 'Abu Simbel',
-      likes: 445,
-      category: 'Historical',
-    ),
-    PortfolioItem(
-      id: '6',
-      title: 'Cairo Market',
-      likes: 156,
-      category: 'Culture',
-    ),
-    PortfolioItem(
-      id: '7',
-      title: 'Desert Safari',
-      likes: 298,
-      category: 'Adventure',
-    ),
-    PortfolioItem(
-      id: '8',
-      title: 'Sphinx at Dawn',
-      likes: 523,
-      category: 'Tours',
-    ),
-    PortfolioItem(
-      id: '9',
-      title: 'Traditional Dinner',
-      likes: 187,
-      category: 'Culture',
-    ),
+    PortfolioItem(id: '1', title: 'Pyramids Tour', likes: 234, category: 'Tours'),
+    PortfolioItem(id: '2', title: 'Luxor Temple', likes: 189, category: 'Historical'),
+    PortfolioItem(id: '3', title: 'Nile Sunset', likes: 312, category: 'Scenic'),
+    PortfolioItem(id: '4', title: 'Valley of Kings', likes: 276, category: 'Tours'),
+    PortfolioItem(id: '5', title: 'Abu Simbel', likes: 445, category: 'Historical'),
+    PortfolioItem(id: '6', title: 'Cairo Market', likes: 156, category: 'Culture'),
+    PortfolioItem(id: '7', title: 'Desert Safari', likes: 298, category: 'Adventure'),
+    PortfolioItem(id: '8', title: 'Sphinx at Dawn', likes: 523, category: 'Tours'),
+    PortfolioItem(id: '9', title: 'Traditional Dinner', likes: 187, category: 'Culture'),
   ];
 
-  // Credentials
   final List<Credential> _fallbackCredentials = [
-    Credential(
-      title: 'Certified Egyptologist',
-      issuer: 'Ministry of Tourism - Egypt',
-      date: 'March 2018',
-      isVerified: true,
-      icon: '🎓',
-    ),
-    Credential(
-      title: 'First Aid Certified',
-      issuer: 'Red Crescent Society',
-      date: 'June 2023',
-      isVerified: true,
-      icon: '🏥',
-    ),
-    Credential(
-      title: 'Licensed Tour Guide',
-      issuer: 'Egyptian Tourism Authority',
-      date: 'January 2020',
-      isVerified: true,
-      icon: '📜',
-    ),
-    Credential(
-      title: 'Child Safety Training',
-      issuer: 'UNICEF Egypt',
-      date: 'September 2022',
-      isVerified: true,
-      icon: '🛡️',
-    ),
+    Credential(title: 'Certified Egyptologist', issuer: 'Ministry of Tourism - Egypt', date: 'March 2018', isVerified: true, icon: '🎓'),
+    Credential(title: 'First Aid Certified', issuer: 'Red Crescent Society', date: 'June 2023', isVerified: true, icon: '🏥'),
+    Credential(title: 'Licensed Tour Guide', issuer: 'Egyptian Tourism Authority', date: 'January 2020', isVerified: true, icon: '📜'),
+    Credential(title: 'Child Safety Training', issuer: 'UNICEF Egypt', date: 'September 2022', isVerified: true, icon: '🛡️'),
   ];
 
-  // Reviews
   final List<ProviderReview> _fallbackReviews = [
-    ProviderReview(
-      id: '1',
-      reviewerName: 'Sarah M.',
-      content:
-          'Ahmed made our trip absolutely magical! His knowledge of ancient Egypt is unparalleled.',
-      rating: 5.0,
-      date: DateTime(2026, 2, 10),
-      helpful: 42,
-    ),
-    ProviderReview(
-      id: '2',
-      reviewerName: 'James L.',
-      content:
-          'Professional, punctual, and incredibly passionate. Best guide we\'ve ever had!',
-      rating: 5.0,
-      date: DateTime(2026, 2, 5),
-      helpful: 38,
-    ),
-    ProviderReview(
-      id: '3',
-      reviewerName: 'Maria G.',
-      content:
-          'Great tour of the pyramids. Ahmed was very patient with our children.',
-      rating: 4.5,
-      date: DateTime(2026, 1, 28),
-      helpful: 25,
-    ),
-    ProviderReview(
-      id: '4',
-      reviewerName: 'David K.',
-      content:
-          'Excellent experience overall. Would highly recommend for any Egypt trip.',
-      rating: 5.0,
-      date: DateTime(2026, 1, 20),
-      helpful: 31,
-    ),
+    ProviderReview(id: '1', reviewerName: 'Sarah M.', content: 'Ahmed made our trip absolutely magical! His knowledge of ancient Egypt is unparalleled.', rating: 5.0, date: DateTime(2026, 2, 10), helpful: 42),
+    ProviderReview(id: '2', reviewerName: 'James L.', content: 'Professional, punctual, and incredibly passionate. Best guide we\'ve ever had!', rating: 5.0, date: DateTime(2026, 2, 5), helpful: 38),
+    ProviderReview(id: '3', reviewerName: 'Maria G.', content: 'Great tour of the pyramids. Ahmed was very patient with our children.', rating: 4.5, date: DateTime(2026, 1, 28), helpful: 25),
+    ProviderReview(id: '4', reviewerName: 'David K.', content: 'Excellent experience overall. Would highly recommend for any Egypt trip.', rating: 5.0, date: DateTime(2026, 1, 20), helpful: 31),
   ];
 
   late ProviderProfile _provider;
@@ -184,24 +80,20 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
 
   Future<void> _loadProviderData() async {
     try {
-      final username =
-          SessionStore.instance.username ?? ApiConfig.demoProviderUsername;
+      final username = SessionStore.instance.username ?? ApiConfig.demoProviderUsername;
       final user = await _profileService.getUserByUsername(username);
       final userId = user['_id'] as String;
       final providerProfile = await _profileService.getProviderProfile(userId);
       final portfolio = await _profileService.getProviderPortfolio(userId);
       final credentials = await _profileService.getProviderCredentials(userId);
       final reviews = await _profileService.getProviderReviews(userId);
-
       setState(() {
         _provider = ProviderProfile.fromJson(providerProfile ?? user);
         _portfolio = portfolio.map(PortfolioItem.fromJson).toList();
         _credentials = credentials.map(Credential.fromJson).toList();
         _reviews = reviews.map(ProviderReview.fromJson).toList();
       });
-    } catch (_) {
-      // Keep fallback data on error
-    }
+    } catch (_) {}
   }
 
   @override
@@ -212,11 +104,12 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
     super.build(context);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isDark ? AppDesign.eerieBlack : AppDesign.offWhite;
     final cardColor = isDark ? AppDesign.cardDark : Colors.white;
     final textColor = isDark ? Colors.white : AppDesign.eerieBlack;
@@ -225,77 +118,39 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
     return Scaffold(
       backgroundColor: backgroundColor,
       body: NestedScrollView(
-        headerSliverBuilder:
-            (context, innerBoxIsScrolled) => [
-              SliverAppBar(
-                expandedHeight: 0,
-                floating: true,
-                pinned: true,
-                backgroundColor: cardColor.withValues(alpha: 0.95),
-                elevation: 0,
-                title: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SmartExplorersLogo(
-                      size: LogoSize.tiny,
-                      showText: false,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'My Profile',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 17,
-                        color: textColor,
-                      ),
-                    ),
-                  ],
-                ),
-                actions: [
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    onPressed:
-                        () => _showSettingsSheet(
-                          context,
-                          isDark,
-                          textColor,
-                          subtitleColor,
-                          cardColor,
-                        ),
-                    child: Icon(
-                      CupertinoIcons.gear,
-                      color: textColor,
-                      size: 24,
-                    ),
-                  ),
-                ],
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverAppBar(
+            expandedHeight: 0,
+            floating: true,
+            pinned: true,
+            backgroundColor: cardColor.withOpacity(0.95),
+            elevation: 0,
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SmartExplorersLogo(size: LogoSize.tiny, showText: false),
+                const SizedBox(width: 8),
+                Text('My Profile', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17, color: textColor)),
+              ],
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(LucideIcons.settings, color: textColor),
+                onPressed: () => _showSettingsSheet(isDark, textColor, subtitleColor, cardColor),
               ),
             ],
+          ),
+        ],
         body: Column(
           children: [
-            // Profile Header
             _buildProfileHeader(isDark, cardColor, textColor, subtitleColor),
-
-            // Tab Bar
             _buildTabBar(isDark, cardColor, textColor, subtitleColor),
-
-            // Tab Content
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildPortfolioTab(
-                    isDark,
-                    cardColor,
-                    textColor,
-                    subtitleColor,
-                  ),
-                  _buildCredentialsTab(
-                    isDark,
-                    cardColor,
-                    textColor,
-                    subtitleColor,
-                  ),
+                  _buildPortfolioTab(isDark, cardColor, textColor, subtitleColor),
+                  _buildCredentialsTab(isDark, cardColor, textColor, subtitleColor),
                   _buildReviewsTab(isDark, cardColor, textColor, subtitleColor),
                 ],
               ),
@@ -306,15 +161,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
     );
   }
 
-  @override
-  bool get wantKeepAlive => true;
-
-  Widget _buildProfileHeader(
-    bool isDark,
-    Color cardColor,
-    Color textColor,
-    Color subtitleColor,
-  ) {
+  Widget _buildProfileHeader(bool isDark, Color cardColor, Color textColor, Color subtitleColor) {
     return Container(
       color: cardColor,
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
@@ -323,218 +170,82 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
         children: [
           Row(
             children: [
-              // Avatar with gradient border
               Container(
                 width: 90,
                 height: 90,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [
-                      AppDesign.navConcierge,
-                      AppDesign.onboardingAccent,
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppDesign.navConcierge.withValues(alpha: 0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+                  gradient: const LinearGradient(colors: [AppDesign.navConcierge, AppDesign.onboardingAccent]),
+                  boxShadow: [BoxShadow(color: AppDesign.navConcierge.withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 8))],
                 ),
                 child: Container(
                   margin: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: cardColor,
-                  ),
-                  child: Container(
-                    margin: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [
-                          AppDesign.navConcierge.withValues(alpha: 0.3),
-                          AppDesign.onboardingAccent.withValues(alpha: 0.3),
-                        ],
-                      ),
-                    ),
-                    child: const Icon(
-                      CupertinoIcons.person_fill,
-                      size: 40,
-                      color: Colors.white70,
-                    ),
-                  ),
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: cardColor),
+                  child: const Icon(LucideIcons.user, size: 40, color: AppDesign.navConcierge),
                 ),
               ),
               const SizedBox(width: 20),
-
-              // Stats
               Expanded(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatColumn(
-                      '${_provider.completedTours}',
-                      'Tours',
-                      textColor,
-                      subtitleColor,
-                    ),
-                    _buildStatColumn(
-                      '${_provider.reviewCount}',
-                      'Reviews',
-                      textColor,
-                      subtitleColor,
-                    ),
-                    _buildStatColumn(
-                      '${_provider.rating}',
-                      'Rating',
-                      textColor,
-                      subtitleColor,
-                    ),
+                    _buildStatColumn('${_provider.completedTours}', 'Tours', textColor, subtitleColor),
+                    _buildStatColumn('${_provider.reviewCount}', 'Reviews', textColor, subtitleColor),
+                    _buildStatColumn('${_provider.rating}', 'Rating', textColor, subtitleColor),
                   ],
                 ),
               ),
             ],
           ),
-
           const SizedBox(height: 16),
-
-          // Name and verified badge
           Row(
             children: [
-              Text(
-                _provider.name,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
+              Text(_provider.name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: textColor)),
               if (_provider.isVerified) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF38EF7D), Color(0xFF11998E)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: AppDesign.success.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: const [
-                      Icon(
-                        CupertinoIcons.checkmark_seal_fill,
-                        size: 14,
-                        color: Colors.white,
-                      ),
+                      Icon(LucideIcons.badgeCheck, size: 14, color: AppDesign.success),
                       SizedBox(width: 4),
-                      Text(
-                        'Verified',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
+                      Text('Verified', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppDesign.success)),
                     ],
                   ),
                 ),
               ],
             ],
           ),
-
           const SizedBox(height: 4),
-
-          // Service type badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppDesign.navConcierge.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              _provider.serviceType,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppDesign.navConcierge,
-              ),
-            ),
+            decoration: BoxDecoration(color: AppDesign.navConcierge.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+            child: Text(_provider.serviceType, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppDesign.navConcierge)),
           ),
-
           const SizedBox(height: 12),
-
-          // Bio
-          Text(
-            _provider.bio,
-            style: TextStyle(fontSize: 14, color: textColor, height: 1.4),
-          ),
-
+          Text(_provider.bio, style: TextStyle(fontSize: 14, color: textColor, height: 1.4)),
           const SizedBox(height: 12),
-
-          // Languages
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children:
-                _provider.languages.map((lang) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color:
-                          isDark
-                              ? Colors.white.withValues(alpha: 0.1)
-                              : Colors.black.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '🌐 $lang',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: subtitleColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  );
-                }).toList(),
+            children: _provider.languages.map((lang) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05), borderRadius: BorderRadius.circular(20)),
+              child: Text('🌐 $lang', style: TextStyle(fontSize: 13, color: subtitleColor, fontWeight: FontWeight.w500)),
+            )).toList(),
           ),
-
           const SizedBox(height: 16),
-
-          // Edit Profile Button
-          GestureDetector(
-            onTap: () => HapticFeedback.lightImpact(),
-            child: Container(
-              width: double.infinity,
+          OutlinedButton.icon(
+            onPressed: () => HapticFeedback.lightImpact(),
+            icon: const Icon(LucideIcons.edit2, size: 16),
+            label: const Text('Edit Profile'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: textColor,
+              side: BorderSide(color: isDark ? Colors.white24 : AppDesign.lightGrey),
               padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color:
-                      isDark
-                          ? Colors.white.withValues(alpha: 0.2)
-                          : Colors.black.withValues(alpha: 0.1),
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  'Edit Profile',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                  ),
-                ),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ],
@@ -542,34 +253,17 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
     );
   }
 
-  Widget _buildStatColumn(
-    String value,
-    String label,
-    Color textColor,
-    Color subtitleColor,
-  ) {
+  Widget _buildStatColumn(String value, String label, Color textColor, Color subtitleColor) {
     return Column(
       children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: textColor,
-          ),
-        ),
+        Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: textColor)),
         const SizedBox(height: 2),
         Text(label, style: TextStyle(fontSize: 13, color: subtitleColor)),
       ],
     );
   }
 
-  Widget _buildTabBar(
-    bool isDark,
-    Color cardColor,
-    Color textColor,
-    Color subtitleColor,
-  ) {
+  Widget _buildTabBar(bool isDark, Color cardColor, Color textColor, Color subtitleColor) {
     return Container(
       color: cardColor,
       child: TabBar(
@@ -578,90 +272,34 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
         indicatorWeight: 2,
         labelColor: textColor,
         unselectedLabelColor: subtitleColor,
-        tabs: [
-          Semantics(
-            label: 'Portfolio tab',
-            child: Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(CupertinoIcons.photo_fill_on_rectangle_fill, size: 20),
-                  SizedBox(width: 6),
-                  Text(
-                    'Portfolio',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Semantics(
-            label: 'Credentials tab',
-            child: Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(CupertinoIcons.doc_text_fill, size: 20),
-                  SizedBox(width: 6),
-                  Text(
-                    'Credentials',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Semantics(
-            label: 'Reviews tab',
-            child: Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(CupertinoIcons.star_fill, size: 20),
-                  SizedBox(width: 6),
-                  Text(
-                    'Reviews',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        tabs: const [
+          Tab(text: 'Portfolio'),
+          Tab(text: 'Credentials'),
+          Tab(text: 'Reviews'),
         ],
       ),
     );
   }
 
-  Widget _buildPortfolioTab(
-    bool isDark,
-    Color cardColor,
-    Color textColor,
-    Color subtitleColor,
-  ) {
+  Widget _buildPortfolioTab(bool isDark, Color cardColor, Color textColor, Color subtitleColor) {
     return Padding(
       padding: const EdgeInsets.all(2),
       child: GridView.builder(
         physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 20),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
           crossAxisSpacing: 2,
           mainAxisSpacing: 2,
         ),
-        itemCount: _portfolio.length + 1, // +1 for add button
+        itemCount: _portfolio.length + 1,
         itemBuilder: (context, index) {
           if (index == 0) {
-            // Add new photo button
             return GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                // TODO: Implement photo upload
-              },
+              onTap: () => HapticFeedback.lightImpact(),
               child: Container(
                 decoration: BoxDecoration(
-                  color:
-                      isDark
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : Colors.black.withValues(alpha: 0.05),
+                  color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -671,32 +309,17 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
                       height: 50,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppDesign.navConcierge,
-                          width: 2,
-                        ),
+                        border: Border.all(color: AppDesign.navConcierge, width: 2),
                       ),
-                      child: const Icon(
-                        CupertinoIcons.plus,
-                        color: AppDesign.navConcierge,
-                        size: 28,
-                      ),
+                      child: const Icon(LucideIcons.plus, color: AppDesign.navConcierge, size: 28),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      'Add Photo',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: subtitleColor,
-                      ),
-                    ),
+                    Text('Add Photo', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: subtitleColor)),
                   ],
                 ),
               ),
             );
           }
-
           final item = _portfolio[index - 1];
           final gradients = [
             [const Color(0xFF667EEA), const Color(0xFF764BA2)],
@@ -705,7 +328,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
             [const Color(0xFF4FACFE), const Color(0xFF00F2FE)],
             [const Color(0xFFD4AF37), const Color(0xFFB8860B)],
           ];
-
           return GestureDetector(
             onTap: () => HapticFeedback.lightImpact(),
             child: Container(
@@ -719,14 +341,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Placeholder with emoji based on category
-                  Center(
-                    child: Text(
-                      _getCategoryEmoji(item.category),
-                      style: const TextStyle(fontSize: 40),
-                    ),
-                  ),
-                  // Overlay with info
+                  Center(child: Text(_getCategoryEmoji(item.category), style: const TextStyle(fontSize: 40))),
                   Positioned(
                     bottom: 0,
                     left: 0,
@@ -735,10 +350,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.7),
-                          ],
+                          colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                         ),
@@ -746,20 +358,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
-                            CupertinoIcons.heart_fill,
-                            size: 12,
-                            color: Colors.white,
-                          ),
+                          const Icon(LucideIcons.heart, size: 12, color: Colors.white),
                           const SizedBox(width: 4),
-                          Text(
-                            '${item.likes}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
+                          Text('${item.likes}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
                         ],
                       ),
                     ),
@@ -775,172 +376,86 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
 
   String _getCategoryEmoji(String category) {
     switch (category) {
-      case 'Tours':
-        return '🏛️';
-      case 'Historical':
-        return '⚱️';
-      case 'Scenic':
-        return '🌅';
-      case 'Culture':
-        return '🎭';
-      case 'Adventure':
-        return '🏜️';
-      default:
-        return '📷';
+      case 'Tours': return '🏛️';
+      case 'Historical': return '⚱️';
+      case 'Scenic': return '🌅';
+      case 'Culture': return '🎭';
+      case 'Adventure': return '🏜️';
+      default: return '📷';
     }
   }
 
-  Widget _buildCredentialsTab(
-    bool isDark,
-    Color cardColor,
-    Color textColor,
-    Color subtitleColor,
-  ) {
+  Widget _buildCredentialsTab(bool isDark, Color cardColor, Color textColor, Color subtitleColor) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(context).padding.bottom + 20),
       physics: const BouncingScrollPhysics(),
       children: [
-        // Upload new credential button
-        GestureDetector(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            // TODO: Implement credential upload
-          },
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppDesign.navConcierge.withValues(alpha: 0.5),
-                width: 2,
-                style: BorderStyle.solid,
+        Container(
+          padding: const EdgeInsets.all(20),
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppDesign.navConcierge.withOpacity(0.5), width: 2),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: AppDesign.navConcierge.withOpacity(0.15), shape: BoxShape.circle),
+                child: const Icon(LucideIcons.plus, color: AppDesign.navConcierge, size: 24),
               ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppDesign.navConcierge.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    CupertinoIcons.plus,
-                    color: AppDesign.navConcierge,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Upload New Credential',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                  ),
-                ),
-              ],
-            ),
+              const SizedBox(width: 12),
+              Text('Upload New Credential', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
+            ],
           ),
         ),
-
-        // Credentials list
         ..._credentials.asMap().entries.map((entry) {
           final cred = entry.value;
           final index = entry.key;
-
           return TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: 1),
             duration: Duration(milliseconds: 400 + (index * 100)),
-            builder: (context, value, child) {
-              return Opacity(
-                opacity: value,
-                child: Transform.translate(
-                  offset: Offset(30 * (1 - value), 0),
-                  child: child,
-                ),
-              );
-            },
+            builder: (context, value, child) => Opacity(
+              opacity: value,
+              child: Transform.translate(offset: Offset(30 * (1 - value), 0), child: child),
+            ),
             child: Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color:
-                      isDark
-                          ? Colors.white.withValues(alpha: 0.1)
-                          : Colors.black.withValues(alpha: 0.06),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.06)),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
               child: Row(
                 children: [
                   Container(
                     width: 56,
                     height: 56,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF667EEA).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Center(
-                      child: Text(
-                        cred.icon,
-                        style: const TextStyle(fontSize: 28),
-                      ),
-                    ),
+                    decoration: BoxDecoration(color: AppDesign.navConcierge.withOpacity(0.15), borderRadius: BorderRadius.circular(14)),
+                    child: Center(child: Text(cred.icon, style: const TextStyle(fontSize: 28))),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          cred.title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: textColor,
-                          ),
-                        ),
+                        Text(cred.title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
                         const SizedBox(height: 4),
-                        Text(
-                          cred.issuer,
-                          style: TextStyle(fontSize: 13, color: subtitleColor),
-                        ),
+                        Text(cred.issuer, style: TextStyle(fontSize: 13, color: subtitleColor)),
                         const SizedBox(height: 2),
-                        Text(
-                          'Issued: ${cred.date}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: subtitleColor.withValues(alpha: 0.7),
-                          ),
-                        ),
+                        Text('Issued: ${cred.date}', style: TextStyle(fontSize: 12, color: subtitleColor.withOpacity(0.7))),
                       ],
                     ),
                   ),
                   if (cred.isVerified)
                     Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF38EF7D).withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        CupertinoIcons.checkmark_seal_fill,
-                        size: 20,
-                        color: Color(0xFF38EF7D),
-                      ),
+                      decoration: BoxDecoration(color: AppDesign.success.withOpacity(0.15), shape: BoxShape.circle),
+                      child: const Icon(LucideIcons.badgeCheck, size: 20, color: AppDesign.success),
                     ),
                 ],
               ),
@@ -951,27 +466,19 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
     );
   }
 
-  Widget _buildReviewsTab(
-    bool isDark,
-    Color cardColor,
-    Color textColor,
-    Color subtitleColor,
-  ) {
+  Widget _buildReviewsTab(bool isDark, Color cardColor, Color textColor, Color subtitleColor) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(context).padding.bottom + 20),
       physics: const BouncingScrollPhysics(),
       children: [
-        // Rating summary
         Container(
           padding: const EdgeInsets.all(20),
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppDesign.navConcierge.withValues(alpha: isDark ? 0.15 : 0.1),
-                AppDesign.onboardingAccent.withValues(
-                  alpha: isDark ? 0.15 : 0.1,
-                ),
+                AppDesign.navConcierge.withOpacity(isDark ? 0.15 : 0.1),
+                AppDesign.onboardingAccent.withOpacity(isDark ? 0.15 : 0.1),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
@@ -980,32 +487,20 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
             children: [
               Column(
                 children: [
-                  Text(
-                    '${_provider.rating}',
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
-                    ),
-                  ),
+                  Text('${_provider.rating}', style: TextStyle(fontSize: 48, fontWeight: FontWeight.w700, color: textColor)),
                   Row(
                     children: List.generate(5, (index) {
                       return Icon(
                         index < _provider.rating.floor()
-                            ? CupertinoIcons.star_fill
-                            : (index < _provider.rating
-                                ? CupertinoIcons.star_lefthalf_fill
-                                : CupertinoIcons.star),
+                            ? LucideIcons.star
+                            : (index < _provider.rating ? LucideIcons.star : LucideIcons.star),
                         size: 18,
                         color: const Color(0xFFD4AF37),
                       );
                     }),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '${_provider.reviewCount} reviews',
-                    style: TextStyle(fontSize: 14, color: subtitleColor),
-                  ),
+                  Text('${_provider.reviewCount} reviews', style: TextStyle(fontSize: 14, color: subtitleColor)),
                 ],
               ),
               const SizedBox(width: 24),
@@ -1023,64 +518,42 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
             ],
           ),
         ),
-
-        // Reviews list
         ..._reviews.asMap().entries.map((entry) {
           final review = entry.value;
           final index = entry.key;
-
           return TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: 1),
             duration: Duration(milliseconds: 400 + (index * 100)),
-            builder: (context, value, child) {
-              return Opacity(
-                opacity: value,
-                child: Transform.translate(
-                  offset: Offset(0, 20 * (1 - value)),
-                  child: child,
-                ),
-              );
-            },
+            builder: (context, value, child) => Opacity(
+              opacity: value,
+              child: Transform.translate(offset: Offset(0, 20 * (1 - value)), child: child),
+            ),
             child: Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color:
-                      isDark
-                          ? Colors.white.withValues(alpha: 0.1)
-                          : Colors.black.withValues(alpha: 0.06),
-                ),
+                border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.06)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      // Reviewer avatar
                       Container(
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFF667EEA).withValues(alpha: 0.5),
-                              const Color(0xFF764BA2).withValues(alpha: 0.5),
-                            ],
-                          ),
+                          gradient: LinearGradient(colors: [
+                            AppDesign.navExplore.withOpacity(0.5),
+                            AppDesign.navConcierge.withOpacity(0.5),
+                          ]),
                         ),
                         child: Center(
-                          child: Text(
-                            review.reviewerName[0],
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: Text(review.reviewerName[0],
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -1088,67 +561,28 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              review.reviewerName,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: textColor,
-                              ),
-                            ),
-                            Text(
-                              _formatDate(review.date),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: subtitleColor,
-                              ),
-                            ),
+                            Text(review.reviewerName, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: textColor)),
+                            Text(_formatDate(review.date), style: TextStyle(fontSize: 12, color: subtitleColor)),
                           ],
                         ),
                       ),
-                      // Rating
                       Row(
                         children: [
-                          const Icon(
-                            CupertinoIcons.star_fill,
-                            size: 16,
-                            color: Color(0xFFD4AF37),
-                          ),
+                          const Icon(LucideIcons.star, size: 16, color: Color(0xFFD4AF37)),
                           const SizedBox(width: 4),
-                          Text(
-                            '${review.rating}',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: textColor,
-                            ),
-                          ),
+                          Text('${review.rating}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: textColor)),
                         ],
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    review.content,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: textColor,
-                      height: 1.4,
-                    ),
-                  ),
+                  Text(review.content, style: TextStyle(fontSize: 14, color: textColor, height: 1.4)),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Icon(
-                        CupertinoIcons.hand_thumbsup,
-                        size: 16,
-                        color: subtitleColor,
-                      ),
+                      const Icon(LucideIcons.thumbsUp, size: 16, color: AppDesign.midGrey),
                       const SizedBox(width: 6),
-                      Text(
-                        '${review.helpful} found this helpful',
-                        style: TextStyle(fontSize: 13, color: subtitleColor),
-                      ),
+                      Text('${review.helpful} found this helpful', style: TextStyle(fontSize: 13, color: subtitleColor)),
                     ],
                   ),
                 ],
@@ -1160,12 +594,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
     );
   }
 
-  Widget _buildRatingBar(
-    String label,
-    double percent,
-    bool isDark,
-    Color subtitleColor,
-  ) {
+  Widget _buildRatingBar(String label, double percent, bool isDark, Color subtitleColor) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -1176,10 +605,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
             child: Container(
               height: 8,
               decoration: BoxDecoration(
-                color:
-                    isDark
-                        ? Colors.white.withValues(alpha: 0.1)
-                        : Colors.black.withValues(alpha: 0.06),
+                color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.06),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: FractionallySizedBox(
@@ -1187,9 +613,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
                 widthFactor: percent,
                 child: Container(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFD4AF37), Color(0xFFB8860B)],
-                    ),
+                    gradient: const LinearGradient(colors: [Color(0xFFD4AF37), Color(0xFFB8860B)]),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -1202,171 +626,68 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
   }
 
   String _formatDate(DateTime date) {
-    final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
-  void _showSettingsSheet(
-    BuildContext context,
-    bool isDark,
-    Color textColor,
-    Color subtitleColor,
-    Color cardColor,
-  ) {
-    showCupertinoModalPopup(
+  void _showSettingsSheet(bool isDark, Color textColor, Color subtitleColor, Color cardColor) {
+    showModalBottomSheet(
       context: context,
-      builder:
-          (context) => Container(
-            height: 400,
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(20),
-              ),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: subtitleColor.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Settings',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: textColor,
-                        ),
-                      ),
-                      CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: () => Navigator.pop(context),
-                        child: Icon(
-                          CupertinoIcons.xmark_circle_fill,
-                          color: subtitleColor,
-                          size: 28,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    children: [
-                      _buildSettingsItem(
-                        icon: CupertinoIcons.person_crop_circle,
-                        title: 'Edit Profile',
-                        onTap: () {},
-                        textColor: textColor,
-                        subtitleColor: subtitleColor,
-                      ),
-                      _buildSettingsItem(
-                        icon: CupertinoIcons.bell,
-                        title: 'Notifications',
-                        onTap: () {},
-                        textColor: textColor,
-                        subtitleColor: subtitleColor,
-                      ),
-                      _buildSettingsItem(
-                        icon: CupertinoIcons.lock,
-                        title: 'Privacy',
-                        onTap: () {},
-                        textColor: textColor,
-                        subtitleColor: subtitleColor,
-                      ),
-                      _buildSettingsItem(
-                        icon: CupertinoIcons.question_circle,
-                        title: 'Help & Support',
-                        onTap: () {},
-                        textColor: textColor,
-                        subtitleColor: subtitleColor,
-                      ),
-                      _buildSettingsItem(
-                        icon: CupertinoIcons.square_arrow_right,
-                        title: 'Log Out',
-                        onTap: () {},
-                        textColor: AppDesign.onboardingAccent,
-                        subtitleColor: subtitleColor,
-                        isDestructive: true,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-    );
-  }
-
-  Widget _buildSettingsItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    required Color textColor,
-    required Color subtitleColor,
-    bool isDestructive = false,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: 400,
         decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: subtitleColor.withValues(alpha: 0.15)),
-          ),
+          color: cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Icon(
-              icon,
-              size: 24,
-              color: isDestructive ? AppDesign.onboardingAccent : textColor,
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(color: subtitleColor.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: isDestructive ? AppDesign.onboardingAccent : textColor,
-                ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Settings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: textColor)),
+                  IconButton(
+                    icon: Icon(LucideIcons.x, color: subtitleColor),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
               ),
             ),
-            Icon(CupertinoIcons.chevron_right, size: 18, color: subtitleColor),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  _buildSettingsItem(LucideIcons.user, 'Edit Profile', textColor, subtitleColor),
+                  _buildSettingsItem(LucideIcons.bell, 'Notifications', textColor, subtitleColor),
+                  _buildSettingsItem(LucideIcons.lock, 'Privacy', textColor, subtitleColor),
+                  _buildSettingsItem(LucideIcons.helpCircle, 'Help & Support', textColor, subtitleColor),
+                  _buildSettingsItem(LucideIcons.logOut, 'Log Out', AppDesign.danger, subtitleColor, isDestructive: true),
+                ],
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSettingsItem(IconData icon, String title, Color textColor, Color subtitleColor, {bool isDestructive = false}) {
+    return ListTile(
+      leading: Icon(icon, color: isDestructive ? AppDesign.danger : textColor),
+      title: Text(title, style: TextStyle(color: isDestructive ? AppDesign.danger : textColor)),
+      trailing: Icon(LucideIcons.chevronRight, size: 18, color: subtitleColor),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.pop(context);
+      },
     );
   }
 }
@@ -1382,39 +703,18 @@ class ProviderProfile {
   final bool isVerified;
   final List<String> languages;
   final String memberSince;
-
-  ProviderProfile({
-    required this.name,
-    required this.serviceType,
-    required this.bio,
-    required this.rating,
-    required this.reviewCount,
-    required this.completedTours,
-    required this.isVerified,
-    required this.languages,
-    required this.memberSince,
-  });
-
-  factory ProviderProfile.fromJson(Map<String, dynamic> json) {
-    return ProviderProfile(
-      name:
-          json['full_legal_name']?.toString() ??
-          json['full_name']?.toString() ??
-          'Unknown',
-      serviceType: json['service_type']?.toString() ?? 'Service',
-      bio: json['bio']?.toString() ?? '',
-      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      reviewCount: (json['review_count'] as num?)?.toInt() ?? 0,
-      completedTours: (json['completed_tours_count'] as num?)?.toInt() ?? 0,
-      isVerified: json['verified_flag'] == true,
-      languages:
-          (json['languages'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
-      memberSince: json['member_since']?.toString() ?? 'Unknown',
-    );
-  }
+  ProviderProfile({required this.name, required this.serviceType, required this.bio, required this.rating, required this.reviewCount, required this.completedTours, required this.isVerified, required this.languages, required this.memberSince});
+  factory ProviderProfile.fromJson(Map<String, dynamic> json) => ProviderProfile(
+    name: json['full_legal_name']?.toString() ?? json['full_name']?.toString() ?? 'Unknown',
+    serviceType: json['service_type']?.toString() ?? 'Service',
+    bio: json['bio']?.toString() ?? '',
+    rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+    reviewCount: (json['review_count'] as num?)?.toInt() ?? 0,
+    completedTours: (json['completed_tours_count'] as num?)?.toInt() ?? 0,
+    isVerified: json['verified_flag'] == true,
+    languages: (json['languages'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+    memberSince: json['member_since']?.toString() ?? 'Unknown',
+  );
 }
 
 class PortfolioItem {
@@ -1422,22 +722,13 @@ class PortfolioItem {
   final String title;
   final int likes;
   final String category;
-
-  PortfolioItem({
-    required this.id,
-    required this.title,
-    required this.likes,
-    required this.category,
-  });
-
-  factory PortfolioItem.fromJson(Map<String, dynamic> json) {
-    return PortfolioItem(
-      id: json['_id']?.toString() ?? '',
-      title: json['title']?.toString() ?? 'Untitled',
-      likes: (json['like_count'] as num?)?.toInt() ?? 0,
-      category: json['category']?.toString() ?? 'General',
-    );
-  }
+  PortfolioItem({required this.id, required this.title, required this.likes, required this.category});
+  factory PortfolioItem.fromJson(Map<String, dynamic> json) => PortfolioItem(
+    id: json['_id']?.toString() ?? '',
+    title: json['title']?.toString() ?? 'Untitled',
+    likes: (json['like_count'] as num?)?.toInt() ?? 0,
+    category: json['category']?.toString() ?? 'General',
+  );
 }
 
 class Credential {
@@ -1446,24 +737,14 @@ class Credential {
   final String date;
   final bool isVerified;
   final String icon;
-
-  Credential({
-    required this.title,
-    required this.issuer,
-    required this.date,
-    required this.isVerified,
-    required this.icon,
-  });
-
-  factory Credential.fromJson(Map<String, dynamic> json) {
-    return Credential(
-      title: json['title']?.toString() ?? 'Credential',
-      issuer: json['issuer']?.toString() ?? 'Issuer',
-      date: json['date']?.toString() ?? '',
-      isVerified: json['is_verified'] == true,
-      icon: json['icon']?.toString() ?? '🎓',
-    );
-  }
+  Credential({required this.title, required this.issuer, required this.date, required this.isVerified, required this.icon});
+  factory Credential.fromJson(Map<String, dynamic> json) => Credential(
+    title: json['title']?.toString() ?? 'Credential',
+    issuer: json['issuer']?.toString() ?? 'Issuer',
+    date: json['date']?.toString() ?? '',
+    isVerified: json['is_verified'] == true,
+    icon: json['icon']?.toString() ?? '🎓',
+  );
 }
 
 class ProviderReview {
@@ -1473,26 +754,13 @@ class ProviderReview {
   final double rating;
   final DateTime date;
   final int helpful;
-
-  ProviderReview({
-    required this.id,
-    required this.reviewerName,
-    required this.content,
-    required this.rating,
-    required this.date,
-    required this.helpful,
-  });
-
-  factory ProviderReview.fromJson(Map<String, dynamic> json) {
-    return ProviderReview(
-      id: json['_id']?.toString() ?? '',
-      reviewerName: json['reviewer_name']?.toString() ?? 'Anonymous',
-      content: json['content']?.toString() ?? '',
-      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      date:
-          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
-          DateTime.now(),
-      helpful: (json['helpful_count'] as num?)?.toInt() ?? 0,
-    );
-  }
+  ProviderReview({required this.id, required this.reviewerName, required this.content, required this.rating, required this.date, required this.helpful});
+  factory ProviderReview.fromJson(Map<String, dynamic> json) => ProviderReview(
+    id: json['_id']?.toString() ?? '',
+    reviewerName: json['reviewer_name']?.toString() ?? 'Anonymous',
+    content: json['content']?.toString() ?? '',
+    rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+    date: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
+    helpful: (json['helpful_count'] as num?)?.toInt() ?? 0,
+  );
 }
