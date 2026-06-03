@@ -72,12 +72,18 @@ class _FeedScreenState extends State<FeedScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
+        final isCompactWidth = constraints.maxWidth < 430;
         final isLandscape =
             MediaQuery.of(context).orientation == Orientation.landscape;
         final bg = isDark ? AppDesign.eerieBlack : AppDesign.offWhite;
-        final horizontalPadding = constraints.maxWidth >= 840 ? 32.0 : 20.0;
+        final horizontalPadding =
+            constraints.maxWidth >= 840
+                ? 32.0
+                : (isCompactWidth ? 16.0 : 20.0);
         final contentMaxWidth =
-            constraints.maxWidth >= 840 ? 760.0 : constraints.maxWidth;
+            constraints.maxWidth >= 840
+                ? 760.0
+                : constraints.maxWidth - (horizontalPadding * 2);
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value:
@@ -90,6 +96,7 @@ class _FeedScreenState extends State<FeedScreen>
                   _buildHeader(
                     isDark: isDark,
                     isLandscape: isLandscape,
+                    isCompactWidth: isCompactWidth,
                     horizontalPadding: horizontalPadding,
                   ),
                   _buildTabBar(
@@ -131,13 +138,18 @@ class _FeedScreenState extends State<FeedScreen>
   Widget _buildHeader({
     required bool isDark,
     required bool isLandscape,
+    required bool isCompactWidth,
     required double horizontalPadding,
   }) {
-    final logoSize = isLandscape ? LogoSize.tiny : LogoSize.small;
-    final headerTop = isLandscape ? 8.0 : 16.0;
-    final headerBottom = isLandscape ? 2.0 : 6.0;
-    final controlSize = isLandscape ? 36.0 : 40.0;
-    final controlGap = isLandscape ? 8.0 : 10.0;
+    final logoSize =
+        isLandscape
+            ? LogoSize.tiny
+            : (isCompactWidth ? LogoSize.tiny : LogoSize.small);
+    final headerTop = isLandscape ? 4.0 : (isCompactWidth ? 8.0 : 16.0);
+    final headerBottom = isLandscape ? 2.0 : (isCompactWidth ? 4.0 : 6.0);
+    // FIX: buttons always on the right — sizes stay the same as before
+    final controlSize = isLandscape ? 28.0 : (isCompactWidth ? 34.0 : 40.0);
+    final controlGap = isLandscape ? 5.0 : (isCompactWidth ? 6.0 : 10.0);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -147,32 +159,36 @@ class _FeedScreenState extends State<FeedScreen>
         headerBottom,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisSize: MainAxisSize.max,
         children: [
-          Expanded(
+          // Logo section — constrained so buttons always fit on the right
+          Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 SmartExplorersLogo(size: logoSize),
-                const SizedBox(height: 2),
-                Text(
-                  isLandscape
-                      ? 'Curated travel stories, spaces, guides'
-                      : 'Travel stories and trusted experiences',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: isLandscape ? 11.5 : 12,
-                    height: 1.2,
-                    color:
-                        isDark
-                            ? Colors.white.withValues(alpha: 0.68)
-                            : AppDesign.midGrey,
+                if (!isLandscape) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Travel stories and trusted experiences',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: isCompactWidth ? 11.0 : 12,
+                      height: 1.2,
+                      color:
+                          isDark
+                              ? Colors.white.withValues(alpha: 0.68)
+                              : AppDesign.midGrey,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
+          // ── Controls always on the RIGHT of the logo ──
           SizedBox(width: controlGap),
           _ThemeModeToggleButton(
             currentThemeMode: widget.currentThemeMode,
@@ -211,8 +227,14 @@ class _FeedScreenState extends State<FeedScreen>
     required bool isLandscape,
     required double horizontalPadding,
   }) {
+    final isCompactWidth = MediaQuery.of(context).size.width < 430;
     return Padding(
-      padding: EdgeInsets.fromLTRB(horizontalPadding, 8, horizontalPadding, 0),
+      padding: EdgeInsets.fromLTRB(
+        horizontalPadding,
+        isLandscape ? 2 : (isCompactWidth ? 6 : 8),
+        horizontalPadding,
+        0,
+      ),
       child: TabBar(
         controller: _tabController,
         labelColor: isDark ? Colors.white : AppDesign.eerieBlack,
@@ -226,20 +248,20 @@ class _FeedScreenState extends State<FeedScreen>
         dividerHeight: 0.5,
         splashFactory: NoSplash.splashFactory,
         overlayColor: WidgetStateProperty.all(Colors.transparent),
-        labelStyle: const TextStyle(
-          fontSize: 14,
+        labelStyle: TextStyle(
+          fontSize: isLandscape ? 12.0 : 13.5,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.2,
         ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 14,
+        unselectedLabelStyle: TextStyle(
+          fontSize: isLandscape ? 12.0 : 13.5,
           fontWeight: FontWeight.w400,
           letterSpacing: -0.2,
         ),
-        tabs: const [
-          Tab(text: 'Posts'),
-          Tab(text: 'Spaces'),
-          Tab(text: 'Providers'),
+        tabs: [
+          Tab(height: isLandscape ? 30 : null, text: 'Posts'),
+          Tab(height: isLandscape ? 30 : null, text: 'Spaces'),
+          Tab(height: isLandscape ? 30 : null, text: 'Providers'),
         ],
       ),
     );
@@ -286,7 +308,7 @@ class _GlassIconButton extends StatelessWidget {
                         : Colors.black.withValues(alpha: 0.06),
               ),
             ),
-            child: Icon(icon, size: 18, color: iconColor),
+            child: Icon(icon, size: size * 0.48, color: iconColor),
           ),
         ),
       ),
@@ -312,8 +334,8 @@ class _ThemeModeToggleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = compact ? 54.0 : 58.0;
-    final height = compact ? 30.0 : 32.0;
+    final width = compact ? 44.0 : 58.0;
+    final height = compact ? 24.0 : 32.0;
 
     return Semantics(
       button: true,
@@ -363,10 +385,10 @@ class _ThemeModeToggleButton extends StatelessWidget {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Padding(
-                      padding: const EdgeInsets.only(left: 7),
+                      padding: const EdgeInsets.only(left: 6),
                       child: Icon(
                         LucideIcons.sun_medium,
-                        size: compact ? 12 : 13,
+                        size: compact ? 10 : 13,
                         color: _isDark ? Colors.black : Colors.white,
                       ),
                     ),
@@ -374,10 +396,10 @@ class _ThemeModeToggleButton extends StatelessWidget {
                   Align(
                     alignment: Alignment.centerRight,
                     child: Padding(
-                      padding: const EdgeInsets.only(right: 7),
+                      padding: const EdgeInsets.only(right: 6),
                       child: Icon(
                         LucideIcons.moon,
-                        size: compact ? 12 : 13,
+                        size: compact ? 10 : 13,
                         color: _isDark ? Colors.black : Colors.white,
                       ),
                     ),
@@ -1049,7 +1071,6 @@ class _PostsTabState extends State<_PostsTab> {
     try {
       final currentUserId = SessionStore.instance.userId;
       final data = await _socialService.getPosts(userId: currentUserId);
-      // If feed is empty, show empty state (do not display static fallback cards)
       if (data.isNotEmpty) {
         if (!mounted) return;
         setState(() {
@@ -1073,11 +1094,7 @@ class _PostsTabState extends State<_PostsTab> {
                             ? (p['media_urls'] as List)[0].toString()
                             : ''
                         : '');
-                final comments =
-                    p['comments'] ??
-                    p['comments_list'] ??
-                    p['comments_list'] ??
-                    [];
+                final comments = p['comments'] ?? p['comments_list'] ?? [];
                 final likes = p['likes'] ?? p['likes_list'] ?? [];
                 return _PostData(
                   id: p['_id']?.toString() ?? '${e.key}',
@@ -1085,7 +1102,8 @@ class _PostsTabState extends State<_PostsTab> {
                   handle: authorHandle,
                   authorAvatar: authorAvatar,
                   authorId: p['author_id']?.toString() ?? '',
-                  text: p['caption']?.toString() ?? p['text']?.toString() ?? '',
+                  text:
+                      p['caption']?.toString() ?? p['text']?.toString() ?? '',
                   image:
                       media.isNotEmpty
                           ? media
@@ -1101,7 +1119,6 @@ class _PostsTabState extends State<_PostsTab> {
         });
         return;
       }
-      // empty feed
       if (!mounted) return;
       setState(() {
         _allPosts = [];
@@ -1143,9 +1160,8 @@ class _PostsTabState extends State<_PostsTab> {
           posts.removeWhere((post) => post.authorId == currentUserId);
         }
         posts.sort((a, b) {
-          final interactionsDiff = _postInteractions(
-            b,
-          ).compareTo(_postInteractions(a));
+          final interactionsDiff =
+              _postInteractions(b).compareTo(_postInteractions(a));
           if (interactionsDiff != 0) return interactionsDiff;
           return _parseDate(b.createdAt).compareTo(_parseDate(a.createdAt));
         });
@@ -1191,14 +1207,19 @@ class _PostsTabState extends State<_PostsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    // FIX: Reduced from 0.70 → 0.62 so the actions row is never clipped.
+    // The card width in landscape = 62% of screen height.
+    final landscapeCardSize = screenHeight * 0.62;
+
     return Column(
       children: [
         Padding(
           padding: EdgeInsets.fromLTRB(
-            widget.isLandscape ? 24 : 20,
-            10,
-            widget.isLandscape ? 24 : 20,
-            8,
+            widget.isLandscape ? 14 : 20,
+            widget.isLandscape ? 5 : 10,
+            widget.isLandscape ? 14 : 20,
+            widget.isLandscape ? 3 : 8,
           ),
           child: Row(
             children: [
@@ -1206,7 +1227,7 @@ class _PostsTabState extends State<_PostsTab> {
                 child: Text(
                   'Posts',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: widget.isLandscape ? 14 : 18,
                     fontWeight: FontWeight.w700,
                     color: widget.isDark ? Colors.white : AppDesign.eerieBlack,
                   ),
@@ -1217,11 +1238,28 @@ class _PostsTabState extends State<_PostsTab> {
                 isDark: widget.isDark,
                 onSelected: _applySort,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               TextButton.icon(
                 onPressed: _openCreatePostPage,
-                icon: const Icon(LucideIcons.plus, size: 16),
-                label: const Text('Add Post'),
+                icon: Icon(
+                  LucideIcons.plus,
+                  size: widget.isLandscape ? 13 : 16,
+                ),
+                label: Text(
+                  'Add Post',
+                  style: TextStyle(fontSize: widget.isLandscape ? 11 : 14),
+                ),
+                style:
+                    widget.isLandscape
+                        ? TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        )
+                        : null,
               ),
             ],
           ),
@@ -1249,30 +1287,49 @@ class _PostsTabState extends State<_PostsTab> {
                     ),
                   )
                   : ListView.builder(
+                    scrollDirection:
+                        widget.isLandscape ? Axis.horizontal : Axis.vertical,
                     padding: EdgeInsets.fromLTRB(
+                      widget.isLandscape ? 10 : 0,
                       0,
-                      0,
-                      0,
-                      MediaQuery.of(context).padding.bottom + 100,
+                      widget.isLandscape ? 10 : 0,
+                      widget.isLandscape
+                          ? 0
+                          : MediaQuery.of(context).padding.bottom + 100,
                     ),
                     itemCount: _posts.length,
-                    itemBuilder:
-                        (context, i) => Center(
-                          child: SizedBox(
-                            width: widget.maxContentWidth,
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: widget.isLandscape ? 24 : 20,
-                              ),
-                              child: _PostCard(
-                                post: _posts[i],
-                                isDark: widget.isDark,
-                                isLandscape: widget.isLandscape,
-                                bookmarked: false,
-                              ),
+                    itemBuilder: (context, i) {
+                      if (widget.isLandscape) {
+                        return SizedBox(
+                          width: landscapeCardSize,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: _PostCard(
+                              post: _posts[i],
+                              isDark: widget.isDark,
+                              isLandscape: true,
+                              bookmarked: false,
+                              landscapeCardSize: landscapeCardSize,
+                            ),
+                          ),
+                        );
+                      }
+                      return Center(
+                        child: SizedBox(
+                          width: widget.maxContentWidth,
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 20),
+                            child: _PostCard(
+                              post: _posts[i],
+                              isDark: widget.isDark,
+                              isLandscape: false,
+                              bookmarked: false,
                             ),
                           ),
                         ),
+                      );
+                    },
                   ),
         ),
       ],
@@ -1342,7 +1399,7 @@ class _SortMenuButton extends StatelessWidget {
             ),
           ],
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: background,
           borderRadius: BorderRadius.circular(14),
@@ -1398,11 +1455,13 @@ class _PostCard extends StatefulWidget {
     required this.isDark,
     required this.isLandscape,
     required this.bookmarked,
+    this.landscapeCardSize,
   });
   final _PostData post;
   final bool isDark;
   final bool isLandscape;
   final bool bookmarked;
+  final double? landscapeCardSize;
 
   @override
   State<_PostCard> createState() => _PostCardState();
@@ -1469,7 +1528,6 @@ class _PostCardState extends State<_PostCard> {
         await SocialApiService().unlikePost(widget.post.id, userId);
       }
     } catch (_) {
-      // revert on error
       if (!mounted) return;
       setState(() {
         _liked = !_liked;
@@ -1514,7 +1572,9 @@ class _PostCardState extends State<_PostCard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_bookmarked ? 'Post saved' : 'Post removed from saved'),
+          content: Text(
+            _bookmarked ? 'Post saved' : 'Post removed from saved',
+          ),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 1),
           shape: RoundedRectangleBorder(
@@ -1546,7 +1606,6 @@ class _PostCardState extends State<_PostCard> {
   void _showComments() {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         final comments = List<Map<String, dynamic>>.from(
@@ -1740,305 +1799,99 @@ class _PostCardState extends State<_PostCard> {
     );
   }
 
-  void _openPostDetail() {
-    HapticFeedback.lightImpact();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder:
-          (ctx) => DraggableScrollableSheet(
-            initialChildSize: 0.85,
-            minChildSize: 0.5,
-            maxChildSize: 0.95,
-            builder:
-                (ctx, scrollController) => Container(
-                  decoration: BoxDecoration(
-                    color: widget.isDark ? AppDesign.cardDark : Colors.white,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(24),
-                    ),
-                  ),
-                  child: ListView(
-                    controller: scrollController,
-                    padding: EdgeInsets.zero,
-                    children: [
-                      Center(
-                        child: Container(
-                          margin: const EdgeInsets.only(top: 12, bottom: 8),
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(2),
-                            color:
-                                widget.isDark
-                                    ? Colors.white24
-                                    : AppDesign.lightGrey,
-                          ),
-                        ),
-                      ),
-                      ClipRRect(
-                        child: _LoadingBlurImage(
-                          key: ValueKey(widget.post.image),
-                          image: widget.post.image,
-                          width: double.infinity,
-                          height: 320,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                widget.post.authorAvatar.isNotEmpty
-                                    ? CircleAvatar(
-                                      radius: 20,
-                                      backgroundImage: NetworkImage(
-                                        widget.post.authorAvatar,
-                                      ),
-                                    )
-                                    : CircleAvatar(
-                                      radius: 20,
-                                      backgroundColor: AppDesign.electricCobalt
-                                          .withValues(alpha: 0.12),
-                                      child: Text(
-                                        widget.post.author.isNotEmpty
-                                            ? widget.post.author[0]
-                                            : '?',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 16,
-                                          color: AppDesign.electricCobalt,
-                                        ),
-                                      ),
-                                    ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        widget.post.author,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 16,
-                                          color:
-                                              widget.isDark
-                                                  ? Colors.white
-                                                  : AppDesign.eerieBlack,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${widget.post.handle} · ${_formatTimeAgo(widget.post.createdAt)}',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: AppDesign.midGrey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              widget.post.text,
-                              style: TextStyle(
-                                fontSize: 16,
-                                height: 1.6,
-                                color:
-                                    widget.isDark
-                                        ? Colors.white.withValues(alpha: 0.9)
-                                        : AppDesign.eerieBlack,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Icon(
-                                  LucideIcons.heart,
-                                  size: 18,
-                                  color: AppDesign.midGrey,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '$_likes',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppDesign.midGrey,
-                                  ),
-                                ),
-                                const SizedBox(width: 20),
-                                Icon(
-                                  LucideIcons.message_circle,
-                                  size: 18,
-                                  color: AppDesign.midGrey,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${widget.post.commentsList.length}',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppDesign.midGrey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-          ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final useSplitLayout =
-        widget.isLandscape || MediaQuery.of(context).size.width >= 640;
+    // FIX: Increased overhead so the actions row is never clipped.
+    // post-header (~44px) + top-padding (8px) + bottom-padding (10px)
+    // + actions-row (~28px compact) + gap (8px) + border (2px) = ~100px.
+    // Use 120px for a comfortable safety buffer.
+    const landscapeOverhead = 120.0;
+    final landscapeImageHeight =
+        widget.isLandscape && widget.landscapeCardSize != null
+            ? widget.landscapeCardSize! - landscapeOverhead
+            : 0.0;
 
-    return GestureDetector(
-      onTap: _openPostDetail,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 18),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          color: widget.isDark ? AppDesign.cardDark : Colors.white,
-          border: Border.all(
-            color:
-                widget.isDark
-                    ? Colors.white.withValues(alpha: 0.05)
-                    : AppDesign.lightGrey.withValues(alpha: 0.8),
-          ),
-          boxShadow:
+    return Container(
+      margin: EdgeInsets.only(bottom: widget.isLandscape ? 0 : 18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(widget.isLandscape ? 20 : 28),
+        color: widget.isDark ? AppDesign.cardDark : Colors.white,
+        border: Border.all(
+          color:
               widget.isDark
-                  ? []
-                  : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : AppDesign.lightGrey.withValues(alpha: 0.8),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (useSplitLayout)
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      flex: 5,
-                      child: GestureDetector(
-                        onDoubleTap: () {
-                          if (!_liked) _toggleLike();
-                        },
-                        child: _PostMedia(
-                          image: widget.post.image,
-                          isDark: widget.isDark,
-                          height: 320,
-                        ),
-                      ),
+        boxShadow:
+            widget.isDark
+                ? []
+                : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _PostHeader(
+            post: widget.post,
+            isDark: widget.isDark,
+            bookmarked: _bookmarked,
+            onBookmarkTap: _toggleBookmark,
+            compact: widget.isLandscape,
+          ),
+          GestureDetector(
+            onDoubleTap: () {
+              if (!_liked) _toggleLike();
+            },
+            child: _PostMedia(
+              image: widget.post.image,
+              isDark: widget.isDark,
+              height:
+                  widget.isLandscape
+                      ? landscapeImageHeight
+                      : (MediaQuery.of(context).size.width < 430 ? 220 : 260),
+            ),
+          ),
+          Padding(
+            padding:
+                widget.isLandscape
+                    ? const EdgeInsets.fromLTRB(12, 8, 12, 10)
+                    : const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!widget.isLandscape) ...[
+                  Text(
+                    widget.post.text,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color:
+                          widget.isDark
+                              ? Colors.white.withValues(alpha: 0.9)
+                              : AppDesign.eerieBlack,
                     ),
-                    Expanded(
-                      flex: 6,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _PostHeader(
-                              post: widget.post,
-                              isDark: widget.isDark,
-                              bookmarked: _bookmarked,
-                              onBookmarkTap: _toggleBookmark,
-                            ),
-                            const SizedBox(height: 14),
-                            Text(
-                              widget.post.text,
-                              style: TextStyle(
-                                fontSize: 15,
-                                height: 1.55,
-                                color:
-                                    widget.isDark
-                                        ? Colors.white.withValues(alpha: 0.9)
-                                        : AppDesign.eerieBlack,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            _PostActions(
-                              likes: _likes,
-                              comments: widget.post.commentsList.length,
-                              liked: _liked,
-                              onLikeTap: _toggleLike,
-                              onCommentsTap: _showComments,
-                              onShareTap: _sharePost,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
+                  const SizedBox(height: 14),
+                ],
+                _PostActions(
+                  likes: _likes,
+                  comments: widget.post.commentsList.length,
+                  liked: _liked,
+                  onLikeTap: _toggleLike,
+                  onCommentsTap: _showComments,
+                  onShareTap: _sharePost,
+                  compact: widget.isLandscape,
                 ),
-              )
-            else ...[
-              _PostHeader(
-                post: widget.post,
-                isDark: widget.isDark,
-                bookmarked: _bookmarked,
-                onBookmarkTap: _toggleBookmark,
-              ),
-              GestureDetector(
-                onDoubleTap: () {
-                  if (!_liked) _toggleLike();
-                },
-                child: _PostMedia(
-                  image: widget.post.image,
-                  isDark: widget.isDark,
-                  height: 300,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.post.text,
-                      style: TextStyle(
-                        fontSize: 14,
-                        height: 1.5,
-                        color:
-                            widget.isDark
-                                ? Colors.white.withValues(alpha: 0.9)
-                                : AppDesign.eerieBlack,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    _PostActions(
-                      likes: _likes,
-                      comments: widget.post.commentsList.length,
-                      liked: _liked,
-                      onLikeTap: _toggleLike,
-                      onCommentsTap: _showComments,
-                      onShareTap: _sharePost,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2160,17 +2013,18 @@ class _SpacesTabState extends State<_SpacesTab> {
       );
     }
     return ListView.builder(
+      scrollDirection: widget.isLandscape ? Axis.horizontal : Axis.vertical,
       padding: EdgeInsets.fromLTRB(
-        0,
+        widget.isLandscape ? 20 : 0,
         8,
-        0,
+        widget.isLandscape ? 20 : 0,
         MediaQuery.of(context).padding.bottom + 100,
       ),
       itemCount: _spaces.length,
       itemBuilder:
           (context, i) => Center(
             child: SizedBox(
-              width: widget.maxContentWidth,
+              width: widget.isLandscape ? 340 : widget.maxContentWidth,
               child: Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: widget.isLandscape ? 24 : 20,
@@ -2201,7 +2055,9 @@ class _SpaceCardState extends State<_SpaceCard> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          _joined ? 'Joined ${widget.space.name}' : 'Left ${widget.space.name}',
+          _joined
+              ? 'Joined ${widget.space.name}'
+              : 'Left ${widget.space.name}',
         ),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 1),
@@ -2519,17 +2375,22 @@ class _ProvidersTabState extends State<_ProvidersTab> {
                     ),
                   )
                   : ListView.builder(
+                    scrollDirection:
+                        widget.isLandscape ? Axis.horizontal : Axis.vertical,
                     padding: EdgeInsets.fromLTRB(
+                      widget.isLandscape ? 20 : 0,
                       0,
-                      0,
-                      0,
+                      widget.isLandscape ? 20 : 0,
                       MediaQuery.of(context).padding.bottom + 100,
                     ),
                     itemCount: _providers.length,
                     itemBuilder:
                         (context, i) => Center(
                           child: SizedBox(
-                            width: widget.maxContentWidth,
+                            width:
+                                widget.isLandscape
+                                    ? 360
+                                    : widget.maxContentWidth,
                             child: Padding(
                               padding: EdgeInsets.symmetric(
                                 horizontal: widget.isLandscape ? 24 : 20,
@@ -2788,7 +2649,6 @@ class _ProviderCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Provider photo
             ClipRRect(
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20),
@@ -2802,7 +2662,6 @@ class _ProviderCard extends StatelessWidget {
                 fit: BoxFit.cover,
               ),
             ),
-            // Info
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(14),
@@ -2910,17 +2769,23 @@ class _PostHeader extends StatelessWidget {
     required this.isDark,
     required this.bookmarked,
     required this.onBookmarkTap,
+    this.compact = false,
   });
 
   final _PostData post;
   final bool isDark;
   final bool bookmarked;
   final VoidCallback onBookmarkTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final avatarRadius = compact ? 13.0 : 18.0;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+      padding:
+          compact
+              ? const EdgeInsets.fromLTRB(12, 8, 12, 6)
+              : const EdgeInsets.fromLTRB(16, 14, 16, 10),
       child: Row(
         children: [
           Container(
@@ -2937,24 +2802,24 @@ class _PostHeader extends StatelessWidget {
             child:
                 post.authorAvatar.isNotEmpty
                     ? CircleAvatar(
-                      radius: 18,
+                      radius: avatarRadius,
                       backgroundImage: NetworkImage(post.authorAvatar),
                     )
                     : CircleAvatar(
-                      radius: 18,
+                      radius: avatarRadius,
                       backgroundColor:
                           isDark ? AppDesign.cardDark : Colors.white,
                       child: Text(
                         post.author.isNotEmpty ? post.author[0] : '?',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          fontSize: 14,
+                          fontSize: compact ? 10 : 14,
                           color: AppDesign.electricCobalt,
                         ),
                       ),
                     ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2963,14 +2828,14 @@ class _PostHeader extends StatelessWidget {
                   post.author,
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    fontSize: 14,
+                    fontSize: compact ? 11 : 14,
                     color: isDark ? Colors.white : AppDesign.eerieBlack,
                   ),
                 ),
                 Text(
                   '${post.handle} · ${_formatTimeAgo(post.createdAt)}',
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: compact ? 9 : 12,
                     color: AppDesign.midGrey,
                   ),
                 ),
@@ -2981,7 +2846,7 @@ class _PostHeader extends StatelessWidget {
             onTap: onBookmarkTap,
             child: Icon(
               bookmarked ? CupertinoIcons.bookmark_fill : LucideIcons.bookmark,
-              size: 18,
+              size: compact ? 14 : 18,
               color: bookmarked ? const Color(0xFFFFC107) : AppDesign.midGrey,
             ),
           ),
@@ -3044,6 +2909,7 @@ class _PostActions extends StatelessWidget {
     required this.onLikeTap,
     required this.onCommentsTap,
     required this.onShareTap,
+    this.compact = false,
   });
 
   final int likes;
@@ -3052,12 +2918,13 @@ class _PostActions extends StatelessWidget {
   final VoidCallback onLikeTap;
   final VoidCallback onCommentsTap;
   final VoidCallback onShareTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 10,
-      runSpacing: 10,
+      spacing: compact ? 6 : 10,
+      runSpacing: compact ? 4 : 10,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         _ActionPill(
@@ -3066,13 +2933,20 @@ class _PostActions extends StatelessWidget {
           active: liked,
           activeColor: AppDesign.danger,
           onTap: onLikeTap,
+          compact: compact,
         ),
         _ActionPill(
           icon: LucideIcons.message_circle,
           label: '$comments',
           onTap: onCommentsTap,
+          compact: compact,
         ),
-        _ActionPill(icon: LucideIcons.share, label: 'Share', onTap: onShareTap),
+        _ActionPill(
+          icon: LucideIcons.share,
+          label: 'Share',
+          onTap: onShareTap,
+          compact: compact,
+        ),
       ],
     );
   }
@@ -3085,6 +2959,7 @@ class _ActionPill extends StatelessWidget {
     required this.onTap,
     this.active = false,
     this.activeColor,
+    this.compact = false,
   });
 
   final IconData icon;
@@ -3092,6 +2967,7 @@ class _ActionPill extends StatelessWidget {
   final VoidCallback onTap;
   final bool active;
   final Color? activeColor;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -3101,7 +2977,10 @@ class _ActionPill extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        padding:
+            compact
+                ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
+                : const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
           color:
@@ -3118,12 +2997,12 @@ class _ActionPill extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
+            Icon(icon, size: compact ? 11 : 16, color: color),
+            SizedBox(width: compact ? 3 : 6),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: compact ? 10 : 12,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),
@@ -3156,6 +3035,21 @@ class _LoadingBlurImage extends StatefulWidget {
 class _LoadingBlurImageState extends State<_LoadingBlurImage> {
   bool _revealed = false;
 
+  Widget _fallback() {
+    return Container(
+      width: widget.width,
+      height: widget.height,
+      color: AppDesign.lightGrey.withValues(alpha: 0.18),
+      child: Center(
+        child: Icon(
+          LucideIcons.image_off,
+          size: 22,
+          color: AppDesign.midGrey.withValues(alpha: 0.7),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final src = widget.image;
@@ -3168,6 +3062,7 @@ class _LoadingBlurImageState extends State<_LoadingBlurImage> {
         fit: widget.fit,
         filterQuality: FilterQuality.high,
         gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) => _fallback(),
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
           if (frame != null || wasSynchronouslyLoaded) {
             if (!_revealed) {
@@ -3201,6 +3096,7 @@ class _LoadingBlurImageState extends State<_LoadingBlurImage> {
         fit: widget.fit,
         filterQuality: FilterQuality.high,
         gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) => _fallback(),
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
           if (frame != null || wasSynchronouslyLoaded) {
             if (!_revealed) {
@@ -3234,6 +3130,7 @@ class _LoadingBlurImageState extends State<_LoadingBlurImage> {
         fit: widget.fit,
         filterQuality: FilterQuality.high,
         gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) => _fallback(),
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
           if (frame != null || wasSynchronouslyLoaded) {
             if (!_revealed) {

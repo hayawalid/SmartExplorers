@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'dart:ui';
 import 'dart:async';
 import '../theme/app_theme.dart';
 import '../widgets/smart_explorers_logo.dart';
@@ -700,7 +699,8 @@ class _SuggestionCardWidget extends StatefulWidget {
   const _SuggestionCardWidget({
     required this.suggestion,
     required this.isDark,
-    this.showButton = true, this.onApply,
+    this.showButton = true,
+    this.onApply,
   });
 
   final _SuggestionCard suggestion;

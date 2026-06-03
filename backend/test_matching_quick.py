@@ -7,7 +7,9 @@ async def main():
     await connect_to_mongo()
     db = mongodb.client[mongodb.DATABASE_NAME]
     
-    users = await matching_mod.fetch_all_users(db)
+    import asyncio as _asyncio
+    loop = _asyncio.get_event_loop()
+    users = await loop.run_in_executor(None, matching_mod.matching_engine.fetch_all_users)
     print(f"Total users: {len(users)}")
     for u in users:
         acct = u.get('account_type')
