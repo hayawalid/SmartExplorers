@@ -297,13 +297,15 @@ async def create_review(payload: Dict[str, Any] = Body(...)):
     doc = await db[mongodb.REVIEWS].find_one({"_id": result.inserted_id})
 
     # Re-run verification for the provider so score reflects new review
-    provider_id = payload.get("provider_id")
-    if provider_id:
+    review_provider_id = payload.get("provider_id")
+    if review_provider_id and str(review_provider_id).strip():
         try:
             from app.services.provider_verification_service import provider_verification_service
             import asyncio
-            asyncio.create_task(provider_verification_service.verify_provider_complete(provider_id))
-        except Exception:
+            print(f"  [INFO] Triggering re-verification for provider: {review_provider_id}")
+            asyncio.create_task(provider_verification_service.verify_provider_complete(str(review_provider_id)))
+        except Exception as e:
+            print(f"  [WARN] Re-verification task failed to schedule: {e}")
             pass  # Non-blocking
 
     return _serialize(doc)

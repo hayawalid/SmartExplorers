@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/theme/app_theme.dart';
 import 'package:mobile_app/widgets/smart_explorers_logo.dart';
 import 'package:mobile_app/services/profile_api_service.dart';
+import 'package:mobile_app/screens/shared/write_review_screen.dart';
 
 /// View another user's profile — adapts layout for traveler vs provider.
 class UserProfileViewScreen extends StatefulWidget {
@@ -241,6 +242,38 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
                 ),
                 _stat('Reviews', '${_reviews.length}', text, sub),
               ],
+            ),
+          ],
+          if (_isProvider) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () async {
+                  final providerName = _profile?['full_name'] ??
+                      _profile?['business_name'] ??
+                      widget.displayName;
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => WriteReviewScreen(
+                        providerId: widget.userId,
+                        providerName: providerName?.toString(),
+                      ),
+                    ),
+                  );
+                  if (result == true) _loadProfile();
+                },
+                icon: const Icon(LucideIcons.star, size: 16),
+                label: const Text('Write a Review'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppDesign.electricCobalt,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
             ),
           ],
         ],
