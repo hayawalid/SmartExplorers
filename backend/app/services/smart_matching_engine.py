@@ -36,8 +36,8 @@ load_dotenv()  # Looks for .env in current directory
 load_dotenv(os.path.join(os.path.dirname(__file__), 'backend', '.env'))  # backend subfolder
 
 # Print to verify it loaded (remove after testing)
-print(f"✓ GROQ_API_KEY loaded: {'✓ Present' if os.getenv('GROQ_API_KEY') else '✗ MISSING'}")
-print(f"✓ MongoDB URI loaded: {'✓ Present' if os.getenv('MONGODB_URI') else '✗ MISSING'}")
+print(f"[OK] GROQ_API_KEY loaded: {'[OK] Present' if os.getenv('GROQ_API_KEY') else '[NO] MISSING'}")
+print(f"[OK] MongoDB URI loaded: {'[OK] Present' if os.getenv('MONGODB_URI') else '[NO] MISSING'}")
 
 import numpy as np
 from sklearn.cluster import KMeans
@@ -124,7 +124,7 @@ class SmartMatchingEngine:
             "Russian", "Chinese", "Japanese", "Korean", "Portuguese"
         ]
         
-        print("✓ Matching engine initialized (keyword-based)")
+        print("[OK] Matching engine initialized (keyword-based)")
         
         # Initialize MongoDB connection
         self._init_mongodb()
@@ -144,16 +144,16 @@ class SmartMatchingEngine:
                 
                 # Test connection
                 self.mongo_client.admin.command('ping')
-                print(f"✓ MongoDB connected successfully to {self.db_name}")
+                print(f"[OK] MongoDB connected successfully to {self.db_name}")
                 
                 # Debug: List collections
                 collections = self.db.list_collection_names()
-                print(f"📋 Available collections: {collections}")
+                print(f"[COLS] Available collections: {collections}")
                 
             else:
-                print("⚠️  MongoDB URI not found, using mock data")
+                print("[WARN] MongoDB URI not found, using mock data")
         except Exception as e:
-            print(f"⚠️  MongoDB connection failed: {e}, using mock data")
+            print(f"[WARN] MongoDB connection failed: {e}, using mock data")
             self.mongo_client = None
             self.db = None
     
@@ -177,12 +177,13 @@ class SmartMatchingEngine:
         Fetch all users from MongoDB with their associated profiles
         
         Returns:
-            List of user documents with embedded profile data
+            List of user documents with embedded profile data (deduplicated by email)
         """
         all_users = []
+        seen_emails = set()  # EDIT 4: Track seen emails to prevent duplicates
         
         if self.db is None:
-            print("⚠️  No database connection, using mock users for testing")
+            print("[WARN] No database connection, using mock users for testing")
             return self._get_mock_users()
         
         try:
@@ -190,11 +191,17 @@ class SmartMatchingEngine:
             users_collection = self.db['users']
             users = list(users_collection.find({}))
             
-            print(f"📡 Found {len(users)} users in database")
+            print(f"[DB] Found {len(users)} users in database")
             
             for user in users:
                 user = self._convert_objectid(user)
                 user_id = user['_id']
+                user_email = user.get('email')
+                
+                # EDIT 4: Skip if we've already loaded this user by email
+                if user_email in seen_emails:
+                    continue
+                seen_emails.add(user_email)
                 
                 # Fetch the appropriate profile based on account_type
                 if user.get('account_type') == 'traveler':
@@ -203,9 +210,9 @@ class SmartMatchingEngine:
                     if profile:
                         profile = self._convert_objectid(profile)
                         user['profile'] = profile
-                        print(f"  ✓ Loaded traveler: {user.get('full_name', user.get('username'))}")
+                        print(f"  [OK] Loaded traveler: {user.get('full_name', user.get('username'))}")
                     else:
-                        print(f"  ⚠️  No profile found for traveler: {user.get('email')}")
+                        print(f"  [WARN] No profile found for traveler: {user.get('email')}")
                         user['profile'] = {}
                         
                 elif user.get('account_type') == 'service_provider':
@@ -214,10 +221,11 @@ class SmartMatchingEngine:
                     if profile:
                         profile = self._convert_objectid(profile)
                         user['provider_profile'] = profile
-                        print(f"  ✓ Loaded service provider: {user.get('full_name', user.get('username'))}")
+                        print(f"  [OK] Loaded service provider: {user.get('full_name', user.get('username'))}")
                     else:
-                        print(f"  ⚠️  No profile found for service provider: {user.get('email')}")
-                        user['provider_profile'] = {}
+                        # EDIT 5: Skip orphaned profiles entirely
+                        print(f"  [WARN] Skipping provider {user.get('email')} - profile collection entry missing.")
+                        continue
                 
                 # Add bio if it exists in user document
                 if 'bio' not in user:
@@ -225,16 +233,16 @@ class SmartMatchingEngine:
                 
                 all_users.append(user)
             
-            print(f"\n✓ Total {len(all_users)} users loaded from database")
+            print(f"\n[OK] Total {len(all_users)} users loaded from database")
             
         except Exception as e:
-            print(f"⚠️  Error fetching from database: {e}")
-            print("⚠️  Falling back to mock users")
+            print(f"[WARN] Error fetching from database: {e}")
+            print("[WARN] Falling back to mock users")
             return self._get_mock_users()
         
         # If no users found, use mock data
         if not all_users:
-            print("⚠️  No users found in database, using mock users")
+            print("[WARN] No users found in database, using mock users")
             return self._get_mock_users()
         
         return all_users
@@ -277,7 +285,7 @@ class SmartMatchingEngine:
                 
                 users.append(user)
             
-            print(f"✓ Fetched {len(users)} {account_type}s from database")
+            print(f"[OK] Fetched {len(users)} {account_type}s from database")
             
         except Exception as e:
             print(f"⚠️  Error fetching {account_type}s: {e}")
@@ -686,29 +694,29 @@ class SmartMatchingEngine:
         return len(common) > 0, common
     
     def _check_budget_compatibility(self, budget1: Tuple[float, float], budget2: Tuple[float, float]) -> Tuple[bool, float]:
-        """Check if two users have compatible budgets"""
+        """Check if two users have compatible budgets using exact distance formula.
+        
+        Instead of binary ranges, calculates continuous percentage distance.
+        """
         min1, max1 = budget1
         min2, max2 = budget2
         
-        # Check for overlap
-        overlap_min = max(min1, min2)
-        overlap_max = min(max1, max2)
+        # Use average budgets for distance calculation
+        avg_budget_1 = (min1 + max1) / 2.0 if (min1 + max1) > 0 else 50
+        avg_budget_2 = (min2 + max2) / 2.0 if (min2 + max2) > 0 else 50
         
-        if overlap_min <= overlap_max:
-            range1 = max1 - min1 if max1 > min1 else 1
-            range2 = max2 - min2 if max2 > min2 else 1
-            overlap_range = overlap_max - overlap_min
-            compatibility = min(overlap_range / range1, overlap_range / range2)
-            return True, compatibility
+        # Exact distance formula: normalize distance relative to first budget
+        if avg_budget_1 > 0:
+            budget_distance = abs(avg_budget_1 - avg_budget_2) / avg_budget_1
+            # Penalty: each 10% difference reduces compatibility by 10%
+            budget_compat = max(0.0, 1.0 - budget_distance)
+        else:
+            budget_compat = 0.5
         
-        # Check if close
-        gap = min(abs(max1 - min2), abs(max2 - min1))
-        avg_range = (max1 - min1 + max2 - min2) / 2
+        # Determine if compatible (score > 30%)
+        is_compatible = budget_compat > 0.3
         
-        if avg_range > 0 and gap / avg_range < 0.4:
-            return True, 0.6 - (gap / avg_range)
-        
-        return False, 0.0
+        return is_compatible, budget_compat
     
     def _calculate_safety_score(self, user1: Dict, user2: Dict) -> float:
         """Calculate safety compatibility score"""
@@ -940,20 +948,44 @@ Be honest and critical. A poor match is better than a forced match."""
                 target_budget, candidate_budget
             )
             
+            # Ensure minimum floor
             if budget_score < 0.3:
                 budget_score = 0.3
             
             # Safety score
             safety_score = self._calculate_safety_score(target_user, candidate)
             
+            # EDIT 2: Penalize unfilled profiles (Cold Start Prevention)
+            # If either user hasn't filled out interests, reduce score by 20%
+            target_interests = (target_profile.get("travel_interests") or []) + (target_profile.get("setup_interests") or []) if target_type == "traveler" else target_profile.get("services_offered") or []
+            candidate_interests = (candidate_profile.get("travel_interests") or []) + (candidate_profile.get("setup_interests") or []) if candidate_type == "traveler" else candidate_profile.get("services_offered") or []
+            
+            if not target_interests or not candidate_interests:
+                score_multiplier = 0.8  # 20% penalty for unfilled profiles
+            else:
+                score_multiplier = 1.0
+            
             # Calculate final match score with INTEREST SIMILARITY as primary factor
-            match_score = (
+            base_match_score = (
                 cluster_similarity * 0.15 +      # Demographic clustering
                 interest_similarity * 0.40 +     # INTEREST MATCHING (highest weight)
                 language_score * 0.20 +
                 budget_score * 0.15 +
                 safety_score * 0.10
             )
+            
+            # Apply profile completion penalty
+            match_score = base_match_score * score_multiplier
+            
+            # EDIT 3: Add micro-variance tie-breaker using bio length and portfolio count
+            # This ensures unique sorting rankings
+            bio_text = candidate.get('bio', '') or candidate_profile.get('bio', '')
+            bio_variance = min(len(bio_text) * 0.00001, 0.0009)  # Max bonus of 0.0009
+            
+            portfolio_count = len(candidate_profile.get('portfolio_items', []))
+            portfolio_variance = min(portfolio_count * 0.001, 0.009)  # Max bonus of 0.009
+            
+            match_score = match_score + bio_variance + portfolio_variance
             
             # POINT 4: Remove matches below 50%
             if match_score < 0.50:
