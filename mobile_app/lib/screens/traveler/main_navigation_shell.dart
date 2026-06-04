@@ -102,6 +102,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell>
                 FeedScreen(
                   currentThemeMode: themeManager.currentMode,
                   onThemeModeSelected: themeManager.setThemeMode,
+                  userType: 'traveler',
                 ),
                 const SmartMatchScreen(),
                 ItineraryPlannerScreen(),
