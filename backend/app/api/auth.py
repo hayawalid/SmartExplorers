@@ -221,6 +221,19 @@ async def signup(body: SignupRequest, request: Request):
     }
 
 
+# ── ADD THIS NEW ENDPOINT ───────────────────────────────────────────────
+@router.get("/check-email")
+async def check_email(email: str):
+    """
+    Check if an email is already registered.
+    Returns: {"exists": true/false}
+    """
+    db = get_database()
+    user = await db[mongodb.USERS].find_one({"email": email})
+    return {"exists": user is not None}
+# ─────────────────────────────────────────────────────────────────────────
+
+
 @router.post("/login")
 async def login(body: LoginRequest, request: Request):
     db = get_database()

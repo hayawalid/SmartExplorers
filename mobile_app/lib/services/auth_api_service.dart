@@ -53,6 +53,30 @@ class AuthApiService {
     throw Exception(errorMessage);
   }
 
+  // ── CHECK IF EMAIL EXISTS ───────────────────────────────────────────────
+  Future<bool> checkEmailExists(String email) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.authEndpoint}/check-email?email=$email'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['exists'] == true;
+      }
+      
+      // If endpoint doesn't exist, return false (assume email is available)
+      return false;
+    } catch (e) {
+      // Assume email is available on error
+      return false;
+    }
+  }
+
   // ── SIGNUP ───────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> signup({
     required String email,

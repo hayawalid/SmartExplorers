@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
+import 'dart:async';
 import 'dart:ui';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -23,6 +24,7 @@ class ProviderProfileSetupScreen extends StatefulWidget {
 class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     with TickerProviderStateMixin {
   int _currentStep = 0;
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -33,6 +35,16 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
   String _selectedService = '';
   bool _isLoading = false;
   final AuthApiService _authService = AuthApiService();
+
+  // Live validation error messages
+  String _emailError = '';
+  String _usernameError = '';
+  String _passwordError = '';
+  String _nameError = '';
+  String _phoneError = '';
+
+  // Debounce timer for email uniqueness check
+  Timer? _emailDebounceTimer;
 
   // Verification state
   bool _idScanning = false;
@@ -86,10 +98,27 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
+
+    // Add live validation listeners
+    _emailController.addListener(_onEmailChanged);
+    _usernameController.addListener(_validateUsernameLive);
+    _passwordController.addListener(_validatePasswordLive);
+    _nameController.addListener(_validateNameLive);
+    _phoneController.addListener(_validatePhoneLive);
   }
 
   @override
   void dispose() {
+    // Cancel debounce timer
+    _emailDebounceTimer?.cancel();
+    
+    // Remove live validation listeners
+    _emailController.removeListener(_onEmailChanged);
+    _usernameController.removeListener(_validateUsernameLive);
+    _passwordController.removeListener(_validatePasswordLive);
+    _nameController.removeListener(_validateNameLive);
+    _phoneController.removeListener(_validatePhoneLive);
+    
     _emailController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
@@ -101,6 +130,163 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     _celebrationController.dispose();
     _authService.dispose();
     super.dispose();
+  }
+
+  void _onEmailChanged() {
+    _validateEmailLive();
+    _debounceEmailUniquenessCheck();
+  }
+
+  // Live validation methods
+  void _validateEmailLive() {
+    setState(() {
+      final value = _emailController.text;
+      if (value.isEmpty) {
+        _emailError = '';
+      } else {
+        final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+        if (!emailRegex.hasMatch(value)) {
+          _emailError = 'Enter a valid email (e.g., name@example.com)';
+        } else if (!_emailError.contains('already registered')) {
+          _emailError = '';
+        }
+      }
+    });
+  }
+
+  Future<void> _debounceEmailUniquenessCheck() async {
+    _emailDebounceTimer?.cancel();
+    
+    final email = _emailController.text.trim();
+    if (email.isEmpty) return;
+    
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(email)) return;
+    
+    _emailDebounceTimer = Timer(const Duration(milliseconds: 500), () async {
+      final exists = await _authService.checkEmailExists(email);
+      if (mounted) {
+        setState(() {
+          if (exists) {
+            _emailError = 'This email is already registered. Please use a different email or login.';
+          } else if (_emailError.contains('already registered')) {
+            _emailError = '';
+            _validateEmailLive();
+          }
+        });
+      }
+    });
+  }
+
+  void _validateUsernameLive() {
+    setState(() {
+      final value = _usernameController.text;
+      if (value.isEmpty) {
+        _usernameError = '';
+      } else if (value.length < 3) {
+        _usernameError = 'Username must be at least 3 characters (${value.length}/3)';
+      } else {
+        _usernameError = '';
+      }
+    });
+  }
+
+  void _validatePasswordLive() {
+    setState(() {
+      final value = _passwordController.text;
+      if (value.isEmpty) {
+        _passwordError = '';
+      } else if (value.length < 8) {
+        _passwordError = 'Password must be at least 8 characters (${value.length}/8)';
+      } else {
+        _passwordError = '';
+      }
+    });
+  }
+
+  void _validateNameLive() {
+    setState(() {
+      final value = _nameController.text;
+      if (value.isEmpty) {
+        _nameError = '';
+      } else if (value.trim().length < 2) {
+        _nameError = 'Name must be at least 2 characters';
+      } else {
+        _nameError = '';
+      }
+    });
+  }
+
+  void _validatePhoneLive() {
+    setState(() {
+      final value = _phoneController.text;
+      if (value.isEmpty) {
+        _phoneError = '';
+      } else {
+        final phoneDigits = value.replaceAll(RegExp(r'[^\d]'), '');
+        if (phoneDigits.length < 10) {
+          _phoneError = 'Enter a valid phone number (at least 10 digits)';
+        } else {
+          _phoneError = '';
+        }
+      }
+    });
+  }
+
+  bool get _canContinue {
+    switch (_currentStep) {
+      case 0:
+        return _emailController.text.isNotEmpty &&
+            _emailError.isEmpty &&
+            _usernameController.text.isNotEmpty &&
+            _usernameError.isEmpty &&
+            _passwordController.text.length >= 8 &&
+            _passwordError.isEmpty &&
+            _nameController.text.isNotEmpty &&
+            _nameError.isEmpty &&
+            _phoneController.text.isNotEmpty &&
+            _phoneError.isEmpty;
+      case 1:
+        return _selectedService.isNotEmpty;
+      case 2:
+        return _idCaptured && _selfieCaptured && _verificationPassed;
+      case 3:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) return null;
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value)) return 'Enter a valid email';
+    return null;
+  }
+
+  String? _validateUsername(String? value) {
+    if (value == null || value.isEmpty) return null;
+    if (value.length < 3) return 'Must be at least 3 characters';
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) return null;
+    if (value.length < 8) return 'Must be at least 8 characters';
+    return null;
+  }
+
+  String? _validateName(String? value) {
+    if (value == null || value.isEmpty) return null;
+    if (value.trim().length < 2) return 'Must be at least 2 characters';
+    return null;
+  }
+
+  String? _validatePhone(String? value) {
+    if (value == null || value.isEmpty) return null;
+    final phoneDigits = value.replaceAll(RegExp(r'[^\d]'), '');
+    if (phoneDigits.length < 10) return 'Enter a valid phone number';
+    return null;
   }
 
   Future<void> _nextStep() async {
@@ -115,6 +301,19 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
   }
 
   Future<void> _saveProviderProfile() async {
+    // Final validation before submission
+    _validateEmailLive();
+    _validateUsernameLive();
+    _validatePasswordLive();
+    _validateNameLive();
+    _validatePhoneLive();
+    
+    if (_emailError.isNotEmpty || _usernameError.isNotEmpty || _passwordError.isNotEmpty || 
+        _nameError.isNotEmpty || _phoneError.isNotEmpty) {
+      HapticFeedback.heavyImpact();
+      return;
+    }
+    
     setState(() => _isLoading = true);
     try {
       await _authService.signup(
@@ -129,23 +328,31 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
       );
       if (mounted) {
         setState(() => _isLoading = false);
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil('/provider_home', (route) => false);
+        Navigator.of(context).pushNamedAndRemoveUntil('/provider_home', (route) => false);
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
+        String errorMessage = e.toString().replaceFirst('Exception: ', '');
+        
+        // Check if error is about duplicate email
+        if (errorMessage.toLowerCase().contains('email') || 
+            errorMessage.toLowerCase().contains('duplicate') ||
+            errorMessage.toLowerCase().contains('already exists') ||
+            errorMessage.toLowerCase().contains('registered')) {
+          errorMessage = 'This email is already registered. Please use a different email or login.';
+          setState(() => _emailError = errorMessage);
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Signup failed: ${e.toString().replaceFirst('Exception: ', '')}',
-            ),
+            content: Text('Signup failed: $errorMessage'),
             backgroundColor: AppDesign.danger,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -225,25 +432,6 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
     // Auto-trigger verification if ID already captured
     if (_idCaptured && _idImageFile != null) {
       await _runFaceVerification();
-    }
-  }
-
-  bool get _canContinue {
-    switch (_currentStep) {
-      case 0:
-        return _emailController.text.isNotEmpty &&
-            _usernameController.text.isNotEmpty &&
-            _passwordController.text.length >= 8 &&
-            _nameController.text.isNotEmpty &&
-            _phoneController.text.isNotEmpty;
-      case 1:
-        return _selectedService.isNotEmpty;
-      case 2:
-        return _idCaptured && _selfieCaptured && _verificationPassed;
-      case 3:
-        return true;
-      default:
-        return false;
     }
   }
 
@@ -480,32 +668,35 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
               ),
               child: Column(
                 children: [
-                  _glassField(
+                  _glassFieldWithLiveError(
                     controller: _emailController,
                     label: 'Email',
                     hint: 'your@email.com',
                     icon: LucideIcons.mail,
                     keyboardType: TextInputType.emailAddress,
+                    errorText: _emailError,
+                    onChanged: (_) => _onEmailChanged(),
                   ),
                   const SizedBox(height: 16),
-                  _glassField(
+                  _glassFieldWithLiveError(
                     controller: _usernameController,
                     label: 'Username',
                     hint: 'Choose a unique username',
                     icon: LucideIcons.atSign,
+                    errorText: _usernameError,
+                    onChanged: (_) => _validateUsernameLive(),
                   ),
                   const SizedBox(height: 16),
-                  _glassField(
+                  _glassFieldWithLiveError(
                     controller: _passwordController,
                     label: 'Password',
                     hint: 'At least 8 characters',
                     icon: LucideIcons.lock,
                     obscureText: _obscurePassword,
+                    errorText: _passwordError,
+                    onChanged: (_) => _validatePasswordLive(),
                     suffix: GestureDetector(
-                      onTap:
-                          () => setState(
-                            () => _obscurePassword = !_obscurePassword,
-                          ),
+                      onTap: () => setState(() => _obscurePassword = !_obscurePassword),
                       child: Icon(
                         _obscurePassword ? LucideIcons.eye : LucideIcons.eyeOff,
                         size: 20,
@@ -514,19 +705,23 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _glassField(
+                  _glassFieldWithLiveError(
                     controller: _nameController,
                     label: 'Full Legal Name',
                     hint: 'As it appears on your ID',
                     icon: LucideIcons.user,
+                    errorText: _nameError,
+                    onChanged: (_) => _validateNameLive(),
                   ),
                   const SizedBox(height: 16),
-                  _glassField(
+                  _glassFieldWithLiveError(
                     controller: _phoneController,
                     label: 'Phone Number',
                     hint: '+20 xxx xxx xxxx',
                     icon: LucideIcons.phone,
                     keyboardType: TextInputType.phone,
+                    errorText: _phoneError,
+                    onChanged: (_) => _validatePhoneLive(),
                   ),
                   const SizedBox(height: 16),
                   _glassField(
@@ -1388,56 +1583,72 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
   // ── Bottom Button ──────────────────────────────────────────────────────
 
   Widget _buildBottomButton() {
+    final bool canProceed = _canContinue;
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
-      child: SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: ElevatedButton(
-          onPressed: _canContinue && !_isLoading ? _nextStep : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppDesign.onboardingAccent,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: AppDesign.onboardingAccent.withValues(
-              alpha: 0.3,
+      child: Column(
+        children: [
+          if (_currentStep == 0 && !canProceed && (_emailError.isNotEmpty || _usernameError.isNotEmpty || _passwordError.isNotEmpty || _nameError.isNotEmpty || _phoneError.isNotEmpty))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                'Please fix the errors above to continue',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppDesign.danger,
+                ),
+              ),
             ),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: canProceed && !_isLoading ? _nextStep : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppDesign.onboardingAccent,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppDesign.onboardingAccent.withValues(
+                  alpha: 0.3,
+                ),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child:
+                  _isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _currentStep == 3
+                                  ? 'Start Accepting Requests'
+                                  : 'Continue',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              _currentStep == 3
+                                  ? LucideIcons.rocket
+                                  : LucideIcons.arrowRight,
+                              size: 20,
+                            ),
+                          ],
+                        ),
             ),
           ),
-          child:
-              _isLoading
-                  ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                  : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _currentStep == 3
-                            ? 'Start Accepting Requests'
-                            : 'Continue',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        _currentStep == 3
-                            ? LucideIcons.rocket
-                            : LucideIcons.arrowRight,
-                        size: 20,
-                      ),
-                    ],
-                  ),
-        ),
+        ],
       ),
     );
   }
@@ -1477,9 +1688,9 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
         suffixIcon:
             suffix != null
                 ? Padding(
-                  padding: const EdgeInsets.only(right: 16),
-                  child: suffix,
-                )
+                    padding: const EdgeInsets.only(right: 16),
+                    child: suffix,
+                  )
                 : null,
         filled: true,
         fillColor: Colors.white.withValues(alpha: 0.08),
@@ -1507,6 +1718,95 @@ class _ProviderProfileSetupScreenState extends State<ProviderProfileSetupScreen>
           vertical: 18,
         ),
       ),
+    );
+  }
+
+  Widget _glassFieldWithLiveError({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    TextInputType? keyboardType,
+    bool obscureText = false,
+    Widget? suffix,
+    int maxLines = 1,
+    required String errorText,
+    required ValueChanged<String> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          obscureText: obscureText,
+          maxLines: obscureText ? 1 : maxLines,
+          onChanged: onChanged,
+          style: const TextStyle(color: Colors.white, fontSize: 15),
+          decoration: InputDecoration(
+            labelText: label,
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+            labelStyle: TextStyle(
+              color: Colors.white.withValues(alpha: 0.6),
+              fontSize: 14,
+            ),
+            errorStyle: const TextStyle(color: AppDesign.danger, fontSize: 12),
+            prefixIcon: Padding(
+              padding: const EdgeInsets.only(left: 16, right: 12),
+              child: Icon(icon, color: AppDesign.onboardingAccent, size: 20),
+            ),
+            suffixIcon:
+                suffix != null
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: suffix,
+                      )
+                    : null,
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.08),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(
+                color: AppDesign.onboardingAccent,
+                width: 1.5,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: AppDesign.danger),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 18,
+            ),
+          ),
+        ),
+        if (errorText.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 12),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, color: AppDesign.danger, size: 14),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    errorText,
+                    style: TextStyle(color: AppDesign.danger, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

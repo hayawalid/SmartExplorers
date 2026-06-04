@@ -24,6 +24,10 @@ class _LoginScreenState extends State<LoginScreen>
   bool _isLoading = false;
   final AuthApiService _authService = AuthApiService();
 
+  // Live validation error messages
+  String _emailError = '';
+  String _passwordError = '';
+
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -39,10 +43,16 @@ class _LoginScreenState extends State<LoginScreen>
       curve: Curves.easeOut,
     );
     _fadeController.forward();
+
+    // Add live validation listeners
+    _emailController.addListener(_validateEmailLive);
+    _passwordController.addListener(_validatePasswordLive);
   }
 
   @override
   void dispose() {
+    _emailController.removeListener(_validateEmailLive);
+    _passwordController.removeListener(_validatePasswordLive);
     _emailController.dispose();
     _passwordController.dispose();
     _fadeController.dispose();
@@ -50,55 +60,99 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
+  // Live validation methods
+  void _validateEmailLive() {
+    setState(() {
+      final value = _emailController.text;
+      if (value.isEmpty) {
+        _emailError = '';
+      } else {
+        final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+        if (!emailRegex.hasMatch(value)) {
+          _emailError = 'Enter a valid email (e.g., name@example.com)';
+        } else {
+          _emailError = '';
+        }
+      }
+    });
+  }
+
+  void _validatePasswordLive() {
+    setState(() {
+      final value = _passwordController.text;
+      if (value.isEmpty) {
+        _passwordError = '';
+      } else if (value.length < 8) {
+        _passwordError = 'Password must be at least 8 characters (${value.length}/8)';
+      } else {
+        _passwordError = '';
+      }
+    });
+  }
+
+  bool get _isFormValid {
+    return _emailController.text.isNotEmpty &&
+        _emailError.isEmpty &&
+        _passwordController.text.length >= 8 &&
+        _passwordError.isEmpty;
+  }
+
   String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) return 'Email is required';
+    if (value == null || value.isEmpty) return null;
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value)) return 'Enter a valid email';
     return null;
   }
 
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) return 'Password is required';
+    if (value == null || value.isEmpty) return null;
     if (value.length < 8) return 'Must be at least 8 characters';
     return null;
   }
 
   void _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      try {
-        final email = _emailController.text.trim();
-        final password = _passwordController.text;
+    // Final validation before submission
+    _validateEmailLive();
+    _validatePasswordLive();
+    
+    if (_emailError.isNotEmpty || _passwordError.isNotEmpty) {
+      HapticFeedback.heavyImpact();
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    try {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
 
-        // Call the real backend login endpoint
-        await _authService.login(email: email, password: password);
+      await _authService.login(email: email, password: password);
 
-        if (mounted) {
-          setState(() => _isLoading = false);
-          final route =
-              SessionStore.instance.accountType == 'service_provider'
-                  ? '/provider_home'
-                  : SessionStore.instance.accountType == 'admin'
-                  ? '/admin'
-                  : '/';
-          Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Login failed: ${e.toString().replaceFirst('Exception: ', '')}',
-              ),
-              backgroundColor: AppDesign.danger,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+      if (mounted) {
+        setState(() => _isLoading = false);
+        final route =
+            SessionStore.instance.accountType == 'service_provider'
+                ? '/provider_home'
+                : SessionStore.instance.accountType == 'admin'
+                ? '/admin'
+                : '/';
+        Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        String errorMessage = e.toString().replaceFirst('Exception: ', '');
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Login failed: $errorMessage'),
+            backgroundColor: AppDesign.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-          );
-        }
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     }
   }
@@ -212,105 +266,111 @@ class _LoginScreenState extends State<LoginScreen>
                                 color: Colors.white.withValues(alpha: 0.18),
                               ),
                             ),
-                            child: Form(
-                              key: _formKey,
-                              child: Column(
-                                children: [
-                                  _glassField(
-                                    controller: _emailController,
-                                    label: 'Email',
-                                    hint: 'you@example.com',
-                                    icon: LucideIcons.mail,
-                                    keyboardType: TextInputType.emailAddress,
-                                    validator: _validateEmail,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _glassField(
-                                    controller: _passwordController,
-                                    label: 'Password',
-                                    hint: 'Enter your password',
-                                    icon: LucideIcons.lock,
-                                    obscureText: _obscurePassword,
-                                    validator: _validatePassword,
-                                    suffix: GestureDetector(
-                                      onTap:
-                                          () => setState(
-                                            () =>
-                                                _obscurePassword =
-                                                    !_obscurePassword,
-                                          ),
-                                      child: Icon(
-                                        _obscurePassword
-                                            ? LucideIcons.eye
-                                            : LucideIcons.eyeOff,
-                                        size: 20,
-                                        color: Colors.white.withValues(
-                                          alpha: 0.5,
-                                        ),
+                            child: Column(
+                              children: [
+                                _glassFieldWithLiveError(
+                                  controller: _emailController,
+                                  label: 'Email',
+                                  hint: 'you@example.com',
+                                  icon: LucideIcons.mail,
+                                  keyboardType: TextInputType.emailAddress,
+                                  errorText: _emailError,
+                                  onChanged: (_) => _validateEmailLive(),
+                                ),
+                                const SizedBox(height: 16),
+                                _glassFieldWithLiveError(
+                                  controller: _passwordController,
+                                  label: 'Password',
+                                  hint: 'Enter your password',
+                                  icon: LucideIcons.lock,
+                                  obscureText: _obscurePassword,
+                                  errorText: _passwordError,
+                                  onChanged: (_) => _validatePasswordLive(),
+                                  suffix: GestureDetector(
+                                    onTap: () => setState(
+                                      () => _obscurePassword = !_obscurePassword,
+                                    ),
+                                    child: Icon(
+                                      _obscurePassword
+                                          ? LucideIcons.eye
+                                          : LucideIcons.eyeOff,
+                                      size: 20,
+                                      color: Colors.white.withValues(
+                                        alpha: 0.5,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton(
-                                      onPressed: () {},
-                                      child: Text(
-                                        'Forgot Password?',
-                                        style: TextStyle(
-                                          color: AppDesign.onboardingAccent
-                                              .withValues(alpha: 0.9),
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 13,
-                                        ),
+                                ),
+                                const SizedBox(height: 12),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: () {},
+                                    child: Text(
+                                      'Forgot Password?',
+                                      style: TextStyle(
+                                        color: AppDesign.onboardingAccent
+                                            .withValues(alpha: 0.9),
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 13,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                ),
+                                const SizedBox(height: 8),
 
-                                  // Sign In button
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 56,
-                                    child: ElevatedButton(
-                                      onPressed:
-                                          _isLoading ? null : _handleLogin,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            AppDesign.onboardingAccent,
-                                        foregroundColor: Colors.white,
-                                        disabledBackgroundColor: AppDesign
-                                            .onboardingAccent
-                                            .withValues(alpha: 0.5),
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
+                                // Error summary
+                                if (!_isFormValid && (_emailError.isNotEmpty || _passwordError.isNotEmpty))
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: Text(
+                                      'Please fix the errors above to sign in',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppDesign.danger,
+                                      ),
+                                    ),
+                                  ),
+
+                                // Sign In button
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 56,
+                                  child: ElevatedButton(
+                                    onPressed: _isFormValid && !_isLoading ? _handleLogin : null,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppDesign.onboardingAccent,
+                                      foregroundColor: Colors.white,
+                                      disabledBackgroundColor: AppDesign
+                                          .onboardingAccent
+                                          .withValues(alpha: 0.5),
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          16,
                                         ),
                                       ),
-                                      child:
-                                          _isLoading
-                                              ? const SizedBox(
+                                    ),
+                                    child:
+                                        _isLoading
+                                            ? const SizedBox(
                                                 width: 22,
                                                 height: 22,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      color: Colors.white,
-                                                      strokeWidth: 2.5,
-                                                    ),
+                                                child: CircularProgressIndicator(
+                                                  color: Colors.white,
+                                                  strokeWidth: 2.5,
+                                                ),
                                               )
-                                              : const Text(
+                                            : const Text(
                                                 'Sign In',
                                                 style: TextStyle(
                                                   fontSize: 16,
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
-                                    ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -400,68 +460,90 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _glassField({
+  Widget _glassFieldWithLiveError({
     required TextEditingController controller,
     required String label,
     required String hint,
     required IconData icon,
     TextInputType? keyboardType,
     bool obscureText = false,
-    String? Function(String?)? validator,
     Widget? suffix,
+    required String errorText,
+    required ValueChanged<String> onChanged,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      validator: validator,
-      style: const TextStyle(color: Colors.white, fontSize: 15),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-        labelStyle: TextStyle(
-          color: Colors.white.withValues(alpha: 0.6),
-          fontSize: 14,
-        ),
-        errorStyle: const TextStyle(color: AppDesign.danger, fontSize: 12),
-        prefixIcon: Padding(
-          padding: const EdgeInsets.only(left: 16, right: 12),
-          child: Icon(icon, color: AppDesign.onboardingAccent, size: 20),
-        ),
-        suffixIcon:
-            suffix != null
-                ? Padding(
-                  padding: const EdgeInsets.only(right: 16),
-                  child: suffix,
-                )
-                : null,
-        filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.08),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(
-            color: AppDesign.onboardingAccent,
-            width: 1.5,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          obscureText: obscureText,
+          onChanged: onChanged,
+          style: const TextStyle(color: Colors.white, fontSize: 15),
+          decoration: InputDecoration(
+            labelText: label,
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+            labelStyle: TextStyle(
+              color: Colors.white.withValues(alpha: 0.6),
+              fontSize: 14,
+            ),
+            errorStyle: const TextStyle(color: AppDesign.danger, fontSize: 12),
+            prefixIcon: Padding(
+              padding: const EdgeInsets.only(left: 16, right: 12),
+              child: Icon(icon, color: AppDesign.onboardingAccent, size: 20),
+            ),
+            suffixIcon:
+                suffix != null
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: suffix,
+                      )
+                    : null,
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.08),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(
+                color: AppDesign.onboardingAccent,
+                width: 1.5,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: AppDesign.danger),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 18,
+            ),
           ),
         ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppDesign.danger),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 18,
-        ),
-      ),
+        if (errorText.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 12),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, color: AppDesign.danger, size: 14),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    errorText,
+                    style: TextStyle(color: AppDesign.danger, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
