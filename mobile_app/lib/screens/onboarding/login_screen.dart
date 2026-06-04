@@ -407,20 +407,20 @@ class _LoginScreenState extends State<LoginScreen>
                       const SizedBox(height: 20),
 
                       // Social – glass buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _socialGlassButton(
-                              Icons.g_mobiledata_rounded,
-                              'Google',
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: _socialGlassButton(Icons.apple, 'Apple'),
-                          ),
-                        ],
-                      ),
+                      // Row(
+                      //   children: [
+                      //     Expanded(
+                      //       child: _socialGlassButton(
+                      //         Icons.g_mobiledata_rounded,
+                      //         'Google',
+                      //       ),
+                      //     ),
+                      //     const SizedBox(width: 14),
+                      //     Expanded(
+                      //       child: _socialGlassButton(Icons.apple, 'Apple'),
+                      //     ),
+                      //   ],
+                      // ),
 
                       const SizedBox(height: 36),
 
