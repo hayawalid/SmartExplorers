@@ -10,6 +10,7 @@ import 'package:mobile_app/widgets/smart_explorers_logo.dart';
 import 'package:mobile_app/services/session_store.dart';
 import 'package:mobile_app/services/profile_api_service.dart';
 import 'package:mobile_app/services/api_config.dart';
+import '../onboarding/onboarding_flow.dart';
 
 class ProviderProfileScreen extends StatefulWidget {
   const ProviderProfileScreen({super.key});
@@ -725,8 +726,47 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
       trailing: Icon(LucideIcons.chevronRight, size: 18, color: subtitleColor),
       onTap: () {
         HapticFeedback.lightImpact();
-        Navigator.pop(context);
+        Navigator.pop(context); // Close the settings bottom sheet
+        
+        if (isDestructive && title == 'Log Out') {
+          _showLogoutConfirmation();
+        }
       },
+    );
+  }
+
+  void _showLogoutConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log Out'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              _performLogout();
+            },
+            style: TextButton.styleFrom(foregroundColor: AppDesign.danger),
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _performLogout() {
+    // Clear session
+    SessionStore.instance.clear();
+    
+    // Navigate to onboarding and remove all previous routes
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const OnboardingFlow()),
+      (route) => false,
     );
   }
 }
