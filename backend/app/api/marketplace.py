@@ -134,4 +134,38 @@ async def update_booking(booking_id: str, payload: Dict[str, Any] = Body(...)):
         if service:
             booking["service_name"] = service.get("service_name", "Service")
 
+    # In update_booking, after successful update, add:
+    from app.api.notifications import create_notification
+    from app.schemas.notification import NotificationCreate, NotificationType
+
+    # Get the booking's user and provider
+    booking = result  # after find_one_and_update
+    user_id = booking.get("user_id")
+    provider_id = booking.get("provider_id")
+    new_status = payload.get("status")
+
+    if new_status in ["confirmed", "declined"]:
+        # Notify traveler
+        await create_notification(
+            NotificationCreate(
+                user_id=user_id,
+                type=NotificationType.BOOKING_UPDATE,
+                title="Booking update",
+                body=f"Your booking has been {new_status}.",
+                data={"booking_id": booking_id}
+            ),
+            db
+        )
+        # Notify provider (only if status changed)
+        await create_notification(
+            NotificationCreate(
+                user_id=provider_id,
+                type=NotificationType.BOOKING_UPDATE,
+                title="Booking update",
+                body=f"Booking #{booking_id} has been {new_status}.",
+                data={"booking_id": booking_id}
+            ),
+            db
+        )
+
     return booking

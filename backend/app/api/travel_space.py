@@ -1,424 +1,215 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+"""
+Travel Spaces API – Group travel planning
+"""
+from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
 from datetime import datetime
+from bson import ObjectId
 
-from ..database import get_db
-from ..models.travel_space import (
-    TravelSpace, TravelSpaceMembership, MembershipVote,
-    TravelSpaceStatus, MembershipStatus, VoteType
-)
-from ..schemas.travel_space import (
+from app.mongodb import get_database, mongodb
+from app.schemas.travel_space import (
     TravelSpaceCreate,
     TravelSpaceResponse,
     TravelSpaceListItem,
-    MembershipApplication,
-    MembershipResponse,
-    MembershipVoteRequest,
-    VotingStatus
+    JoinRequestResponse
 )
-from ..services.travel_space_manager import TravelSpaceManager
+from app.api.auth import get_current_user  # Assuming you have this dependency
 
-router = APIRouter(prefix="/api/travel-spaces", tags=["travel-spaces"])
-
-
-# Mock user authentication
-async def get_current_user():
-    """Mock user - replace with actual auth"""
-    return {
-        "id": 1,
-        "email": "test@example.com",
-        "age": 28,
-        "gender": "female",
-        "languages": ["English", "Arabic"],
-        "interests": ["history", "photography"],
-        "is_verified": True
-    }
+router = APIRouter(prefix="/api/v1/travel-spaces", tags=["Travel Spaces"])
 
 
-@router.post("/", response_model=TravelSpaceResponse, status_code=status.HTTP_201_CREATED)
+def _serialize(doc):
+    if not doc:
+        return doc
+    doc["_id"] = str(doc["_id"])
+    return doc
+
+
+@router.post("/", response_model=TravelSpaceResponse, status_code=201)
 async def create_travel_space(
-    space_data: TravelSpaceCreate,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    data: TravelSpaceCreate,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_database)
 ):
-    """
-    Create a new travel space (group trip)
-    
-    Creator is automatically the first member with admin privileges
-    """
-    
-    # Create space
-    db_space = TravelSpace(
-        name=space_data.name,
-        description=space_data.description,
-        destination=space_data.destination,
-        start_date=space_data.start_date,
-        end_date=space_data.end_date,
-        itinerary_id=space_data.itinerary_id,
-        min_members=space_data.min_members,
-        max_members=space_data.max_members,
-        current_members=1,  # Creator counts
-        voting_threshold=space_data.voting_threshold,
-        require_verification=space_data.require_verification,
-        women_only=space_data.women_only,
-        min_age=space_data.min_age,
-        max_age=space_data.max_age,
-        languages=space_data.languages,
-        interests=space_data.interests,
-        is_public=space_data.is_public,
-        status=TravelSpaceStatus.FORMING,
-        creator_id=current_user["id"]
-    )
-    
-    db.add(db_space)
-    db.flush()
-    
-    # Add creator as first member
-    creator_membership = TravelSpaceMembership(
-        space_id=db_space.id,
-        user_id=current_user["id"],
-        status=MembershipStatus.ACTIVE,
-        is_creator=True,
-        role="admin",
-        application_message="Creator",
-        compatibility_score=1.0,
-        joined_at=datetime.utcnow()
-    )
-    
-    db.add(creator_membership)
-    db.commit()
-    db.refresh(db_space)
-    
-    return db_space
+    """Create a new travel space. Creator becomes the first member."""
+    now = datetime.utcnow()
+    doc = {
+        "name": data.name,
+        "description": data.description,
+        "destination": data.destination,
+        "start_date": data.start_date.isoformat(),
+        "end_date": data.end_date.isoformat(),
+        "creator_id": current_user["_id"],
+        "member_ids": [current_user["_id"]],
+        "pending_member_ids": [],
+        "image_url": data.image_url,
+        "tag": data.tag,
+        "shared_itinerary": None,
+        "is_public": data.is_public,
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await db[mongodb.TRAVEL_SPACES].insert_one(doc)
+    doc["_id"] = str(result.inserted_id)
+    return doc
 
 
 @router.get("/", response_model=List[TravelSpaceListItem])
-async def list_travel_spaces(
-    status_filter: Optional[TravelSpaceStatus] = None,
-    destination: Optional[str] = None,
-    women_only: Optional[bool] = None,
-    has_availability: bool = True,
-    skip: int = 0,
-    limit: int = Query(20, le=100),
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+async def list_public_spaces(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db=Depends(get_database)
 ):
-    """
-    List available travel spaces
-    
-    Filters:
-    - status: forming, active, completed, cancelled
-    - destination: filter by destination city
-    - women_only: filter women-only spaces
-    - has_availability: only show spaces with open spots
-    """
-    
-    query = db.query(TravelSpace).filter(TravelSpace.is_public == True)
-    
-    if status_filter:
-        query = query.filter(TravelSpace.status == status_filter)
-    
-    if destination:
-        query = query.filter(TravelSpace.destination.ilike(f"%{destination}%"))
-    
-    if women_only is not None:
-        query = query.filter(TravelSpace.women_only == women_only)
-    
-    if has_availability:
-        query = query.filter(TravelSpace.current_members < TravelSpace.max_members)
-    
-    spaces = query.offset(skip).limit(limit).all()
+    """List all public travel spaces (paginated)."""
+    cursor = db[mongodb.TRAVEL_SPACES].find({"is_public": True}).sort("created_at", -1).skip(skip).limit(limit)
+    spaces = []
+    async for doc in cursor:
+        doc = _serialize(doc)
+        spaces.append({
+            "id": doc["_id"],
+            "name": doc["name"],
+            "destination": doc["destination"],
+            "image_url": doc.get("image_url"),
+            "tag": doc.get("tag"),
+            "member_count": len(doc.get("member_ids", [])),
+            "created_at": doc["created_at"],
+        })
+    return spaces
+
+
+@router.get("/joined", response_model=List[TravelSpaceListItem])
+async def get_joined_spaces(
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_database)
+):
+    """List spaces where current user is a member."""
+    cursor = db[mongodb.TRAVEL_SPACES].find({"member_ids": current_user["_id"]}).sort("created_at", -1)
+    spaces = []
+    async for doc in cursor:
+        doc = _serialize(doc)
+        spaces.append({
+            "id": doc["_id"],
+            "name": doc["name"],
+            "destination": doc["destination"],
+            "image_url": doc.get("image_url"),
+            "tag": doc.get("tag"),
+            "member_count": len(doc.get("member_ids", [])),
+            "created_at": doc["created_at"],
+        })
     return spaces
 
 
 @router.get("/{space_id}", response_model=TravelSpaceResponse)
 async def get_travel_space(
-    space_id: int,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    space_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_database)
 ):
-    """Get detailed information about a travel space"""
-    
-    space = db.query(TravelSpace).filter(TravelSpace.id == space_id).first()
-    
+    """Get details of a travel space (only members can view)."""
+    if not ObjectId.is_valid(space_id):
+        raise HTTPException(400, "Invalid space ID")
+    doc = await db[mongodb.TRAVEL_SPACES].find_one({"_id": ObjectId(space_id)})
+    if not doc:
+        raise HTTPException(404, "Travel space not found")
+    if not doc.get("is_public") and current_user["_id"] not in doc.get("member_ids", []):
+        raise HTTPException(403, "You are not a member of this private space")
+    doc = _serialize(doc)
+    # Get creator name
+    creator = await db[mongodb.USERS].find_one({"_id": ObjectId(doc["creator_id"])})
+    doc["creator_name"] = creator.get("full_name") if creator else "Unknown"
+    doc["member_count"] = len(doc.get("member_ids", []))
+    return doc
+
+
+@router.post("/{space_id}/join", response_model=JoinRequestResponse)
+async def request_to_join(
+    space_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_database)
+):
+    """Request to join a travel space. Creator must approve."""
+    if not ObjectId.is_valid(space_id):
+        raise HTTPException(400, "Invalid space ID")
+    space = await db[mongodb.TRAVEL_SPACES].find_one({"_id": ObjectId(space_id)})
     if not space:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Travel space not found"
-        )
-    
-    # Check if private and user is not a member
-    if not space.is_public:
-        is_member = db.query(TravelSpaceMembership).filter(
-            and_(
-                TravelSpaceMembership.space_id == space_id,
-                TravelSpaceMembership.user_id == current_user["id"],
-                TravelSpaceMembership.status.in_([MembershipStatus.ACTIVE, MembershipStatus.APPROVED])
-            )
-        ).first()
-        
-        if not is_member:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="This is a private travel space"
-            )
-    
-    return space
-
-
-@router.post("/{space_id}/apply", response_model=MembershipResponse, status_code=status.HTTP_201_CREATED)
-async def apply_to_travel_space(
-    space_id: int,
-    application: MembershipApplication,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Apply to join a travel space
-    
-    Application will be subject to democratic voting by existing members
-    """
-    
-    manager = TravelSpaceManager()
-    
-    # Check if user can apply
-    can_apply, error = manager.can_user_apply(db, space_id, current_user["id"], current_user)
-    if not can_apply:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error
-        )
-    
-    space = db.query(TravelSpace).filter(TravelSpace.id == space_id).first()
-    
-    # Calculate compatibility score
-    compatibility_score = manager.calculate_compatibility_score(current_user, space)
-    
-    # Create application
-    membership = TravelSpaceMembership(
-        space_id=space_id,
-        user_id=current_user["id"],
-        application_message=application.application_message,
-        compatibility_score=compatibility_score,
-        status=MembershipStatus.PENDING
+        raise HTTPException(404, "Travel space not found")
+    if current_user["_id"] in space.get("member_ids", []):
+        return JoinRequestResponse(success=False, message="Already a member", pending_members=space.get("pending_member_ids", []))
+    if current_user["_id"] in space.get("pending_member_ids", []):
+        return JoinRequestResponse(success=False, message="Request already pending", pending_members=space.get("pending_member_ids", []))
+    await db[mongodb.TRAVEL_SPACES].update_one(
+        {"_id": ObjectId(space_id)},
+        {"$addToSet": {"pending_member_ids": current_user["_id"]}, "$set": {"updated_at": datetime.utcnow()}}
     )
-    
-    db.add(membership)
-    db.commit()
-    db.refresh(membership)
-    
-    return membership
+    updated = await db[mongodb.TRAVEL_SPACES].find_one({"_id": ObjectId(space_id)})
+    return JoinRequestResponse(success=True, message="Join request sent", pending_members=updated.get("pending_member_ids", []))
 
 
-@router.post("/{space_id}/memberships/{membership_id}/vote", response_model=VotingStatus)
-async def vote_on_membership(
-    space_id: int,
-    membership_id: int,
-    vote_request: MembershipVoteRequest,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+@router.post("/{space_id}/approve/{user_id}", response_model=JoinRequestResponse)
+async def approve_join_request(
+    space_id: str,
+    user_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_database)
 ):
-    """
-    Vote on a pending membership application
-    
-    Only active members can vote
-    Democratic threshold (default 60%) must be met for approval
-    """
-    
-    manager = TravelSpaceManager()
-    
-    # Verify space exists
-    space = db.query(TravelSpace).filter(TravelSpace.id == space_id).first()
+    """Approve a join request (creator only)."""
+    if not ObjectId.is_valid(space_id) or not ObjectId.is_valid(user_id):
+        raise HTTPException(400, "Invalid ID")
+    space = await db[mongodb.TRAVEL_SPACES].find_one({"_id": ObjectId(space_id)})
     if not space:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Travel space not found"
-        )
-    
-    # Verify membership exists and is pending
-    membership = db.query(TravelSpaceMembership).filter(
-        and_(
-            TravelSpaceMembership.id == membership_id,
-            TravelSpaceMembership.space_id == space_id
-        )
-    ).first()
-    
-    if not membership:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Membership application not found"
-        )
-    
-    if membership.status != MembershipStatus.PENDING:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Application is already {membership.status.value}"
-        )
-    
-    # Check if user can vote
-    can_vote, error = manager.can_user_vote(db, space_id, current_user["id"], membership_id)
-    if not can_vote:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=error
-        )
-    
-    # Record vote
-    vote = MembershipVote(
-        space_id=space_id,
-        membership_id=membership_id,
-        voter_id=current_user["id"],
-        vote=vote_request.vote,
-        reason=vote_request.reason
+        raise HTTPException(404, "Travel space not found")
+    if space["creator_id"] != current_user["_id"]:
+        raise HTTPException(403, "Only the creator can approve requests")
+    if user_id not in space.get("pending_member_ids", []):
+        raise HTTPException(400, "User has not requested to join")
+    await db[mongodb.TRAVEL_SPACES].update_one(
+        {"_id": ObjectId(space_id)},
+        {
+            "$pull": {"pending_member_ids": user_id},
+            "$addToSet": {"member_ids": user_id},
+            "$set": {"updated_at": datetime.utcnow()}
+        }
     )
-    
-    db.add(vote)
-    
-    # Process vote and check for decision
-    result = manager.process_vote(db, space, membership, vote_request.vote)
-    
-    db.commit()
-    
-    return VotingStatus(
-        membership_id=membership_id,
-        applicant_id=membership.user_id,
-        total_votes=result["total_votes"],
-        votes_for=result["votes_for"],
-        votes_against=result["votes_against"],
-        votes_needed=result["votes_needed"],
-        threshold_met=result["decision_made"],
-        is_approved=result["approved"],
-        is_rejected=result["rejected"]
-    )
+    updated = await db[mongodb.TRAVEL_SPACES].find_one({"_id": ObjectId(space_id)})
+    return JoinRequestResponse(success=True, message="User approved", pending_members=updated.get("pending_member_ids", []))
 
 
-@router.get("/{space_id}/memberships", response_model=List[MembershipResponse])
-async def get_memberships(
-    space_id: int,
-    status_filter: Optional[MembershipStatus] = None,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Get all memberships for a travel space
-    
-    Requires user to be a member to view
-    """
-    
-    # Verify user is a member
-    is_member = db.query(TravelSpaceMembership).filter(
-        and_(
-            TravelSpaceMembership.space_id == space_id,
-            TravelSpaceMembership.user_id == current_user["id"],
-            TravelSpaceMembership.status.in_([MembershipStatus.ACTIVE, MembershipStatus.APPROVED])
-        )
-    ).first()
-    
-    if not is_member:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You must be a member to view memberships"
-        )
-    
-    query = db.query(TravelSpaceMembership).filter(
-        TravelSpaceMembership.space_id == space_id
-    )
-    
-    if status_filter:
-        query = query.filter(TravelSpaceMembership.status == status_filter)
-    
-    memberships = query.all()
-    return memberships
-
-
-@router.post("/{space_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/{space_id}/leave")
 async def leave_travel_space(
-    space_id: int,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    space_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_database)
 ):
-    """
-    Leave a travel space
-    
-    Creator cannot leave - must transfer ownership or cancel space
-    """
-    
-    manager = TravelSpaceManager()
-    
-    success, error = manager.leave_space(db, space_id, current_user["id"])
-    
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error
-        )
-    
-    db.commit()
-    return None
-
-
-@router.get("/{space_id}/pending-applications", response_model=List[MembershipResponse])
-async def get_pending_applications(
-    space_id: int,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Get all pending membership applications
-    
-    Only active members can view pending applications to vote on them
-    """
-    
-    manager = TravelSpaceManager()
-    
-    # Verify user is an active member
-    is_member = db.query(TravelSpaceMembership).filter(
-        and_(
-            TravelSpaceMembership.space_id == space_id,
-            TravelSpaceMembership.user_id == current_user["id"],
-            TravelSpaceMembership.status.in_([MembershipStatus.ACTIVE, MembershipStatus.APPROVED])
-        )
-    ).first()
-    
-    if not is_member:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You must be a member to view pending applications"
-        )
-    
-    applications = manager.get_pending_applications(db, space_id)
-    return applications
-
-
-@router.delete("/{space_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def cancel_travel_space(
-    space_id: int,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Cancel a travel space
-    
-    Only the creator can cancel
-    """
-    
-    space = db.query(TravelSpace).filter(TravelSpace.id == space_id).first()
-    
+    """Leave a travel space (cannot leave if you are the creator)."""
+    if not ObjectId.is_valid(space_id):
+        raise HTTPException(400, "Invalid space ID")
+    space = await db[mongodb.TRAVEL_SPACES].find_one({"_id": ObjectId(space_id)})
     if not space:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Travel space not found"
-        )
-    
-    if space.creator_id != current_user["id"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the creator can cancel the travel space"
-        )
-    
-    space.status = TravelSpaceStatus.CANCELLED
-    db.commit()
-    
-    return None
+        raise HTTPException(404, "Travel space not found")
+    if current_user["_id"] == space["creator_id"]:
+        raise HTTPException(400, "Creator cannot leave. Delete the space instead.")
+    if current_user["_id"] not in space.get("member_ids", []):
+        raise HTTPException(400, "You are not a member")
+    await db[mongodb.TRAVEL_SPACES].update_one(
+        {"_id": ObjectId(space_id)},
+        {"$pull": {"member_ids": current_user["_id"]}, "$set": {"updated_at": datetime.utcnow()}}
+    )
+    return {"success": True, "message": "You have left the space"}
+
+
+@router.delete("/{space_id}")
+async def delete_travel_space(
+    space_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_database)
+):
+    """Delete a travel space (creator only)."""
+    if not ObjectId.is_valid(space_id):
+        raise HTTPException(400, "Invalid space ID")
+    space = await db[mongodb.TRAVEL_SPACES].find_one({"_id": ObjectId(space_id)})
+    if not space:
+        raise HTTPException(404, "Travel space not found")
+    if space["creator_id"] != current_user["_id"]:
+        raise HTTPException(403, "Only the creator can delete the space")
+    await db[mongodb.TRAVEL_SPACES].delete_one({"_id": ObjectId(space_id)})
+    return {"success": True, "message": "Travel space deleted"}

@@ -4,15 +4,41 @@ Authentication endpoints – signup & login
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 
-from fastapi import APIRouter, HTTPException, Body, Request
+from fastapi import APIRouter, Depends, HTTPException, Body, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 import bcrypt
-from jose import jwt
+from jose import jwt, JWTError
+from bson import ObjectId
 
 from app.config import settings
 from app.mongodb import get_database, mongodb
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+security = HTTPBearer()
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db = Depends(get_database)
+):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    user = await db[mongodb.USERS].find_one({"_id": ObjectId(user_id)})
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    user["_id"] = str(user["_id"])
+    return user
 
 # ---------------------------------------------------------------------------
 # Helpers

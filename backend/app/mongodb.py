@@ -4,7 +4,7 @@ Works with both SRV and standard connection strings
 Windows-compatible with error handling
 """
 from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo import MongoClient
+from pymongo import MongoClient, ASCENDING, TEXT
 from typing import Optional
 from app.config import settings
 
@@ -16,14 +16,14 @@ class MongoDB:
     db = None
     
     # Database name
-    DATABASE_NAME = "smartexplorers"
+    DATABASE_NAME = "new_smartexplorers"
     
-    # Collection names
+    # Collection names - EXISTING
     USERS = "users"
     TRAVELER_PROFILES = "traveler_profiles"
     SERVICE_PROVIDER_PROFILES = "service_provider_profiles"
     SERVICES = "services"
-    CONVERSATIONS = "conversations"
+    CONVERSATIONS = "conversations"  # AI conversations
     USER_MEMORIES = "user_memories"
     SAFETY_PROFILES = "safety_profiles"
     EMERGENCY_CONTACTS = "emergency_contacts"
@@ -38,8 +38,14 @@ class MongoDB:
     BOOKINGS = "bookings"
     USER_PREFERENCES = "user_preferences"
     ITINERARIES = "itineraries"
-    PORTFOLIO_ITEMS = "portfolio_items"
+    TRAVEL_SPACES = "travel_spaces"
+    NOTIFICATIONS = "notifications"
+    USER_CONVERSATIONS = "user_conversations"
+    MESSAGES = "messages"
+    LOCATION_SHARES = "location_shares"
     CREDENTIALS = "credentials"
+    PORTFOLIO_ITEMS = "portfolio_items"
+    AI_CONVERSATIONS = "ai_conversations"
 
 
 # Global MongoDB instance
@@ -136,7 +142,7 @@ async def create_indexes():
         await db[mongodb.TRAVELER_PROFILES].create_index("user_id", unique=True)
         await db[mongodb.SERVICE_PROVIDER_PROFILES].create_index("user_id", unique=True)
 
-        # Conversations indexes
+        # AI Conversations indexes
         await db[mongodb.CONVERSATIONS].create_index("conversation_id", unique=True)
         await db[mongodb.CONVERSATIONS].create_index("user_id")
         await db[mongodb.CONVERSATIONS].create_index([("user_id", 1), ("is_active", 1)])
@@ -178,12 +184,38 @@ async def create_indexes():
         await db[mongodb.PORTFOLIO_ITEMS].create_index("provider_id")
         await db[mongodb.CREDENTIALS].create_index("provider_id")
 
-        # Services indexes (for discovery and filtering)
+        # Services indexes
         await db[mongodb.SERVICES].create_index([("provider_id", 1), ("is_active", 1)])
         await db[mongodb.SERVICES].create_index("service_type")
         await db[mongodb.SERVICES].create_index("tags")
         await db[mongodb.SERVICES].create_index("cluster_keywords")
         await db[mongodb.SERVICES].create_index("created_at")
+
+        # ========== NEW INDEXES ==========
+        # Travel spaces
+        await db[mongodb.TRAVEL_SPACES].create_index([("member_ids", ASCENDING)])
+        await db[mongodb.TRAVEL_SPACES].create_index([("name", TEXT)])
+
+        # Notifications
+        await db[mongodb.NOTIFICATIONS].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        await db[mongodb.NOTIFICATIONS].create_index([("user_id", ASCENDING), ("is_read", ASCENDING)])
+
+        # User conversations (chat)
+        await db[mongodb.USER_CONVERSATIONS].create_index([("participant_ids", ASCENDING)])
+        await db[mongodb.USER_CONVERSATIONS].create_index([("participant_ids", ASCENDING), ("last_message_at", DESCENDING)])
+
+        # Messages
+        await db[mongodb.MESSAGES].create_index([("conversation_id", ASCENDING), ("created_at", ASCENDING)])
+        await db[mongodb.MESSAGES].create_index([("sender_id", ASCENDING)])
+
+        # Location shares (TTL index)
+        await db[mongodb.LOCATION_SHARES].create_index([("user_id", ASCENDING), ("shared_at", DESCENDING)])
+        await db[mongodb.LOCATION_SHARES].create_index([("shared_at", ASCENDING)], expireAfterSeconds=86400)
+
+        # Credentials & Portfolio (already above)
+        # AI conversations
+        await db[mongodb.AI_CONVERSATIONS].create_index([("conversation_id", ASCENDING)], unique=True)
+        await db[mongodb.AI_CONVERSATIONS].create_index([("user_id", ASCENDING)])
 
         print("✓ MongoDB indexes created")
 

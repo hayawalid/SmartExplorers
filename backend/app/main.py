@@ -34,7 +34,12 @@ from app.api.matching import router as matching_router, initialize_matching_syst
 # from app.api.verification import router as verification_router  # COMMENTED OUT – uses SQLAlchemy, not MongoDB
 
 # Add after existing routers
-
+from app.api.travel_space import router as travel_spaces_router
+from app.api.notifications import router as notifications_router
+from app.api.user_messaging import router as user_messaging_router
+from app.api.location import router as location_router
+from app.api.credentials import router as credentials_router
+from app.api.portfolio import router as portfolio_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -72,6 +77,31 @@ app = FastAPI(
     version=settings.VERSION,
     lifespan=lifespan
 )
+
+# ... inside the section where you already include other routers
+app.include_router(auth_router)
+app.include_router(chat_router)
+app.include_router(planner_router)
+app.include_router(users_router)
+app.include_router(profiles_router)
+app.include_router(social_router)
+app.include_router(marketplace_router)
+app.include_router(services_router)
+app.include_router(safety_router)
+app.include_router(preferences_router)
+
+# ====== NEW ======
+app.include_router(travel_spaces_router)
+app.include_router(notifications_router)
+app.include_router(user_messaging_router)
+app.include_router(location_router)
+app.include_router(credentials_router)
+app.include_router(portfolio_router)
+
+app.include_router(matching_router)
+
+from app.api.recommendations import router as recommendations_router
+app.include_router(recommendations_router)
 
 # Custom exception handler for validation errors
 @app.exception_handler(RequestValidationError)

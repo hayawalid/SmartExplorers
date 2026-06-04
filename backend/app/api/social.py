@@ -278,6 +278,22 @@ async def list_reviews(
 async def create_review(payload: Dict[str, Any] = Body(...)):
     db = get_database()
     result = await db[mongodb.REVIEWS].insert_one(payload)
+    # After review creation
+    from app.api.notifications import create_notification
+    from app.schemas.notification import NotificationCreate, NotificationType
+
+    provider_id = payload.get("provider_id")
+    if provider_id:
+        await create_notification(
+            NotificationCreate(
+                user_id=provider_id,
+                type=NotificationType.REVIEW_RECEIVED,
+                title="New review",
+                body=f"Someone left a {payload.get('rating')}-star review for you.",
+                data={"review_id": str(result.inserted_id)}
+            ),
+            db
+        )
     doc = await db[mongodb.REVIEWS].find_one({"_id": result.inserted_id})
 
     # Re-run verification for the provider so score reflects new review
