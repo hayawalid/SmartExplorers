@@ -382,6 +382,7 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
   }
 
   Widget _buildCenterCircle(double centerX, double centerY) {
+    final avatarUrl = _backendAvatarUrl('../backend/static/avatars/haneen.jpg');
     return Positioned(
       left: centerX - 28,
       top: centerY - 28,
@@ -401,11 +402,16 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
           ],
         ),
         child: ClipOval(
-          child: Image.asset(
-            '../backend/static/avatars/haneen.jpg',
+          child: Image.network(
+            avatarUrl,
             width: 56,
             height: 56,
             fit: BoxFit.cover,
+            errorBuilder:
+                (_, __, ___) => Container(
+                  color: const Color(0xFF9333EA).withOpacity(0.18),
+                  child: const Icon(Icons.person, color: Colors.white),
+                ),
           ),
         ),
       ),
@@ -525,6 +531,7 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
       final color = person['color'] as Color;
       final asset = person['asset'] as String?;
       final emoji = person['emoji'] as String?;
+      final avatarUrl = asset == null ? null : _backendAvatarUrl(asset);
 
       final radians = angle * math.pi / 180;
       final x = centerX + radius * math.cos(radians) - size / 2;
@@ -571,12 +578,23 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
               ),
               child: ClipOval(
                 child:
-                    asset != null
-                        ? Image.asset(
-                          asset,
+                    avatarUrl != null
+                        ? Image.network(
+                          avatarUrl,
                           width: size,
                           height: size,
                           fit: BoxFit.cover,
+                          errorBuilder:
+                              (_, __, ___) => Container(
+                                color: color.withOpacity(0.18),
+                                child: Center(
+                                  child: Icon(
+                                    Icons.person,
+                                    size: size * 0.45,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                         )
                         : Center(
                           child: Text(
@@ -660,6 +678,13 @@ class _SmartMatchScreenState extends State<SmartMatchScreen>
     );
 
     return widgets;
+  }
+
+  String _backendAvatarUrl(String source) {
+    if (source.startsWith('../backend/')) {
+      return source.replaceFirst('../backend', ApiConfig.baseUrl);
+    }
+    return source;
   }
 
   // ── Start Matching Logic ──
