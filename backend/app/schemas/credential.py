@@ -3,7 +3,7 @@ Credential Schemas for provider certifications
 """
 from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import date
+from datetime import date, datetime
 
 
 class CredentialCreate(BaseModel):
