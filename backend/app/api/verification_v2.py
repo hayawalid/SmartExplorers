@@ -196,10 +196,6 @@ async def get_provider_verification_status(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ============================================================================
-# PROVIDER VERIFICATION ENDPOINTS (for Flutter app)
-# ============================================================================
-
 @router.get("/providers/{provider_id}")
 async def get_provider_verification(
     provider_id: str,
@@ -210,60 +206,64 @@ async def get_provider_verification(
     Returns overall_score, verification_level, source_scores, etc.
     """
     from app.services.provider_verification_service import provider_verification_service
+    from bson import ObjectId
     
     try:
-        # Check if provider exists
+        # Try to find provider by user_id first, then by _id
         provider = await db.service_provider_profiles.find_one({"user_id": provider_id})
+        if not provider:
+            try:
+                provider = await db.service_provider_profiles.find_one({"_id": ObjectId(provider_id)})
+            except:
+                pass
         
         if not provider:
-            raise HTTPException(status_code=404, detail="Provider not found")
+            # Try to get user and find by user_id from users collection
+            try:
+                user = await db.users.find_one({"_id": ObjectId(provider_id)})
+                if user and user.get("account_type") == "service_provider":
+                    provider = await db.service_provider_profiles.find_one({"user_id": str(user["_id"])})
+            except:
+                pass
         
-        # Get existing verification data from provider profile
-        verification_data = provider.get("verification", {})
+        if not provider:
+            raise HTTPException(status_code=404, detail=f"Provider profile not found for id: {provider_id}")
         
-        # Also get cross-validation service data if available
-        source_scores = {}
-        warnings = []
-        recommendations = []
-        
-        # Try to get fresh cross-validation data
+        # ALWAYS run fresh verification to show current scores
+        report = await provider_verification_service.verify_provider_complete(
+            provider_id=provider_id
+        )
+
+        if not report or report.get("error"):
+            # Fallback to stored report if fresh verification fails
+            stored = await db.provider_verifications.find_one({"provider_id": provider_id})
+            report = stored.get("verification_report") if stored else {}
+
+        # Get user data for the provider
+        user = None
         try:
-            from app.services.cross_validation_service import cross_validation_service
-            cross_result = await cross_validation_service.verify_service_provider(
-                provider_data=provider,
-                db=db
-            )
-            if cross_result:
-                overall_score = cross_result.get("overall_score", 0.0)
-                verification_level = cross_result.get("verification_level", "basic")
-                source_scores = cross_result.get("detailed_results", {})
-                warnings = cross_result.get("warnings", [])
-                recommendations = cross_result.get("recommendations", [])
-            else:
-                overall_score = verification_data.get("overall_score", 0.0)
-                verification_level = verification_data.get("tier", "basic")
-        except Exception as e:
-            # Fallback to stored data
-            overall_score = verification_data.get("overall_score", 0.0)
-            verification_level = verification_data.get("tier", "basic")
-        
+            user = await db.users.find_one({"_id": ObjectId(provider.get("user_id", provider_id))})
+        except:
+            pass
+
         return {
             "provider_id": provider_id,
-            "overall_score": overall_score,
-            "verification_level": verification_level,
-            "source_scores": source_scores,
-            "warnings": warnings,
-            "recommendations": recommendations,
+            "overall_score": report.get("overall_score", 0.0),
+            "verification_level": report.get("verification_level", "basic"),
+            "source_scores": report.get("source_scores", {}),
+            "warnings": report.get("warnings", []),
+            "recommendations": report.get("recommendations", []),
             "provider_profile": {
                 "business_name": provider.get("business_name"),
                 "address": provider.get("address"),
                 "city": provider.get("city"),
                 "latitude": provider.get("latitude"),
                 "longitude": provider.get("longitude"),
-                "phone_number": provider.get("phone_number"),
+                "phone_number": provider.get("phone_number") or (user.get("phone_number") if user else None),
                 "facebook_url": provider.get("facebook_url"),
                 "instagram_username": provider.get("instagram_username"),
                 "business_license_number": provider.get("business_license_number"),
+                "business_hours": provider.get("business_hours"),
                 "verification_status": provider.get("verification_status", "pending"),
                 "id_name_match": provider.get("id_name_match", False),
                 "face_verified": provider.get("face_verified", False),
@@ -273,8 +273,105 @@ async def get_provider_verification(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.get("/providers/{provider_id}/debug")
+async def debug_provider_verification(
+    provider_id: str,
+    db=Depends(get_database)
+):
+    """DEBUG: Show raw provider data and verification results"""
+    from app.services.provider_verification_service import provider_verification_service
+    
+    try:
+        from bson import ObjectId
+
+        # Try to find by user_id first, then by _id
+        provider = await db.service_provider_profiles.find_one({"user_id": provider_id})
+        if not provider:
+            try:
+                provider = await db.service_provider_profiles.find_one({"_id": ObjectId(provider_id)})
+            except:
+                pass
+        
+        # Get raw provider data
+        raw_data = {
+            "business_name": provider.get("business_name"),
+            "address": provider.get("address"),
+            "city": provider.get("city"),
+            "latitude": provider.get("latitude"),
+            "longitude": provider.get("longitude"),
+            "phone_number": provider.get("phone_number"),
+            "facebook_url": provider.get("facebook_url"),
+            "instagram_username": provider.get("instagram_username"),
+            "business_license_number": provider.get("business_license_number"),
+            "business_hours": provider.get("business_hours"),
+        }
+        
+        # Run verification
+        report = await provider_verification_service.verify_provider_complete(
+            provider_id=provider_id
+        )
+        
+        return {
+            "raw_provider_data": raw_data,
+            "verification_report": report
+        }
+        
+    except Exception as e:
+        return {"error": str(e)}
+# ============================================================================
+# PROVIDER VERIFICATION ENDPOINTS (for Flutter app)
+# ============================================================================
+
+@router.get("/providers/{provider_id}/debug")
+async def debug_provider_verification(
+    provider_id: str,
+    db=Depends(get_database)
+):
+    """DEBUG: Show raw provider data and verification results"""
+    from app.services.provider_verification_service import provider_verification_service
+    
+    try:
+        from bson import ObjectId
+
+        # Try to find by user_id first, then by _id
+        provider = await db.service_provider_profiles.find_one({"user_id": provider_id})
+        if not provider:
+            try:
+                provider = await db.service_provider_profiles.find_one({"_id": ObjectId(provider_id)})
+            except:
+                pass
+        
+        # Get raw provider data
+        raw_data = {
+            "business_name": provider.get("business_name"),
+            "address": provider.get("address"),
+            "city": provider.get("city"),
+            "latitude": provider.get("latitude"),
+            "longitude": provider.get("longitude"),
+            "phone_number": provider.get("phone_number"),
+            "facebook_url": provider.get("facebook_url"),
+            "instagram_username": provider.get("instagram_username"),
+            "business_license_number": provider.get("business_license_number"),
+            "business_hours": provider.get("business_hours"),
+        }
+        
+        # Run verification
+        report = await provider_verification_service.verify_provider_complete(
+            provider_id=provider_id
+        )
+        
+        return {
+            "raw_provider_data": raw_data,
+            "verification_report": report
+        }
+        
+    except Exception as e:
+        return {"error": str(e)}
 
 @router.post("/providers/{provider_id}/verify")
 async def trigger_provider_verification(
@@ -602,11 +699,29 @@ async def submit_provider_business_info(
 
     if update_fields:
         update_fields["updated_at"] = datetime.utcnow()
-        await db[mongodb.SERVICE_PROVIDER_PROFILES].update_one(
-            {"user_id": provider_id},
-            {"$set": update_fields},
-            upsert=True,
-        )
+        #hena
+        # Try to find existing provider first
+        existing = await db[mongodb.SERVICE_PROVIDER_PROFILES].find_one({"user_id": provider_id})
+        if not existing:
+            try:
+                existing = await db[mongodb.SERVICE_PROVIDER_PROFILES].find_one({"_id": ObjectId(provider_id)})
+            except:
+                pass
+
+        if existing:
+            await db[mongodb.SERVICE_PROVIDER_PROFILES].update_one(
+                {"_id": existing["_id"]},
+                {"$set": update_fields},
+            )
+        else:
+            # Create new profile
+            new_profile = {
+                "user_id": provider_id,
+                **update_fields,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+            }
+            await db[mongodb.SERVICE_PROVIDER_PROFILES].insert_one(new_profile)
 
     # Re-run the 8-source verification with the new data
     report = await provider_verification_service.verify_provider_complete(

@@ -132,9 +132,11 @@ class _ProviderVerificationScreenState
 
       if (cachedRes.statusCode == 200) {
         final data = jsonDecode(cachedRes.body) as Map<String, dynamic>;
-        if (data.isNotEmpty && data['overall_score'] != null) {
+        // Unwrap envelope if present
+        final inner = (data['details'] ?? data['verification'] ?? data) as Map<String, dynamic>;
+        if (inner.isNotEmpty && inner['overall_score'] != null) {
           setState(() {
-            _report = data;
+            _report = inner;
             _loading = false;
           });
           _animController.forward(from: 0);
@@ -150,8 +152,11 @@ class _ProviderVerificationScreenState
 
       if (freshRes.statusCode == 200) {
         final data = jsonDecode(freshRes.body) as Map<String, dynamic>;
+        // The verify endpoint wraps the report: { "status": "success", "details": {...} }
+        // or { "status": "success", "verification": {...} } — unwrap it.
+        final inner = (data['details'] ?? data['verification'] ?? data) as Map<String, dynamic>;
         setState(() {
-          _report = data;
+          _report = inner;
           _loading = false;
         });
         _animController.forward(from: 0);
@@ -289,337 +294,440 @@ class _ProviderVerificationScreenState
   }
 
   void _openBusinessInfoSheet(bool isDark) {
-    final controllers = <String, TextEditingController>{
-      'business_name': TextEditingController(),
-      'address': TextEditingController(),
-      'city': TextEditingController(),
-      'latitude': TextEditingController(),
-      'longitude': TextEditingController(),
-      'phone': TextEditingController(),
-      'facebook_url': TextEditingController(),
-      'instagram_username': TextEditingController(),
-      'business_license': TextEditingController(),
-    };
-
-    final profile =
-        (_report?['provider_profile'] as Map<String, dynamic>?) ?? {};
-    controllers['business_name']!.text =
-        (profile['business_name'] as String?) ?? '';
-    controllers['address']!.text = (profile['address'] as String?) ?? '';
-    controllers['city']!.text = (profile['city'] as String?) ?? '';
-    controllers['latitude']!.text =
-        (profile['latitude'] != null) ? '${profile['latitude']}' : '';
-    controllers['longitude']!.text =
-        (profile['longitude'] != null) ? '${profile['longitude']}' : '';
-    controllers['phone']!.text = (profile['phone_number'] as String?) ?? '';
-    controllers['facebook_url']!.text =
-        (profile['facebook_url'] as String?) ?? '';
-    controllers['instagram_username']!.text =
-        (profile['instagram_username'] as String?) ?? '';
-    controllers['business_license']!.text =
-        (profile['business_license_number'] as String?) ?? '';
-
+    // Create controllers inside the builder to avoid disposal issues
     bool saving = false;
     String? sheetError;
-    bool isDisposed = false;
-
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) {
-          Future<void> save() async {
-            if (isDisposed) return;
-            setSheetState(() {
-              saving = true;
-              sheetError = null;
-            });
-
-            final userId = SessionStore.instance.userId;
-            if (userId == null) {
-              if (!isDisposed) {
+      builder: (ctx) {
+        // Create controllers INSIDE the builder, not outside
+        final controllers = <String, TextEditingController>{
+          'business_name': TextEditingController(),
+          'address': TextEditingController(),
+          'city': TextEditingController(),
+          'latitude': TextEditingController(),
+          'longitude': TextEditingController(),
+          'phone': TextEditingController(),
+          'facebook_url': TextEditingController(),
+          'instagram_username': TextEditingController(),
+          'business_license': TextEditingController(),
+        };
+        
+        // Hours controllers and toggle states
+        const dayKeys = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'];
+        for (final day in dayKeys) {
+          controllers['hours_${day}_open'] = TextEditingController();
+          controllers['hours_${day}_close'] = TextEditingController();
+        }
+        
+        // Track which days are enabled
+        final Map<String, bool> isDayEnabled = {};
+        for (final day in dayKeys) {
+          isDayEnabled[day] = false;
+        }
+        
+        final profile = (_report?['provider_profile'] as Map<String, dynamic>?) ?? {};
+        
+        // Pre-fill data
+        controllers['business_name']!.text = (profile['business_name'] as String?) ?? '';
+        controllers['address']!.text = (profile['address'] as String?) ?? '';
+        controllers['city']!.text = (profile['city'] as String?) ?? '';
+        controllers['latitude']!.text = (profile['latitude'] != null) ? '${profile['latitude']}' : '';
+        controllers['longitude']!.text = (profile['longitude'] != null) ? '${profile['longitude']}' : '';
+        controllers['phone']!.text = (profile['phone_number'] as String?) ?? '';
+        controllers['facebook_url']!.text = (profile['facebook_url'] as String?) ?? '';
+        controllers['instagram_username']!.text = (profile['instagram_username'] as String?) ?? '';
+        controllers['business_license']!.text = (profile['business_license_number'] as String?) ?? '';
+        
+        final savedHours = (profile['business_hours'] as Map<String, dynamic>?) ?? {};
+        for (final day in dayKeys) {
+          final times = (savedHours[day] as Map<String, dynamic>?) ?? {};
+          final open = times['open'] as String? ?? '';
+          final close = times['close'] as String? ?? '';
+          controllers['hours_${day}_open']!.text = open;
+          controllers['hours_${day}_close']!.text = close;
+          isDayEnabled[day] = open.isNotEmpty && close.isNotEmpty;
+        }
+        
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            Future<void> save() async {
+              setSheetState(() {
+                saving = true;
+                sheetError = null;
+              });
+              
+              final userId = SessionStore.instance.userId;
+              if (userId == null) {
                 setSheetState(() {
                   saving = false;
                   sheetError = 'Not logged in';
                 });
+                return;
               }
-              return;
-            }
-
-            final body = <String, dynamic>{};
-            void addIfNotEmpty(String key, String value) {
-              if (value.trim().isNotEmpty) body[key] = value.trim();
-            }
-
-            addIfNotEmpty('business_name', controllers['business_name']!.text);
-            addIfNotEmpty('address', controllers['address']!.text);
-            addIfNotEmpty('city', controllers['city']!.text);
-            addIfNotEmpty('phone', controllers['phone']!.text);
-            addIfNotEmpty('facebook_url', controllers['facebook_url']!.text);
-            addIfNotEmpty('instagram_username',
-                controllers['instagram_username']!.text);
-            addIfNotEmpty(
-                'business_license', controllers['business_license']!.text);
-
-            final latText = controllers['latitude']?.text.trim() ?? '';
-            final lngText = controllers['longitude']?.text.trim() ?? '';
-            if (latText.isNotEmpty) {
-              body['latitude'] = double.tryParse(latText) ?? 0.0;
-            }
-            if (lngText.isNotEmpty) {
-              body['longitude'] = double.tryParse(lngText) ?? 0.0;
-            }
-
-            try {
-              final res = await http.post(
-                Uri.parse(
-                    '${ApiConfig.baseUrl}/api/v1/verification/providers/$userId/submit-info'),
-                headers: {'Content-Type': 'application/json'},
-                body: jsonEncode(body),
-              );
-
-              if (isDisposed) return;
-
-              if (res.statusCode == 200) {
-                if (ctx.mounted) Navigator.of(ctx).pop();
-                _loadVerification();
-              } else {
-                final err = jsonDecode(res.body);
-                if (!isDisposed) {
+              
+              final body = <String, dynamic>{};
+              void addIfNotEmpty(String key, String value) {
+                if (value.trim().isNotEmpty) body[key] = value.trim();
+              }
+              
+              addIfNotEmpty('business_name', controllers['business_name']!.text);
+              addIfNotEmpty('address', controllers['address']!.text);
+              addIfNotEmpty('city', controllers['city']!.text);
+              addIfNotEmpty('phone', controllers['phone']!.text);
+              addIfNotEmpty('facebook_url', controllers['facebook_url']!.text);
+              addIfNotEmpty('instagram_username', controllers['instagram_username']!.text);
+              addIfNotEmpty('business_license', controllers['business_license']!.text);
+              
+              // Build business_hours map based on enabled days
+              final hoursMap = <String, dynamic>{};
+              for (final day in dayKeys) {
+                if (isDayEnabled[day] == true) {
+                  final open = controllers['hours_${day}_open']!.text.trim();
+                  final close = controllers['hours_${day}_close']!.text.trim();
+                  if (open.isNotEmpty && close.isNotEmpty) {
+                    hoursMap[day] = {'open': open, 'close': close};
+                  }
+                }
+              }
+              if (hoursMap.isNotEmpty) {
+                body['business_hours'] = hoursMap;
+              }
+              
+              final latText = controllers['latitude']?.text.trim() ?? '';
+              final lngText = controllers['longitude']?.text.trim() ?? '';
+              if (latText.isNotEmpty) {
+                body['latitude'] = double.tryParse(latText) ?? 0.0;
+              }
+              if (lngText.isNotEmpty) {
+                body['longitude'] = double.tryParse(lngText) ?? 0.0;
+              }
+              
+              try {
+                final res = await http.post(
+                  Uri.parse('${ApiConfig.baseUrl}/api/v1/verification/providers/$userId/submit-info'),
+                  headers: {'Content-Type': 'application/json'},
+                  body: jsonEncode(body),
+                );
+                
+                if (res.statusCode == 200) {
+                  if (ctx.mounted) {
+                    Navigator.of(ctx).pop();
+                    if (mounted) _loadVerification();
+                  }
+                } else {
+                  final err = jsonDecode(res.body);
+                  if (ctx.mounted) {
+                    setSheetState(() {
+                      saving = false;
+                      sheetError = (err is Map ? err['detail'] : null) ?? 'Save failed';
+                    });
+                  }
+                }
+              } catch (e) {
+                if (ctx.mounted) {
                   setSheetState(() {
                     saving = false;
-                    sheetError =
-                        (err is Map ? err['detail'] : null) ?? 'Save failed';
+                    sheetError = 'Network error: $e';
                   });
                 }
               }
-            } catch (e) {
-              if (!isDisposed) {
+            }
+            
+            Future<void> _selectTime(TextEditingController controller) async {
+              final TimeOfDay? picked = await showTimePicker(
+                context: ctx,
+                initialTime: TimeOfDay.now(),
+              );
+              if (picked != null) {
+                final formattedTime = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
                 setSheetState(() {
-                  saving = false;
-                  sheetError = 'Network error: $e';
+                  controller.text = formattedTime;
                 });
               }
             }
-          }
-
-          Widget field(
-            String key,
-            String label, {
-            TextInputType keyboardType = TextInputType.text,
-            String? hint,
-          }) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white70 : AppDesign.eerieBlack,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: controllers[key],
-                    keyboardType: keyboardType,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDark ? Colors.white : AppDesign.eerieBlack,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: hint,
-                      hintStyle:
-                          TextStyle(fontSize: 13, color: AppDesign.midGrey),
-                      filled: true,
-                      fillColor: isDark
-                          ? Colors.white.withOpacity(0.06)
-                          : AppDesign.lightGrey,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
+            
+            Widget field(String key, String label, {TextInputType keyboardType = TextInputType.text, String? hint}) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : AppDesign.eerieBlack,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: controllers[key]!,
+                      keyboardType: keyboardType,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isDark ? Colors.white : AppDesign.eerieBlack,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: hint,
+                        hintStyle: TextStyle(fontSize: 13, color: AppDesign.midGrey),
+                        filled: true,
+                        fillColor: isDark ? Colors.white.withOpacity(0.06) : AppDesign.lightGrey,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            
+            return DraggableScrollableSheet(
+              initialChildSize: 0.95,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (_, scrollController) => Container(
+                decoration: BoxDecoration(
+                  color: isDark ? AppDesign.eerieBlack : Colors.white,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(
+                  children: [
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 12, bottom: 4),
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white24 : AppDesign.lightGrey,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Business Info',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : AppDesign.eerieBlack,
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => Navigator.of(ctx).pop(),
+                            child: Icon(LucideIcons.x, size: 20, color: AppDesign.midGrey),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        'Fill in what you have. Each field improves your trust score.',
+                        style: TextStyle(fontSize: 13, color: AppDesign.midGrey),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: ListView(
+                        controller: scrollController,
+                        padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+                        children: [
+                          field('business_name', 'Business Name', hint: 'e.g. Cairo Tours Co.'),
+                          field('address', 'Street Address', hint: 'e.g. 12 Tahrir Square, Cairo'),
+                          field('city', 'City', hint: 'e.g. Cairo'),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: field('latitude', 'Latitude',
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                                  hint: 'e.g. 30.0444'),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: field('longitude', 'Longitude',
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                                  hint: 'e.g. 31.2357'),
+                              ),
+                            ],
+                          ),
+                          field('phone', 'Phone Number', keyboardType: TextInputType.phone, hint: 'e.g. 0201234567'),
+                          field('facebook_url', 'Facebook Page URL', keyboardType: TextInputType.url, hint: 'https://facebook.com/yourpage'),
+                          field('instagram_username', 'Instagram Username', hint: '@yourbusiness'),
+                          field('business_license', 'License Number', hint: 'e.g. LIC-2024-00123'),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Business Hours (optional)',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Toggle each day ON to set working hours.',
+                            style: TextStyle(fontSize: 12, color: AppDesign.midGrey),
+                          ),
+                          const SizedBox(height: 16),
+                          ...dayKeys.map((day) {
+                            final dayName = {
+                              'sat': 'Saturday', 'sun': 'Sunday', 'mon': 'Monday',
+                              'tue': 'Tuesday', 'wed': 'Wednesday', 'thu': 'Thursday', 'fri': 'Friday'
+                            }[day]!;
+                            final openCtrl = controllers['hours_${day}_open']!;
+                            final closeCtrl = controllers['hours_${day}_close']!;
+                            final isEnabled = isDayEnabled[day] ?? false;
+                            
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 100,
+                                        child: Text(
+                                          dayName,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                            color: isDark ? Colors.white : AppDesign.eerieBlack,
+                                          ),
+                                        ),
+                                      ),
+                                      Switch(
+                                        value: isEnabled,
+                                        onChanged: (value) {
+                                          setSheetState(() {
+                                            isDayEnabled[day] = value;
+                                            if (value && openCtrl.text.isEmpty && closeCtrl.text.isEmpty) {
+                                              openCtrl.text = '09:00';
+                                              closeCtrl.text = '17:00';
+                                            }
+                                          });
+                                        },
+                                        activeColor: AppDesign.success,
+                                      ),
+                                      if (isEnabled) ...[
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () => _selectTime(openCtrl),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                              decoration: BoxDecoration(
+                                                color: isDark ? Colors.white.withOpacity(0.08) : AppDesign.lightGrey,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  Icon(LucideIcons.clock, size: 16, color: AppDesign.midGrey),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    openCtrl.text.isEmpty ? 'Start' : openCtrl.text,
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      color: openCtrl.text.isEmpty ? AppDesign.midGrey : (isDark ? Colors.white : AppDesign.eerieBlack),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text('—', style: TextStyle(color: AppDesign.midGrey)),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () => _selectTime(closeCtrl),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                              decoration: BoxDecoration(
+                                                color: isDark ? Colors.white.withOpacity(0.08) : AppDesign.lightGrey,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  Icon(LucideIcons.clock, size: 16, color: AppDesign.midGrey),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    closeCtrl.text.isEmpty ? 'End' : closeCtrl.text,
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      color: closeCtrl.text.isEmpty ? AppDesign.midGrey : (isDark ? Colors.white : AppDesign.eerieBlack),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                          const SizedBox(height: 4),
+                          if (sheetError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: Text(sheetError!, style: TextStyle(fontSize: 13, color: AppDesign.danger)),
+                            ),
+                          GestureDetector(
+                            onTap: saving ? null : save,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                color: saving ? AppDesign.midGrey : (isDark ? Colors.white : AppDesign.eerieBlack),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(
+                                child: saving
+                                    ? SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: isDark ? AppDesign.eerieBlack : Colors.white,
+                                        ),
+                                      )
+                                    : Text(
+                                        'Save & Recalculate Score',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark ? AppDesign.eerieBlack : Colors.white,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
-          }
-
-          return DraggableScrollableSheet(
-            initialChildSize: 0.85,
-            minChildSize: 0.5,
-            maxChildSize: 0.95,
-            expand: false,
-            builder: (_, scrollController) => Container(
-              decoration: BoxDecoration(
-                color: isDark ? AppDesign.eerieBlack : Colors.white,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: Column(
-                children: [
-                  Center(
-                    child: Container(
-                      margin: const EdgeInsets.only(top: 12, bottom: 4),
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color:
-                            isDark ? Colors.white24 : AppDesign.lightGrey,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Business Info',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                              color: isDark
-                                  ? Colors.white
-                                  : AppDesign.eerieBlack,
-                            ),
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => Navigator.of(ctx).pop(),
-                          child: Icon(LucideIcons.x,
-                              size: 20, color: AppDesign.midGrey),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      'Fill in what you have. Each field improves your trust score.',
-                      style:
-                          TextStyle(fontSize: 13, color: AppDesign.midGrey),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: ListView(
-                      controller: scrollController,
-                      padding: EdgeInsets.fromLTRB(
-                        20,
-                        0,
-                        20,
-                        MediaQuery.of(ctx).viewInsets.bottom + 20,
-                      ),
-                      children: [
-                        field('business_name', 'Business Name',
-                            hint: 'e.g. Cairo Tours Co.'),
-                        field('address', 'Street Address',
-                            hint: 'e.g. 12 Tahrir Square, Cairo'),
-                        field('city', 'City', hint: 'e.g. Cairo'),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: field('latitude', 'Latitude',
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true, signed: true),
-                                  hint: 'e.g. 30.0444'),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: field('longitude', 'Longitude',
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true, signed: true),
-                                  hint: 'e.g. 31.2357'),
-                            ),
-                          ],
-                        ),
-                        field('phone', 'Phone Number',
-                            keyboardType: TextInputType.phone,
-                            hint: 'e.g. 0201234567'),
-                        field('facebook_url', 'Facebook Page URL',
-                            keyboardType: TextInputType.url,
-                            hint: 'https://facebook.com/yourpage'),
-                        field('instagram_username', 'Instagram Username',
-                            hint: '@yourbusiness'),
-                        field('business_license', 'License Number',
-                            hint: 'e.g. LIC-2024-00123'),
-                        if (sheetError != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: Text(
-                              sheetError!,
-                              style: TextStyle(
-                                  fontSize: 13, color: AppDesign.danger),
-                            ),
-                          ),
-                        GestureDetector(
-                          onTap: saving ? null : save,
-                          child: Container(
-                            width: double.infinity,
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              color: saving
-                                  ? AppDesign.midGrey
-                                  : (isDark
-                                      ? Colors.white
-                                      : AppDesign.eerieBlack),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: saving
-                                  ? SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: isDark
-                                            ? AppDesign.eerieBlack
-                                            : Colors.white,
-                                      ),
-                                    )
-                                  : Text(
-                                      'Save & Recalculate Score',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: isDark
-                                            ? AppDesign.eerieBlack
-                                            : Colors.white,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    ).whenComplete(() {
-      isDisposed = true;
-      for (final c in controllers.values) {
-        try {
-          c.dispose();
-        } catch (_) {}
-      }
-    });
+          },
+        );
+      },
+    );
   }
 
   Widget _buildError(bool isDark) {

@@ -267,6 +267,13 @@ class ProviderVerificationService:
             source_scores["license_validity"]["passed"] = source_scores["license_validity"]["earned"] >= 5
             total_earned -= reduction
 
+        # bad_social_media → reduce social_media score by up to 4 pts
+        if _has_penalty("bad_social_media"):
+            reduction = min(source_scores["social_media"]["earned"], 4)
+            source_scores["social_media"]["earned"] = max(0, source_scores["social_media"]["earned"] - reduction)
+            source_scores["social_media"]["passed"] = source_scores["social_media"]["earned"] >= 3
+            total_earned -= reduction
+
         # Recalculate overall after cross-penalties
         total_earned = max(0, total_earned)
 

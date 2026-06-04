@@ -11,6 +11,8 @@ import 'package:mobile_app/services/session_store.dart';
 import 'package:mobile_app/services/profile_api_service.dart';
 import 'package:mobile_app/services/api_config.dart';
 import '../onboarding/onboarding_flow.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ProviderProfileScreen extends StatefulWidget {
   const ProviderProfileScreen({super.key});
@@ -67,6 +69,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
   late List<PortfolioItem> _portfolio;
   late List<Credential> _credentials;
   late List<ProviderReview> _reviews;
+  double _verificationScore = 0.0;
+  String _verificationLevel = 'basic';
 
   @override
   void initState() {
@@ -79,6 +83,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
     _loadProviderData();
   }
 
+
+
   Future<void> _loadProviderData() async {
     try {
       final username = SessionStore.instance.username ?? ApiConfig.demoProviderUsername;
@@ -90,6 +96,21 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
       final portfolio = await _profileService.getProviderPortfolio(userId);
       final credentials = await _profileService.getProviderCredentials(userId);
       final reviews = await _profileService.getProviderReviews(userId);
+      
+      // Fetch verification data
+      try {
+        final response = await http.get(
+          Uri.parse('${ApiConfig.baseUrl}/api/v1/verification/providers/$userId'),
+          headers: {'Accept': 'application/json'},
+        );
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          _verificationScore = (data['overall_score'] as num?)?.toDouble() ?? 0.0;
+          _verificationLevel = data['verification_level'] as String? ?? 'basic';
+        }
+      } catch (e) {
+        debugPrint('Error loading verification data: $e');
+      }
       
       if (mounted) {
         setState(() {
@@ -170,6 +191,12 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
     );
   }
 
+  String _getVerificationLevelText() {
+    if (_verificationScore >= 80) return 'Trusted';
+    if (_verificationScore >= 60) return 'Verified';
+    if (_verificationScore >= 40) return 'Standard';
+    return 'Basic';
+  }
   Widget _buildProfileHeader(bool isDark, Color cardColor, Color textColor, Color subtitleColor) {
     return Container(
       color: cardColor,
@@ -259,17 +286,33 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
                 ),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(LucideIcons.shieldCheck, color: Colors.white),
-                  SizedBox(width: 8),
+                  Icon(LucideIcons.shieldCheck, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
                   Text(
-                    'Verification Status',
-                    style: TextStyle(
-                      fontSize: 16,
+                    'Verification: ${_verificationScore.toStringAsFixed(0)}%',
+                    style: const TextStyle(
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      _getVerificationLevelText(),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],

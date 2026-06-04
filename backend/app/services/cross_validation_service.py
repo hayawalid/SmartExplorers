@@ -35,7 +35,7 @@ class CrossValidationService:
         self.groq_client = Groq(api_key=settings.GROQ_API_KEY)
         
         # HTTP client for API calls (Nominatim, Overpass, etc.)
-        self.http_client = httpx.AsyncClient(timeout=30.0)
+        self.http_client = httpx.AsyncClient(timeout=30.0, http2=False)
         
         # Verification thresholds
         self.LOCATION_DISTANCE_THRESHOLD = 500  # meters
@@ -671,7 +671,11 @@ class CrossValidationService:
             ig_result = await self._verify_instagram(instagram_username)
             results["platforms"]["instagram"] = ig_result
             if ig_result.get("verified"):
-                results["score"] += 5
+                # Full 5 pts only when confirmed (future API); 2 pts when unconfirmed
+                if ig_result.get("confidence") == "high":
+                    results["score"] += 5
+                else:
+                    results["score"] += 2
         
         results["passed"] = results["score"] >= 3
         
@@ -744,103 +748,91 @@ class CrossValidationService:
         
     async def _verify_instagram(self, username: str) -> Dict:
         """
-        Verify Instagram account exists using Instagram's internal profile API.
-        Falls back to HTML scraping if the API is blocked.
+        Verify Instagram username.
+
+        Instagram blocks all server-side scraping behind a login wall that
+        returns 200 for both real and non-existent accounts with identical
+        page structure. The only reliable free signal is a hard 404, which
+        Instagram returns for definitively non-existent usernames.
+
+        Strategy:
+        1. Hard 404 on direct request = account does not exist (definitive).
+        2. Valid username format + no 404 = award partial points, flag as
+           unconfirmed (provider submitted it, system can't disprove it).
         """
+        import re as _re
         try:
-            username = username.replace('@', '').strip()
+            username = username.replace('@', '').strip().lower()
+            if not username:
+                return {"verified": False, "score_override": 0, "reason": "Empty username"}
 
-            # Method 1: Instagram internal API (most reliable, no auth needed)
-            api_url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
-            headers = {
-                "User-Agent": "Instagram 76.0.0.15.395 Android",
-                "x-ig-app-id": "936619743392459",
-            }
-            response = await self.http_client.get(api_url, headers=headers, timeout=10.0)
+            # Validate format: 1-30 chars, letters/numbers/underscores/periods only
+            if not _re.match(r'^[a-zA-Z0-9._]{1,30}$', username):
+                return {
+                    "verified": False,
+                    "score_override": 0,
+                    "username": username,
+                    "reason": "Invalid username format",
+                }
 
-            if response.status_code == 200:
-                try:
-                    data = response.json()
-                    user = data.get("data", {}).get("user")
-                    if user and user.get("id"):
-                        return {
-                            "verified": True,
-                            "username": username,
-                            "active": True,
-                            "method": "api"
-                        }
-                    else:
-                        return {"verified": False, "username": username, "reason": "User not found in API response"}
-                except Exception:
-                    pass
-
-            if response.status_code == 404:
-                return {"verified": False, "username": username, "reason": "Account does not exist (404)"}
-
-            # Method 2: HTML fallback — check for definitive not-found markers
+            # Check for hard 404 — only trustworthy negative signal
             profile_url = f"https://www.instagram.com/{username}/"
-            html_headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                ),
                 "Accept-Language": "en-US,en;q=0.9",
             }
-            html_response = await self.http_client.get(profile_url, headers=html_headers, timeout=10.0)
+            try:
+                resp = await self.http_client.get(
+                    profile_url, headers=headers,
+                    follow_redirects=True, timeout=10.0
+                )
+                print(f"  [Instagram] status={resp.status_code} for @{username}")
 
-            if html_response.status_code == 404:
-                return {"verified": False, "username": username, "reason": "Account does not exist (404)"}
+                if resp.status_code == 404:
+                    return {
+                        "verified": False,
+                        "username": username,
+                        "reason": "Account does not exist (404)",
+                        "method": "direct_404",
+                    }
 
-            body = html_response.text
-            not_found_signals = [
-                "Sorry, this page isn\u2019t available",
-                "Sorry, this page isn't available",
-                "Page Not Found",
-            ]
-            if any(signal in body for signal in not_found_signals):
-                return {"verified": False, "username": username, "reason": "Page not found"}
+                # 200 = could be real profile or login wall — indistinguishable
+                # Award partial credit: provider submitted a validly-formatted
+                # username that didn't 404. Flag for manual review.
+                if resp.status_code == 200:
+                    body = resp.text
+                    # Only definitive negative: Instagram's explicit not-found message
+                    if "Sorry, this page isn" in body:
+                        return {
+                            "verified": False,
+                            "username": username,
+                            "reason": "Page not found",
+                            "method": "direct",
+                        }
+                    # Can't confirm — award partial, flag as unconfirmed
+                    return {
+                        "verified": True,
+                        "username": username,
+                        "active": True,
+                        "method": "unconfirmed",
+                        "confidence": "low",
+                        "note": "Username format valid, no 404 — unconfirmed due to login wall",
+                    }
 
-            # If we got a 200 with no not-found signal, check for login wall
-            # Instagram returns 200 for login walls on non-existent accounts too
-            login_wall_signals = [
-                "Log in to Instagram",
-                "You must log in to continue",
-                "loginForm",
-                "login_form",
-            ]
-            if any(signal in body for signal in login_wall_signals):
-                # Can't confirm — treat as unverified (conservative)
+            except Exception as e:
+                print(f"  [Instagram] Request failed: {e}")
+                # Network failure — give benefit of doubt, partial credit
                 return {
-                    "verified": False,
+                    "verified": True,
                     "username": username,
-                    "reason": "Login wall — cannot confirm account existence",
-                    "method": "html_fallback",
-                    "confidence": "none"
+                    "method": "format_only",
+                    "confidence": "low",
+                    "note": "Could not reach Instagram — username format valid",
                 }
-
-            # Check for positive signals that the profile actually exists
-            profile_signals = [
-                f'"username":"{username}"',
-                f'"username": "{username}"',
-                f'@{username}',
-                '"ProfilePage"',
-                '"profile_pic_url"',
-            ]
-            profile_confirmed = any(signal in body for signal in profile_signals)
-
-            if not profile_confirmed:
-                return {
-                    "verified": False,
-                    "username": username,
-                    "reason": "No profile data found in page — likely non-existent or private",
-                    "method": "html_fallback",
-                    "confidence": "none"
-                }
-
-            return {
-                "verified": True,
-                "username": username,
-                "active": True,
-                "method": "html_fallback",
-                "confidence": "low"
-            }
 
         except Exception as e:
             return {"verified": False, "error": str(e)}
@@ -925,6 +917,7 @@ class CrossValidationService:
                 "bad_hours": 1,
                 "scam_reports": 3,
                 "license_issues": 2,
+                "bad_social_media": 3,
             }
             total_penalty = 0
             triggered_penalties = []
@@ -972,36 +965,45 @@ class CrossValidationService:
         """Get reviews from your own database"""
         try:
             from app.mongodb import mongodb as _mongodb
-            provider_id = provider_data.get("_id")
-            
-            print(f"  [DEBUG] _get_internal_reviews called: provider_id={provider_id!r}, db={db!r}")
-            
-            if not provider_id:
-                print("  [DEBUG] Returning early: no provider_id")
-                return []
-            if db is None:
-                print("  [DEBUG] Returning early: db is None")
+            from bson import ObjectId
+
+            # Collect every ID form this provider might be stored under in reviews:
+            # 1. The user _id (string and ObjectId)
+            # 2. The service_provider_profile _id (string and ObjectId), if different
+            user_id = provider_data.get("_id")
+            if not user_id or db is None:
                 return []
 
-            try:
-                from bson import ObjectId
-                id_variants = [provider_id, ObjectId(provider_id)]
-            except Exception:
-                id_variants = [provider_id]
+            id_set = set()
 
-            # DEBUG - remove after fix confirmed
-            print(f"  [DEBUG] REVIEWS collection name: {_mongodb.REVIEWS!r}")
-            print(f"  [DEBUG] Searching provider_id variants: {id_variants}")
-            sample = await db[_mongodb.REVIEWS].find_one({})
-            print(f"  [DEBUG] Sample review doc: {sample}")
-            count_all = await db[_mongodb.REVIEWS].count_documents({})
-            count_match = await db[_mongodb.REVIEWS].count_documents({"provider_id": {"$in": id_variants}})
-            print(f"  [DEBUG] Total reviews in collection: {count_all}, matching this provider: {count_match}")
+            def _add_id(val):
+                if not val:
+                    return
+                s = str(val)
+                id_set.add(s)
+                try:
+                    id_set.add(ObjectId(s))
+                except Exception:
+                    pass
+
+            _add_id(user_id)
+
+            # Also add the profile's own _id if present
+            profile = provider_data.get("provider_profile") or {}
+            _add_id(profile.get("_id"))
+            _add_id(profile.get("user_id"))
+
+            id_variants = list(id_set)
+
+            count_match = await db[_mongodb.REVIEWS].count_documents(
+                {"provider_id": {"$in": id_variants}}
+            )
+            print(f"  [DEBUG] Reviews search — variants: {[str(v) for v in id_variants]}, matched: {count_match}")
 
             reviews_cursor = db[_mongodb.REVIEWS].find({
                 "provider_id": {"$in": id_variants}
             }).sort("created_at", -1).limit(50)
-            
+
             reviews = []
             async for review in reviews_cursor:
                 reviews.append({
@@ -1010,9 +1012,9 @@ class CrossValidationService:
                     "created_at": review.get("created_at"),
                     "author_id": review.get("author_id")
                 })
-            
+
             return reviews
-            
+
         except Exception as e:
             print(f"Error fetching internal reviews: {e}")
             return []
@@ -1047,6 +1049,7 @@ Provide JSON with:
     - bad_hours: reviews mention closed when should be open, wrong hours listed
     - scam_reports: reviews mention scam, fraud, overcharging, theft
     - license_issues: reviews mention unlicensed, illegal, unregistered
+    - bad_social_media: reviews mention fake social media, fake Instagram, fake Facebook, misleading online presence
 
 Return ONLY valid JSON."""
                 }],
@@ -1180,10 +1183,10 @@ Return ONLY valid JSON."""
             
             if not hours:
                 return {
-                    "passed": True,
-                    "score": 3,
+                    "passed": False,
+                    "score": 0,
                     "max_score": 5,
-                    "message": "No hours provided"
+                    "message": "No hours provided — add business hours to earn 5 points"
                 }
             
             issues = []
@@ -1228,8 +1231,8 @@ Return ONLY valid JSON."""
             
         except Exception as e:
             return {
-                "passed": True,
-                "score": 3,
+                "passed": False,
+                "score": 0,
                 "max_score": 5,
                 "error": str(e)
             }
