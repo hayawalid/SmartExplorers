@@ -83,17 +83,25 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen>
       final username = SessionStore.instance.username ?? ApiConfig.demoProviderUsername;
       final user = await _profileService.getUserByUsername(username);
       final userId = user['_id'] as String;
+      
+      // Only fetch provider-specific data, NOT traveler data
       final providerProfile = await _profileService.getProviderProfile(userId);
       final portfolio = await _profileService.getProviderPortfolio(userId);
       final credentials = await _profileService.getProviderCredentials(userId);
       final reviews = await _profileService.getProviderReviews(userId);
-      setState(() {
-        _provider = ProviderProfile.fromJson(providerProfile ?? user);
-        _portfolio = portfolio.map(PortfolioItem.fromJson).toList();
-        _credentials = credentials.map(Credential.fromJson).toList();
-        _reviews = reviews.map(ProviderReview.fromJson).toList();
-      });
-    } catch (_) {}
+      
+      if (mounted) {
+        setState(() {
+          _provider = ProviderProfile.fromJson(providerProfile ?? user);
+          _portfolio = portfolio.map(PortfolioItem.fromJson).toList();
+          _credentials = credentials.map(Credential.fromJson).toList();
+          _reviews = reviews.map(ProviderReview.fromJson).toList();
+        });
+      }
+    } catch (e) {
+      // Silent fail - keep fallback data
+      debugPrint('Error loading provider data: $e');
+    }
   }
 
   @override
