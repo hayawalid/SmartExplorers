@@ -967,9 +967,6 @@ class CrossValidationService:
             from app.mongodb import mongodb as _mongodb
             from bson import ObjectId
 
-            # Collect every ID form this provider might be stored under in reviews:
-            # 1. The user _id (string and ObjectId)
-            # 2. The service_provider_profile _id (string and ObjectId), if different
             user_id = provider_data.get("_id")
             if not user_id or db is None:
                 return []
@@ -988,10 +985,28 @@ class CrossValidationService:
 
             _add_id(user_id)
 
-            # Also add the profile's own _id if present
+            # Also add the profile's own _id and user_id if present
             profile = provider_data.get("provider_profile") or {}
             _add_id(profile.get("_id"))
             _add_id(profile.get("user_id"))
+
+            # Also try looking up the user document to get their string _id,
+            # because the Flutter app writes provider_id as the plain string
+            # returned from SessionStore (which is always the user's _id as string)
+            try:
+                obj_id = ObjectId(str(user_id))
+                user_doc = await db["users"].find_one({"_id": obj_id})
+                if user_doc:
+                    _add_id(str(user_doc["_id"]))
+                    # Also check if there's a provider profile linked by user_id
+                    pprofile = await db["service_provider_profiles"].find_one(
+                        {"user_id": str(user_doc["_id"])}
+                    )
+                    if pprofile:
+                        _add_id(str(pprofile.get("_id", "")))
+                        _add_id(str(pprofile.get("user_id", "")))
+            except Exception:
+                pass
 
             id_variants = list(id_set)
 
@@ -999,6 +1014,28 @@ class CrossValidationService:
                 {"provider_id": {"$in": id_variants}}
             )
             print(f"  [DEBUG] Reviews search — variants: {[str(v) for v in id_variants]}, matched: {count_match}")
+
+            if count_match == 0:
+                # Last resort: try matching provider_name against reviews
+                business_name = provider_data.get("business_name") or provider_data.get("full_name")
+                if business_name:
+                    count_by_name = await db[_mongodb.REVIEWS].count_documents(
+                        {"provider_name": {"$regex": business_name, "$options": "i"}}
+                    )
+                    print(f"  [DEBUG] Reviews by name '{business_name}': {count_by_name}")
+                    if count_by_name > 0:
+                        reviews_cursor = db[_mongodb.REVIEWS].find(
+                            {"provider_name": {"$regex": business_name, "$options": "i"}}
+                        ).sort("created_at", -1).limit(50)
+                        reviews = []
+                        async for review in reviews_cursor:
+                            reviews.append({
+                                "rating": review.get("rating", 0),
+                                "text": review.get("content", "") or review.get("text", ""),
+                                "created_at": review.get("created_at"),
+                                "author_id": review.get("author_id")
+                            })
+                        return reviews
 
             reviews_cursor = db[_mongodb.REVIEWS].find({
                 "provider_id": {"$in": id_variants}
@@ -1008,7 +1045,7 @@ class CrossValidationService:
             async for review in reviews_cursor:
                 reviews.append({
                     "rating": review.get("rating", 0),
-                    "text": review.get("content", ""),
+                    "text": review.get("content", "") or review.get("text", ""),
                     "created_at": review.get("created_at"),
                     "author_id": review.get("author_id")
                 })
@@ -1151,10 +1188,27 @@ Return ONLY valid JSON."""
             }
             
             clean_phone = phone.replace("+20", "").replace(" ", "").replace("-", "").strip()
+            # Strip leading 0 (local trunk prefix) so "02..." becomes "2..."
+            if clean_phone.startswith("0"):
+                clean_phone = clean_phone[1:]
+
+            # Egyptian mobile numbers start with 10, 11, 12, 15 — no city area code applies
+            if clean_phone[:2] in ["10", "11", "12", "15"]:
+                return {
+                    "passed": True,
+                    "score": 5,
+                    "max_score": 5,
+                    "message": "Mobile number — area code check not applicable",
+                    "phone_area_code": clean_phone[:2],
+                    "expected_codes": [],
+                    "matches": True
+                }
+
+            # Landline: extract area code (1 or 2 digits)
             phone_area = clean_phone[0] if clean_phone else ""
             if len(clean_phone) > 1 and clean_phone[0] in ['6', '9']:
                 phone_area = clean_phone[:2]
-            
+
             expected_codes = area_codes.get(city, [])
             matches = phone_area in expected_codes if expected_codes else True
             

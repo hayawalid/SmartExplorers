@@ -327,13 +327,21 @@ class ProviderVerificationService:
             # Get service provider profile
             profile = await db[mongodb.SERVICE_PROVIDER_PROFILES].find_one({"user_id": str(user["_id"])})
             
-            # Merge data
+            # Merge data — profile fields take priority over user fields
+            # phone_number is stored as "phone_number" in both user and profile docs;
+            # cross_validation_service reads it under the key "phone"
+            phone_value = (
+                (profile.get("phone_number") if profile else None)
+                or user.get("phone_number")
+                or user.get("phone")
+            )
             result = {
                 "_id": str(user["_id"]),
                 "email": user.get("email"),
                 "full_name": user.get("full_name"),
                 "business_name": (profile.get("business_name") if profile else None) or user.get("business_name") or user.get("full_name"),
-                "phone": user.get("phone_number") or (profile.get("phone_number") if profile else None),
+                "phone": phone_value,
+                "phone_number": phone_value,
                 "address": profile.get("address") if profile else None,
                 "city": profile.get("city") if profile else None,
                 "latitude": profile.get("latitude") if profile else None,
