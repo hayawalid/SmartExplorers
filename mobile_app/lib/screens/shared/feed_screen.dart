@@ -6,6 +6,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'dart:ui';
+import 'dart:convert';
 import 'package:mobile_app/theme/app_theme.dart';
 import 'package:mobile_app/widgets/smart_explorers_logo.dart';
 import 'package:mobile_app/models/service_models.dart';
@@ -2555,48 +2556,47 @@ class _ProvidersTabState extends State<_ProvidersTab> {
     _loadProviders();
   }
 
-  Future<void> _loadProviders() async {
-    setState(() {
-      _loadingProviders = true;
-      _providerError = null;
-    });
-    try {
-      final username = SessionStore.instance.username;
-      if (username == null || username.isEmpty)
-        throw Exception('No active session.');
-      final user = await _profileService.getUserByUsername(username);
-      final email = user['email']?.toString() ?? '';
-      if (email.isEmpty)
-        throw Exception('Could not resolve your account email.');
-      final result = await _matchingService.findMatches(
-        userEmail: email,
-        includeProviders: true,
-        includeTravelers: false,
-        topK: 20,
-      );
-      final rawMatches =
-          (result['matches'] as List? ?? []).cast<Map<String, dynamic>>();
-      if (!mounted) return;
-      setState(() {
-        _providers =
-            rawMatches
-                .where(
-                  (match) =>
-                      match['account_type']?.toString() == 'service_provider',
-                )
-                .map(_ProviderResult.fromJson)
-                .toList();
-        _loadingProviders = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _providerError = e.toString().replaceFirst('Exception: ', '');
-        _loadingProviders = false;
-      });
-    }
-  }
+ Future<void> _loadProviders() async {
+  setState(() { _loadingProviders = true; _providerError = null; });
+  try {
+    final userId = SessionStore.instance.userId;
+    if (userId == null || userId.isEmpty)
+      throw Exception('No active session.');
 
+    // ✅ Same endpoint used by ServiceDiscoveryScreen — no 404, no email lookup
+    final rawServices = await _servicesService.discoverServices(
+      userId: userId,
+      limit: 40,
+    );
+
+    // Group by provider and deduplicate — one card per provider
+    final Map<String, _ProviderResult> seen = {};
+    for (final svc in rawServices) {
+      final pid = svc['provider_id']?.toString() ?? '';
+      if (pid.isEmpty || seen.containsKey(pid)) continue;
+      seen[pid] = _ProviderResult(
+        id: pid,
+        name: svc['provider_name']?.toString() ?? 'Unknown',
+        email: svc['provider_email']?.toString() ?? '',
+        bio: svc['description']?.toString() ?? '',
+        serviceType: svc['service_type']?.toString() ?? '',
+        score: ((svc['provider_rating'] ?? svc['rating'] ?? 0) as num).toDouble() / 5.0,
+        verified: svc['provider_verified'] == true,
+      );
+    }
+
+    setState(() {
+      _providers = seen.values.toList()
+        ..sort((a, b) => b.score.compareTo(a.score)); // best rating first
+      _loadingProviders = false;
+    });
+  } catch (e) {
+    setState(() {
+      _providerError = e.toString().replaceFirst('Exception: ', '');
+      _loadingProviders = false;
+    });
+  }
+}
   List<_ProviderResult> get _filteredProviders {
     if (_searchQuery.isEmpty) return _providers;
     final query = _searchQuery.toLowerCase();
@@ -2901,23 +2901,24 @@ class _Avatar extends StatelessWidget {
 class _ProviderResult {
   final String id, name, email, bio, serviceType;
   final double score;
+  final bool verified;           // ← add this
+
   const _ProviderResult({
-    required this.id,
-    required this.name,
-    required this.email,
-    required this.bio,
-    required this.score,
-    required this.serviceType,
+    required this.id, required this.name, required this.email,
+    required this.bio, required this.score, required this.serviceType,
+    this.verified = false,       // ← add this
   });
-  factory _ProviderResult.fromJson(Map<String, dynamic> json) =>
-      _ProviderResult(
-        id: json['user_id']?.toString() ?? '',
-        name: json['full_name']?.toString() ?? 'Unknown Provider',
-        email: json['email']?.toString() ?? '',
-        bio: json['bio']?.toString() ?? '',
-        score: ((json['match_score'] ?? 0) as num).toDouble(),
-        serviceType: json['service_type']?.toString() ?? '',
-      );
+
+  // Keep fromJson for search sheet (still used there)
+  factory _ProviderResult.fromJson(Map<String, dynamic> json) => _ProviderResult(
+    id: json['user_id']?.toString() ?? '',
+    name: json['full_name']?.toString() ?? 'Unknown Provider',
+    email: json['email']?.toString() ?? '',
+    bio: json['bio']?.toString() ?? '',
+    score: ((json['match_score'] ?? 0) as num).toDouble(),
+    serviceType: json['service_type']?.toString() ?? '',
+    verified: json['provider_verified'] == true,
+  );
 }
 
 class _EmptyState extends StatelessWidget {
