@@ -7,7 +7,7 @@ import 'package:mobile_app/theme/app_theme.dart';
 import 'package:mobile_app/theme/theme_manager.dart';
 import 'package:mobile_app/screens/traveler/itinerary_planner_screen.dart';
 import 'package:mobile_app/screens/shared/feed_screen.dart';
-import 'package:mobile_app/screens/traveler/profile_screen.dart';
+import 'package:mobile_app/screens/shared/profile_screen.dart';
 import 'package:mobile_app/screens/traveler/smart_match_screen.dart';
 import 'package:mobile_app/screens/shared/safety_hub_screen.dart';
 

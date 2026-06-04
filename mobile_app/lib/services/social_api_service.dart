@@ -216,9 +216,7 @@ class SocialApiService {
   Future<List<Map<String, dynamic>>> getTravelSpaces() async {
     try {
       final response = await _client.get(
-        Uri.parse(
-          '${ApiConfig.baseUrl}${ApiConfig.socialEndpoint}/travel-spaces',
-        ),
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/travel-spaces'),
         headers: {'Accept': 'application/json'},
       );
 

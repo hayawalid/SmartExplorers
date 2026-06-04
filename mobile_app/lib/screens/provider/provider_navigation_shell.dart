@@ -10,7 +10,7 @@ import 'package:mobile_app/services/session_store.dart';
 import 'package:mobile_app/services/services_api_service.dart';
 import 'package:mobile_app/screens/shared/feed_screen.dart';
 import 'package:mobile_app/screens/shared/safety_hub_screen.dart';
-import 'package:mobile_app/screens/provider/provider_profile_screen.dart';
+import 'package:mobile_app/screens/shared/profile_screen.dart';
 import 'package:mobile_app/screens/provider/provider_services_screen.dart';
 
 class ProviderNavigationShell extends StatefulWidget {
@@ -95,7 +95,7 @@ class _ProviderNavigationShellState extends State<ProviderNavigationShell>
                 userType: 'service_provider',
               ),
               const SafetyHubScreen(),
-              const ProviderProfileScreen(),
+              const ProfileScreen(),
             ],
           ),
           Positioned(
