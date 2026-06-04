@@ -1703,24 +1703,46 @@ class _ProvidersTabState extends State<_ProvidersTab> {
     _loadProviders();
   }
 
+
   Future<void> _loadProviders() async {
     setState(() { _loadingProviders = true; _providerError = null; });
     try {
       final username = SessionStore.instance.username;
       if (username == null || username.isEmpty) throw Exception('No active session.');
-      final user = await _profileService.getUserByUsername(username);
-      final email = user['email']?.toString() ?? '';
-      if (email.isEmpty) throw Exception('Could not resolve your account email.');
-      final result = await _matchingService.findMatches(userEmail: email, includeProviders: true, includeTravelers: false, topK: 20);
-      final rawMatches = (result['matches'] as List? ?? []).cast<Map<String, dynamic>>();
+
+      // Use ServicesApiService.discoverServices instead of matching engine
+      final servicesService = ServicesApiService();
+      final rawServices = await servicesService.discoverServices(
+        userId: username,   // traveler's username works as user identifier
+        limit: 40,
+      );
+
+      // Group by provider_id to avoid duplicate provider cards
+      final Map<String, _ProviderResult> unique = {};
+      for (final svc in rawServices) {
+        final pid = svc['provider_id']?.toString() ?? '';
+        if (pid.isEmpty || unique.containsKey(pid)) continue;
+        unique[pid] = _ProviderResult(
+          id: pid,
+          name: svc['provider_name']?.toString() ?? 'Unknown',
+          email: svc['provider_email']?.toString() ?? '',
+          bio: svc['description']?.toString() ?? '',
+          score: (svc['provider_rating'] as num?)?.toDouble() ?? 0.0,
+          serviceType: svc['service_type']?.toString() ?? '',
+        );
+      }
+
       if (!mounted) return;
       setState(() {
-        _providers = rawMatches.where((m) => m['account_type']?.toString() == 'service_provider').map(_ProviderResult.fromJson).toList();
+        _providers = unique.values.toList();
         _loadingProviders = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _providerError = e.toString().replaceFirst('Exception: ', ''); _loadingProviders = false; });
+      setState(() {
+        _providerError = e.toString().replaceFirst('Exception: ', '');
+        _loadingProviders = false;
+      });
     }
   }
 

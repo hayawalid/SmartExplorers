@@ -234,87 +234,170 @@ async def list_provider_services(
 
 # ==================== USER DISCOVERY ENDPOINTS ====================
 
+def _geo_distance_expr(lat: float, lng: float):
+    """
+    Haversine formula in MongoDB aggregation (km)
+    """
+    return {
+        "$multiply": [
+            6371,  # Earth radius
+            {
+                "$acos": {
+                    "$add": [
+                        {
+                            "$multiply": [
+                                {
+                                    "$sin": {"$degreesToRadians": lat}
+                                },
+                                {
+                                    "$sin": {
+                                        "$degreesToRadians": "$provider.latitude"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "$multiply": [
+                                {
+                                    "$cos": {"$degreesToRadians": lat}
+                                },
+                                {
+                                    "$cos": {
+                                        "$degreesToRadians": "$provider.latitude"
+                                    }
+                                },
+                                {
+                                    "$cos": {
+                                        "$subtract": [
+                                            {"$degreesToRadians": lng},
+                                            {"$degreesToRadians": "$provider.longitude"}
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+
+
 @router.get("/discover")
 async def discover_services(
-    user_id: str = Query(..., description="User's ID"),
-    cluster_id: Optional[int] = Query(None, description="User's cluster ID"),
-    service_type: Optional[str] = Query(None, description="Filter by service type"),
-    tags: Optional[List[str]] = Query(None, description="Filter by service tags"),
-    latitude: Optional[float] = Query(None, description="User latitude for distance calculation"),
-    longitude: Optional[float] = Query(None, description="User longitude for distance calculation"),
-    radius_km: float = Query(50, ge=1, le=500, description="Search radius in kilometers"),
-    min_rating: float = Query(0, ge=0, le=5, description="Minimum rating filter"),
-    limit: int = Query(20, ge=1, le=100, description="Max results"),
-    skip: int = Query(0, ge=0, description="Skip results for pagination")
+    user_id: str = Query(...),
+    cluster_id: Optional[int] = None,
+    service_type: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    latitude: Optional[float] = None,
+    longitude: Optional[float] = None,
+    radius_km: float = 50,
+    min_rating: float = 0,
+    limit: int = 20,
+    skip: int = 0
 ):
-    """
-    Users discover services based on:
-    - Cluster matching
-    - Service type
-    - Tags
-    - Location proximity
-    - Rating
-    
-    Returns sorted list of services with provider info
-    """
     db = get_database()
-    
+
     try:
-        # Build query
-        query: Dict[str, Any] = {"is_active": True}
-        
+        match_stage: Dict[str, Any] = {
+            "is_active": True
+        }
+
         if service_type:
-            query["service_type"] = service_type
-        
+            match_stage["service_type"] = service_type
+
         if tags:
-            query["tags"] = {"$in": tags}
-        
+            match_stage["tags"] = {"$in": tags}
+
         if min_rating > 0:
-            query["rating"] = {"$gte": min_rating}
-        
-        # Fetch matching services
-        cursor = db[mongodb.SERVICES].find(query).sort("rating", -1).skip(skip).limit(limit)
-        services = [_serialize(doc) async for doc in cursor]
-        
-        # If location provided, calculate distances and re-sort
+            match_stage["rating"] = {"$gte": min_rating}
+
+        pipeline = [
+            {"$match": match_stage},
+
+            # Join provider profile (NO N+1 queries)
+            {
+                "$lookup": {
+                    "from": mongodb.SERVICE_PROVIDER_PROFILES,
+                    "localField": "provider_id",
+                    "foreignField": "user_id",
+                    "as": "provider"
+                }
+            },
+            {"$unwind": {"path": "$provider", "preserveNullAndEmptyArrays": True}},
+        ]
+
+        # Add distance only if coordinates provided
         if latitude is not None and longitude is not None:
-            for service in services:
-                provider_id = service["provider_id"]
-                provider_profile = await db[mongodb.SERVICE_PROVIDER_PROFILES].find_one({
-                    "user_id": provider_id
-                })
-                
-                if provider_profile and provider_profile.get("latitude") and provider_profile.get("longitude"):
-                    distance = _calculate_distance(
-                        latitude, longitude,
-                        provider_profile["latitude"], provider_profile["longitude"]
-                    )
-                    service["distance_km"] = round(distance, 2)
-                    
-                    # Filter by radius
-                    if distance > radius_km:
-                        services.remove(service)
-            
-            # Re-sort by distance
-            services.sort(key=lambda x: x.get("distance_km", float('inf')))
-        
-        # Fetch provider details for each service
-        for service in services:
-            provider = await db[mongodb.USERS].find_one({
-                "_id": ObjectId(service["provider_id"])
+            pipeline.append({
+                "$addFields": {
+                    "distance_km": _geo_distance_expr(latitude, longitude)
+                }
             })
-            if provider:
-                service["provider_name"] = provider.get("full_name", "Unknown")
-                service["provider_email"] = provider.get("email", "")
-        
+
+            pipeline.append({
+                "$match": {
+                    "$or": [
+                        {"distance_km": {"$lte": radius_km}},
+                        {"distance_km": None}
+                    ]
+                }
+            })
+
+        pipeline.extend([
+            # Join provider user info
+            {
+                "$lookup": {
+                    "from": mongodb.USERS,
+                    "localField": "provider_id",
+                    "foreignField": "_id",
+                    "as": "user"
+                }
+            },
+            {"$unwind": {"path": "$user", "preserveNullAndEmptyArrays": True}},
+
+            # Shape final output
+            {
+                "$project": {
+                    "_id": 1,
+                    "service_type": 1,
+                    "tags": 1,
+                    "rating": 1,
+                    "provider_id": 1,
+                    "distance_km": 1,
+
+                    "provider_name": "$user.full_name",
+                    "provider_email": "$user.email",
+
+                    "provider_location": {
+                        "lat": "$provider.latitude",
+                        "lng": "$provider.longitude"
+                    }
+                }
+            },
+
+            # Sort logic (distance preferred if available, else rating)
+            {
+                "$sort": {
+                    "distance_km": 1,
+                    "rating": -1
+                }
+            },
+
+            {"$skip": skip},
+            {"$limit": limit}
+        ])
+
+        services = await db[mongodb.SERVICES].aggregate(pipeline).to_list(length=limit)
+
         return {
             "user_id": user_id,
             "total_results": len(services),
             "services": services
         }
-        
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Discovery failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/nearby")
@@ -409,7 +492,7 @@ async def get_service_details(service_id: str):
         
         service["provider"] = {
             "id": service["provider_id"],
-            "name": provider.get("full_name") if provider else "Unknown",
+            "name": provider_profile.get("full_legal_name") if provider_profile else "Unknown",
             "email": provider.get("email") if provider else "",
             "rating": provider_profile.get("rating", 0.0) if provider_profile else 0.0,
             "review_count": provider_profile.get("review_count", 0) if provider_profile else 0,
